@@ -1,21 +1,21 @@
-import { Link } from "react-router-dom";
+import { Link } from 'react-router-dom'
 
 export default function Navbar() {
-  const isAuthenticated = !!localStorage.getItem("token");
+  const isAuthenticated = !!localStorage.getItem('token')
 
   function handleLogout() {
-    localStorage.removeItem("token");
-    window.location.href = "/login";
+    localStorage.removeItem('token')
+    window.location.href = '/login'
   }
 
   return (
     <nav
       style={{
-        display: "flex",
-        gap: "20px",
-        padding: "15px",
-        background: "#f3f4f6",
-        borderBottom: "1px solid #ddd"
+        display: 'flex',
+        gap: '20px',
+        padding: '15px',
+        background: '#f3f4f6',
+        borderBottom: '1px solid #ddd',
       }}
     >
       {isAuthenticated && <Link to="/">Home</Link>}
@@ -30,16 +30,16 @@ export default function Navbar() {
         <button
           onClick={handleLogout}
           style={{
-            marginLeft: "auto",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: "bold"
+            marginLeft: 'auto',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: 'bold',
           }}
         >
           Logout
         </button>
       )}
     </nav>
-  );
+  )
 }

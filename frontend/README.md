@@ -71,16 +71,40 @@ export default defineConfig([
   },
 ])
 ```
+
 # Frontend (React + Vite)
 
 ## Install
+
 npm install
 
 ## Run dev server
+
 npm run dev
 
 ## Build
+
 npm run build
 
 ## Preview
+
 npm run preview
+
+## Lint
+Створи:
+
+Код
+frontend/.vscode/settings.json
+І встав:
+
+json
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": true,
+    "source.fixAll.eslint": true
+  },
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "prettier.useEditorConfig": false
+}
