@@ -1,2 +1,2 @@
-djangorestframework
 django
+django-rest-framework
