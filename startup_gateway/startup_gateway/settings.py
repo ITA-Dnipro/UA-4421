@@ -27,7 +27,9 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 if not SECRET_KEY:
-    raise ImproperlyConfigured("The SECRET_KEY setting must not be empty. Set SECRET_KEY in the .env file.")
+    raise ImproperlyConfigured(
+        "The SECRET_KEY setting must not be empty. Set SECRET_KEY in the .env file."
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
