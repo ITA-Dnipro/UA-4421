@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'projects',
     'messages',
     'dashboard',
+    'notifications',
     'startup_gateway.content'
 ]
 
