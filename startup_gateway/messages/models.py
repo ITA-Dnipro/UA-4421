@@ -1,5 +1,4 @@
 from django.db import models
-from projects.models import Project
 from django.conf import settings
 
 
@@ -17,7 +16,7 @@ class Message(models.Model):
         related_name='received_messages'
     )
     project = models.ForeignKey(
-        Project,
+        'projects.Project',
         on_delete=models.CASCADE,
         related_name='messages'
     )

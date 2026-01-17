@@ -1,16 +1,13 @@
 from django.db import models 
-from startups.models import StartupProfile 
-from investors.models import InvestorProfile 
-
 
 class SavedStartap(models.Model): 
     investor_profile = models.ForeignKey(
-        InvestorProfile, 
+        'investors.InvestorProfile', 
         on_delete=models.CASCADE,
         related_name='saved_startups'
         ) 
     startap_profile = models.ForeignKey(
-        StartupProfile, 
+        'startups.StartupProfile', 
         on_delete=models.CASCADE,
         related_name='saved_by_investors'
         ) 
@@ -19,7 +16,7 @@ class SavedStartap(models.Model):
     
     class Meta: 
         db_table = 'SavedStartap'
-        unique_together = ('investor', 'startup')
+        unique_together = ('investor_profile', 'startap_profile')
 
     def __str__(self):
         return f'{self.investor_profile} saved {self.startap_profile}'

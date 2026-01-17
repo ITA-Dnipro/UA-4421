@@ -1,10 +1,9 @@
 import uuid
 from django.db import models
-from startups.models import StartupProfile
 
 class Project(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    startup_profile = models.ForeignKey(StartupProfile, on_delete=models.CASCADE)
+    startup_profile = models.ForeignKey( 'startups.StartupProfile', on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     description = models.TextField()
     status = models.CharField(max_length=50, default='idea')
