@@ -146,3 +146,49 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# SECURITY SETTINGS - UA-4421 (PHASE 1 - CONFIGURATION ONLY)
+
+# reCAPTCHA Configuration
+# Use your ACTUAL public key from Google email
+RECAPTCHA_PUBLIC_KEY = os.environ.get(
+    'RECAPTCHA_PUBLIC_KEY', 
+    '6LdqoU4sAAAAAOLKX9qV0BZjGXysTGxGw913NlKL'  # YOUR ACTUAL PUBLIC KEY
+)
+# Secret key will be provided via environment variables
+RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '')
+RECAPTCHA_DOMAIN = 'www.google.com'
+
+# CORS settings (configuration - middleware in Phase 2)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# For development only - will be removed in production
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Rate limiting defaults (implementation in Phase 2)
+RATE_LIMIT_REGISTRATION = os.environ.get('RATE_LIMIT_REGISTRATION', '5/m')
+RATE_LIMIT_RESEND = os.environ.get('RATE_LIMIT_RESEND', '3/m')
