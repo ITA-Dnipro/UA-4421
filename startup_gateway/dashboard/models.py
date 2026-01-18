@@ -1,6 +1,6 @@
 from django.db import models 
 
-class  SavedStartup(models.Model): 
+class SavedStartup(models.Model): 
     investor_profile = models.ForeignKey(
         'investors.InvestorProfile', 
         on_delete=models.CASCADE,
@@ -15,7 +15,7 @@ class  SavedStartup(models.Model):
     
     
     class Meta: 
-        db_table = 'saved_startaps'
+        db_table = 'saved_startups'
         unique_together = ('investor_profile', 'startup_profile')
 
     def __str__(self):
