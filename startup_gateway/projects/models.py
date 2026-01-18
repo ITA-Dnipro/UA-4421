@@ -11,7 +11,7 @@ class Project(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'Projects'
+        db_table = 'projects'
         indexes = [
             models.Index(fields=['title']),
         ]

@@ -15,7 +15,7 @@ class StartupProfile(models.Model):
     website = models.URLField(blank=True)
 
     class Meta:
-        db_table = 'StartupProfile'
+        db_table = 'startup_profiles'
         indexes = [
             models.Index(fields=['company_name']),
         ]

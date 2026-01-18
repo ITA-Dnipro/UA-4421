@@ -9,7 +9,7 @@ class Role(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
     class Meta:
-        db_table = 'Roles'
+        db_table = 'roles'
 
     def __str__(self):
         return self.name
@@ -36,7 +36,7 @@ class User(AbstractUser):
     )
 
     class Meta:
-        db_table = 'Users'
+        db_table = 'users'
 
     def __str__(self):
         return self.username
@@ -51,7 +51,7 @@ class UserRole(models.Model):
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
 
     class Meta:
-        db_table = 'UserRoles'
+        db_table = 'user_roles'
         unique_together = ('user', 'role')
         indexes = [
             models.Index(fields=['user']),

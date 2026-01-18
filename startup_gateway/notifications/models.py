@@ -16,7 +16,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'Notifications'
+        db_table = 'notifications'
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['is_read']),

@@ -1,12 +1,12 @@
 from django.db import models 
 
-class SavedStartap(models.Model): 
+class  SavedStartup(models.Model): 
     investor_profile = models.ForeignKey(
         'investors.InvestorProfile', 
         on_delete=models.CASCADE,
         related_name='saved_startups'
         ) 
-    startap_profile = models.ForeignKey(
+    startup_profile = models.ForeignKey(
         'startups.StartupProfile', 
         on_delete=models.CASCADE,
         related_name='saved_by_investors'
@@ -15,8 +15,8 @@ class SavedStartap(models.Model):
     
     
     class Meta: 
-        db_table = 'SavedStartap'
-        unique_together = ('investor_profile', 'startap_profile')
+        db_table = 'saved_startaps'
+        unique_together = ('investor_profile', 'startup_profile')
 
     def __str__(self):
-        return f'{self.investor_profile} saved {self.startap_profile}'
+        return f'{self.investor_profile} saved {self.startup_profile}'

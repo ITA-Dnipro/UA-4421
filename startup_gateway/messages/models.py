@@ -24,7 +24,7 @@ class Message(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'Messages'
+        db_table = 'messages'
         indexes = [
             models.Index(fields=['sender']),
             models.Index(fields=['receiver']),

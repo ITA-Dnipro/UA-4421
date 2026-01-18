@@ -1,10 +1,9 @@
-# users/tests/test_models.py
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from startups.models import StartupProfile
 from investors.models import InvestorProfile
 from projects.models import Project
-from dashboard.models import SavedStartap
+from dashboard.models import SavedStartup
 from messages.models import Message
 from notifications.models import Notification
 from users.models import Role, UserRole
@@ -45,9 +44,9 @@ class TestModels(TestCase):
         project = Project.objects.get(title='Example Project')
         self.assertEqual(project.startup_profile.company_name, 'Example Startup')
 
-    def test_savedstartap(self):
-        saved = SavedStartap.objects.get(investor_profile__company_name='Example Investor')
-        self.assertEqual(saved.startap_profile.company_name, 'Example Startup')
+    def test_savedstartup(self):
+        saved = SavedStartup.objects.get(investor_profile__company_name='Example Investor')
+        self.assertEqual(saved.startup_profile.company_name, 'Example Startup')
 
     def test_message_model(self):
         startup_user = User.objects.get(username='startup_user')

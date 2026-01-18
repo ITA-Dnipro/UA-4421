@@ -14,7 +14,7 @@ class InvestorProfile(models.Model):
     company_name = models.CharField(max_length=255)
    
     class Meta:
-        db_table = 'InvestorProfile'
+        db_table = 'investor_profiles'
         indexes = [
             models.Index(fields=['company_name']),
         ]
