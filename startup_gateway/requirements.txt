@@ -6,3 +6,4 @@ sqlparse==0.5.5
 tzdata==2025.3
 black==26.1.0
 isort==7.0.0
+pylint==4.0.4
