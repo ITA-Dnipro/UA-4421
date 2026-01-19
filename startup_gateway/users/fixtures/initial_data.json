@@ -1,0 +1,99 @@
+[
+  {
+    "model": "users.role",
+    "pk": 1,
+    "fields": {
+      "name": "startup"
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 2,
+    "fields": {
+      "name": "investor"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": 1,
+    "fields": {
+      "username": "startup_user",
+      "password": "pbkdf2_sha256$260000$examplehash",
+      "email": "startup@example.com",
+      "first_name": "Anna",
+      "last_name": "Startup",
+      "phone": "1234567890",
+      "verified": true,
+      "created_at": "2026-01-17T00:00:00Z"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": 2,
+    "fields": {
+      "username": "investor_user",
+      "password": "pbkdf2_sha256$260000$examplehash",
+      "email": "investor@example.com",
+      "first_name": "Ivan",
+      "last_name": "Investor",
+      "phone": "0987654321",
+      "verified": true,
+      "created_at": "2026-01-17T00:00:00Z"
+    }
+  },
+  {
+    "model": "users.userrole",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "role": 1
+    }
+  },
+  {
+    "model": "users.userrole",
+    "pk": 2,
+    "fields": {
+      "user": 2,
+      "role": 2
+    }
+  },
+  {
+    "model": "startups.startupprofile",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "company_name": "Example Startup",
+      "short_pitch": "We create awesome products!",
+      "website": "https://example-startup.com"
+    }
+  },
+  {
+    "model": "investors.investorprofile",
+    "pk": 1,
+    "fields": {
+      "user": 2,
+      "company_name": "Example Investor"
+    }
+  },
+  {
+    "model": "projects.project",
+    "pk": "00000000-0000-0000-0000-000000000001",
+    "fields": {
+      "startup_profile": 1,
+      "title": "Example Project",
+      "description": "This is a sample project for testing.",
+      "status": "idea",
+      "created_at": "2026-01-17T00:00:00Z",
+      "updated_at": "2026-01-17T00:00:00Z"
+    }
+  },
+  {
+    "model": "dashboard.savedstartup",
+    "pk": 1,
+    "fields": {
+      "investor_profile": 1,
+      "startup_profile": 1,
+      "created_at": "2026-01-17T00:00:00Z"
+    }
+  }
+]
