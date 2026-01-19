@@ -29,42 +29,35 @@ We are committed to delivering a platform that is not just a marketplace for ide
 ### Basic Epics
 
 0. **As a user of the platform**, I want the ability to represent both as a startup and as an investor company, so that I can engage in the platform's ecosystem from both perspectives using a single account.
-
    - Features:
      - implement the functionality for users to select and switch roles.
 
 1. **As a startup company,** I want to create a profile on the platform, so that I can present my ideas and proposals to potential investors.
-
    - Features:
      - user registration functionality for startups.
      - profile setup page where startups can add details about their company and ideas.
 
 2. **As an investor,** I want to view profiles of startups, so that I can find promising ideas to invest in.
-
    - Features:
      - feature for investors to browse and filter startup profiles.
      - viewing functionality for detailed startup profiles.
 
 3. **As a startup company,** I want to update my project information, so that I can keep potential investors informed about our progress and milestones.
-
    - Features:
      - functionality for startups to edit and update their project information.
      - system to notify investors about updates to startups they are following.
 
 4. **As an investor,** I want to be able to contact startups directly through the platform, so that I can discuss investment opportunities.
-
    - Features:
      - secure messaging system within the platform for communication between startups and investors.
      - privacy and security measures to protect the communication.
 
 5. **As a startup company,** I want to receive notifications about interested investors, so that I can engage with them promptly.
-
    - Features:
      - notification functionality for startups when an investor shows interest or contacts them.
      - dashboard for startups to view and manage investor interactions.
 
 6. **As an investor,** I want to save and track startups that interest me, so that I can manage my investment opportunities effectively.
-
    - Features:
      - feature for investors to save and track startups.
      - dashboard for investors to manage their saved startups and investment activities.
@@ -83,7 +76,7 @@ We are committed to delivering a platform that is not just a marketplace for ide
 
 ### Database Schema
 
-![Database Schema](images/db_schema.png)
+![Database Schema](images/DB_schema.png)
 **Step 1: Installation**
 
 **Action**: Install pylint and pylint-django via pip. Pylint-django is a Pylint plugin that understands Django's structure and provides relevant linting.
