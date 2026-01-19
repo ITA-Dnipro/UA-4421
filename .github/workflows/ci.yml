@@ -48,6 +48,8 @@ jobs:
           POSTGRES_PORT: 5432
         run: |
           pytest --cov --cov-report=xml
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.SECRET_KEY }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
