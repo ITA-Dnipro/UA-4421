@@ -61,7 +61,8 @@ class RegisterSerializer(serializers.Serializer):
 
         existing = User.objects.filter(email__iexact=email).first()
         if existing:
-            return existing, False
+            should_send_email = not getattr(existing, "verified", False)
+            return existing, False, should_send_email
 
         user = User(
             username=email[:150],
@@ -89,5 +90,5 @@ class RegisterSerializer(serializers.Serializer):
                 company_name=company_name,
             )
 
-        return user, True
+        return user, True, True
 

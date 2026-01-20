@@ -11,9 +11,9 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user, created = serializer.save()
+        user, created, should_send_email = serializer.save()
 
-        if created or not user.verified:
+        if should_send_email:
             transaction.on_commit(lambda: send_verification_email(user))
 
         return Response(
