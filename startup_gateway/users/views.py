@@ -2,12 +2,14 @@ from django.db import transaction
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+
 
 from .serializers import RegisterSerializer
 from .services import send_verification_email, verify_email_token
 
-
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -23,6 +25,7 @@ class RegisterView(APIView):
 
 
 class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         token = request.query_params.get("token", "")
         user = verify_email_token(token)
