@@ -8,6 +8,7 @@ from investors.models import InvestorProfile
 from startups.models import StartupProfile
 from users.models import Role
 
+import uuid
 
 User = get_user_model()
 
@@ -47,7 +48,7 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError(errors)
 
         email = (attrs.get("email") or "").strip().lower()
-        temp_user = User(email=email, username=email[:150])
+        temp_user = User(email=email, username=uuid.uuid4().hex)
 
         try:
             validate_password(attrs.get("password"), user=temp_user)
@@ -71,7 +72,7 @@ class RegisterSerializer(serializers.Serializer):
             return existing, False, should_send_email
 
         user = User(
-            username=email[:150],
+            username=uuid.uuid4().hex,
             email=email,
             phone=phone,
             verified=False,
