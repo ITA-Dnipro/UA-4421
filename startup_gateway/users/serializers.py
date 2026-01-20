@@ -15,19 +15,25 @@ User = get_user_model()
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-    role = serializers.CharField()
+    role = serializers.ChoiceField(choices=())
     company_name = serializers.CharField(required=False, allow_blank=False)
     short_pitch = serializers.CharField(required=False, allow_blank=True)
     website = serializers.URLField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        roles = list(Role.objects.values_list("name", flat=True))
+        self.fields["role"].choices = [(r, r) for r in roles]
+        
     def validate(self, attrs):
         role = (attrs.get("role") or "").strip().lower()
+        attrs["role"] = role
         company_name = attrs.get("company_name")
 
         errors = {}
 
-        if role in ("startup", "investor") and not (company_name or "").strip():
+        if not (company_name or "").strip():
             errors["company_name"] = "This field is required."
 
         if role == "investor":
@@ -49,12 +55,6 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError({"password": list(e.messages)})
 
         return attrs
-
-    def validate_role(self, value):
-        role = (value or "").strip().lower()
-        if role not in Role.objects.values_list("name", flat=True):
-            raise serializers.ValidationError("Invalid role.")
-        return role
     
     @transaction.atomic
     def create(self, validated_data):
