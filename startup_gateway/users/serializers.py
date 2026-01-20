@@ -15,14 +15,14 @@ User = get_user_model()
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-    role = serializers.ChoiceField(choices=["startup", "investor"])
+    role = serializers.CharField()
     company_name = serializers.CharField(required=False, allow_blank=False)
     short_pitch = serializers.CharField(required=False, allow_blank=True)
     website = serializers.URLField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
-        role = attrs.get("role")
+        role = (attrs.get("role") or "").strip().lower()
         company_name = attrs.get("company_name")
 
         errors = {}
@@ -50,10 +50,16 @@ class RegisterSerializer(serializers.Serializer):
 
         return attrs
 
+    def validate_role(self, value):
+        role = (value or "").strip().lower()
+        if role not in Role.objects.values_list("name", flat=True):
+            raise serializers.ValidationError("Invalid role.")
+        return role
+    
     @transaction.atomic
     def create(self, validated_data):
         email = validated_data["email"].strip().lower()
-        role_name = validated_data["role"]
+        role_name = validated_data["role"].strip().lower()
         company_name = validated_data["company_name"]
         short_pitch = validated_data.get("short_pitch", "")
         website = validated_data.get("website", "")
@@ -91,4 +97,5 @@ class RegisterSerializer(serializers.Serializer):
             )
 
         return user, True, True
+
 
