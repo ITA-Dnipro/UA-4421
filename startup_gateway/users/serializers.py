@@ -23,9 +23,9 @@ class RegisterSerializer(serializers.Serializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        roles = list(Role.objects.values_list("name", flat=True))
+        roles = [r.strip().lower() for r in Role.objects.values_list("name", flat=True)]
         self.fields["role"].choices = [(r, r) for r in roles]
-        
+
     def validate(self, attrs):
         role = (attrs.get("role") or "").strip().lower()
         attrs["role"] = role
