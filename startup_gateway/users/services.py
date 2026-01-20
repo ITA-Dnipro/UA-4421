@@ -3,9 +3,10 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 
+import logging
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
-
 
 def build_email_verification_token(user):
     signer = TimestampSigner(salt="users.email.verify")
@@ -21,14 +22,20 @@ def build_email_verification_url(token):
 def send_verification_email(user):
     token = build_email_verification_token(user)
     url = build_email_verification_url(token)
-    send_mail(
-        subject="Verify your email",
-        message=f"Open this link to verify your email: {url}",
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com"),
-        recipient_list=[user.email],
-        fail_silently=True,
-    )
+
+    try:
+        send_mail(
+            subject="Verify your email",
+            message=f"Open this link to verify your email: {url}",
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com"),
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("Failed to send verification email")
+
     return token
+
 
 
 def verify_email_token(token):
