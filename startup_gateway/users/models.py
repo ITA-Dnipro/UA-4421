@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 
 class Role(models.Model):
     """
-    Ролі: 'startup', 'investor'.
+    Roles: 'startup', 'investor'.
     """
 
     name = models.CharField(max_length=50, unique=True)
@@ -17,7 +17,7 @@ class Role(models.Model):
 
 class User(AbstractUser):
     """
-    AbstractUser для стандартних полів:
+    AbstractUser for:
     - username
     - first_name
     - last_name

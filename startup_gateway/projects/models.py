@@ -14,9 +14,9 @@ class ProjectVisibility(models.TextChoices):
     PRIVATE = "private", "Private"
     UNLISTED = "unlisted", "Unlisted"
 
-class AttachmentTypes(models.TextChoices):
-    IMG = "img", "Image"
-    PDF = "pdf", "PDF"
+class AttachmentType(models.TextChoices):
+    THUMBNAIL = "thumbnail", "Thumbnail image"
+    DECK = "deck", "Pitch deck"
     
 class Tag(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -83,7 +83,7 @@ class ProjectAttachment(models.Model):
         related_name="attachments"
     )
     # upload = models.ForeignKey("uploads.Upload", on_delete=models.CASCADE)   
-    type = models.CharField(max_length=10, choices=AttachmentTypes.choices)
+    type = models.CharField(max_length=10, choices=AttachmentType.choices)
     order = models.PositiveIntegerField(default=0)
     caption = models.CharField(max_length=255, blank=True)
 

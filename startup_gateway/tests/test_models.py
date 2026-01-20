@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from startups.models import StartupProfile
 from investors.models import InvestorProfile
-from projects.models import Project, ProjectAttachment, ProjectAudit, Tag, ProjectStatus, ProjectVisibility, AttachmentTypes
+from projects.models import Project, ProjectAttachment, ProjectAudit, Tag, ProjectStatus, ProjectVisibility, AttachmentType
 from dashboard.models import SavedStartup
 from messages.models import Message
 from notifications.models import Notification
@@ -112,13 +112,13 @@ class TestModels(TestCase):
         )
         att1 = ProjectAttachment.objects.create(
             project=project,
-            type=AttachmentTypes.IMG,
+            type=AttachmentType.THUMBNAIL,
             order=1,
             caption="First image"
         )
         att2 = ProjectAttachment.objects.create(
             project=project,
-            type=AttachmentTypes.PDF,
+            type=AttachmentType.DECK,
             order=0
         )
         attachments = project.attachments.all()
