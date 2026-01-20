@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.core.validators import MinValueValidator
 
 class ProjectStatus(models.TextChoices):
     IDEA = "idea", "Idea"
@@ -35,7 +36,7 @@ class Project(models.Model):
         related_name="projects"
     )
     title = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField()
     short_description = models.TextField(max_length=500)
     description = models.TextField()
     status = models.CharField(
@@ -44,7 +45,11 @@ class Project(models.Model):
         default=ProjectStatus.IDEA
     )
 
-    target_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    target_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
     raised_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=0
     )
@@ -67,12 +72,16 @@ class Project(models.Model):
 
     class Meta:
         db_table = 'projects'
-        indexes = [
-            models.Index(fields=['startup_profile']),
-            models.Index(fields=['slug']),
-            models.Index(fields=['status'])
-        ]
-
+        constraints = [
+        models.UniqueConstraint(
+            fields=["startup_profile", "slug"],
+            name="unique_project_slug_per_startup"
+        )
+    ]
+    indexes = [
+        models.Index(fields=["startup_profile"]),
+        models.Index(fields=["status"]),
+    ]
     def __str__(self):
         return self.title
 
