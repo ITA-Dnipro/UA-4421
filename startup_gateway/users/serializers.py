@@ -25,21 +25,20 @@ class RegisterSerializer(serializers.Serializer):
         role = attrs.get("role")
         company_name = attrs.get("company_name")
 
-        if not company_name:
-            raise serializers.ValidationError({"company_name": "This field is required."})
+        errors = {}
+
+        if role in ("startup", "investor") and not (company_name or "").strip():
+            errors["company_name"] = "This field is required."
 
         if role == "investor":
-            errors = {}
-
             if (attrs.get("short_pitch") or "").strip():
                 errors["short_pitch"] = "Not allowed for investor."
 
             if (attrs.get("website") or "").strip():
                 errors["website"] = "Not allowed for investor."
 
-            if errors:
-                raise serializers.ValidationError(errors)
-
+        if errors:
+            raise serializers.ValidationError(errors)
 
         email = (attrs.get("email") or "").strip().lower()
         temp_user = User(email=email, username=email[:150])
