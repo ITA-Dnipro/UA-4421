@@ -12,7 +12,7 @@ from users.models import Role, UserRole
 User = get_user_model()
 
 class TestModels(TestCase):
-    fixtures = ['users/fixtures/initial_data.json']
+    fixtures = ['initial_data.json']
 
     def test_user_fields(self):
         startup_user = User.objects.get(username='startup_user')
