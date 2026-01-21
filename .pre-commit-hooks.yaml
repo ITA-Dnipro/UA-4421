@@ -17,3 +17,5 @@
       "-rn", # Only display messages
       "-sn", # Don't display the score
     ]
+- id: isort
+  name: isort (python)
