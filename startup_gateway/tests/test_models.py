@@ -11,7 +11,7 @@ from users.models import Role, UserRole
 User = get_user_model()
 
 class TestModels(TestCase):
-    fixtures = ['users/fixtures/initial_data.json']
+    fixtures = ['initial_data.json']
 
     @classmethod
     def setUpTestData(cls):
