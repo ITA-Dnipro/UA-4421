@@ -26,6 +26,12 @@ We are committed to delivering a platform that is not just a marketplace for ide
 
 ![image](https://github.com/mehalyna/Forum-Project-Stage-CC/assets/39273210/54b0de76-f6e3-4bf3-bf38-fb5bf1d1d63d)
 
+## Registration anti-enumeration policy
+
+The registration endpoint (`POST /api/auth/register/`) always returns `201` with a generic success message.
+If the email already exists and the user is already verified, the backend performs no side effects.
+If the email exists but is not yet verified, the backend may re-send the verification email.
+
 ### Basic Epics
 
 0. **As a user of the platform**, I want the ability to represent both as a startup and as an investor company, so that I can engage in the platform's ecosystem from both perspectives using a single account.
