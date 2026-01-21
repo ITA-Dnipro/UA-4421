@@ -13,7 +13,7 @@ class StartupProfile(models.Model):
     company_name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, null=True, blank=True)
     short_pitch = models.TextField(blank=True)
-    about = models.TextField(blank=True)
+    about_html = models.TextField(blank=True)
     website = models.URLField(blank=True)
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=50, blank=True)

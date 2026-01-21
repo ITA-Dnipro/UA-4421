@@ -18,7 +18,7 @@ class StartupPublicSerializer(serializers.ModelSerializer):
             'hero_image_url',
             'logo_url',
             'short_pitch',
-            'about',
+            'about_html',
             'contact',
             'website',
             'tags',
@@ -40,9 +40,8 @@ class StartupPublicSerializer(serializers.ModelSerializer):
         return obj.projects.count()
 
     def get_tags(self, obj):
-        return (
-            Tag.objects
-            .filter(projects__startup_profile=obj)
-            .values_list('name', flat=True)
-            .distinct()
-        )
+        tags = set()
+        for project in obj.projects.all():
+            tags.update(project.tags.values_list('name', flat=True))
+        return list(tags)
+
