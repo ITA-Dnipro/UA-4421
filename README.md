@@ -87,7 +87,7 @@ We are committed to delivering a platform that is not just a marketplace for ide
 
 #### Step 1: Installation
 
-**Action**: All dependencies can be installed via pip with one command from the project root.
+**Action**: All dependencies can be installed with a single pip command ran from the project root.
 
 **Command:**
 
@@ -105,7 +105,7 @@ pip install -r startup_gateway/requirements.txt
 pre-commit run
 ```
 
-Alternatively, if you want to lint and format all files run:
+Alternatively, if you want to lint and format all files, run:
 
 **Command:**
 
