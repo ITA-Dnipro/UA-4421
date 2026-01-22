@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils.text import slugify
 
 
 User = settings.AUTH_USER_MODEL
@@ -11,7 +12,7 @@ class StartupProfile(models.Model):
         related_name='startup_profile'
     )
     company_name = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True, null=True, blank=True)
+    slug = models.SlugField(unique=True)
     short_pitch = models.TextField(blank=True)
     about_html = models.TextField(blank=True)
     website = models.URLField(blank=True)
@@ -27,6 +28,20 @@ class StartupProfile(models.Model):
             models.Index(fields=['company_name']),
             models.Index(fields=['slug']),
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.company_name)
+            slug = base_slug
+            counter = 1
+
+            while StartupProfile.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.company_name
