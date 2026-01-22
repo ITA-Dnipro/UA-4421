@@ -1,3 +1,10 @@
+# while we agreed upon using requirements.txt for listing dependencies
+#pyproject.toml can be used for configuration
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'
 [tool.isort]
 profile="black"
 src_paths=["isort", "test"]
