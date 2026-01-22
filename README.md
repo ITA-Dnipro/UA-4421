@@ -97,12 +97,20 @@ pip install -r startup_gateway/requirements.txt
 
 #### Step 2: Running the linter
 
-**Action**: To check your code with pylint, run the following command from the project root
+**Action**: To lint and format your staged files, run the following command from the project root:
 
 **Command:**
 
 ```
-pylint --load-plugins pylint_django startup_gateway/
+pre-commit run
+```
+
+Alternatively, if you want to lint and format all files run:
+
+**Command:**
+
+```
+pre-commit run --all-files
 ```
 
 #### GitHub Actions
