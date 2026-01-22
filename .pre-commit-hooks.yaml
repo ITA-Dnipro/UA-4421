@@ -1,3 +1,5 @@
+- id: isort
+  name: isort (python)
 - id: black
   name: black
   description: "Black: The uncompromising Python code formatter"
@@ -17,5 +19,3 @@
       "-rn", # Only display messages
       "-sn", # Don't display the score
     ]
-- id: isort
-  name: isort (python)
