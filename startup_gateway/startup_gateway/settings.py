@@ -19,6 +19,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+import sys
+sys.path.insert(0, str(BASE_DIR))
+
 AUTH_USER_MODEL = 'users.User'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -50,13 +53,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'users',
-    'startups',
     'investors',
-    'projects',
     'messages',
     'dashboard',
     'notifications',
     'startup_gateway.content',
+    'startups',
+    'projects',
 ]
 
 
@@ -105,13 +108,13 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        
         'rest_framework.authentication.SessionAuthentication',
     ],
-
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,  
 }
 
 
