@@ -4,8 +4,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from .services import register_user
 from users.models import Role
+
+from .services import register_user
 
 User = get_user_model()
 
@@ -53,8 +54,6 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError({"password": list(e.messages)})
 
         return attrs
-    
+
     def create(self, validated_data):
         return register_user(validated_data, user_model=User)
-
-

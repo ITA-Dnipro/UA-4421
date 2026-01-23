@@ -1,5 +1,6 @@
-from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db import models
+
 
 class Role(models.Model):
     """
@@ -9,7 +10,7 @@ class Role(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
     class Meta:
-        db_table = 'roles'
+        db_table = "roles"
 
     def __str__(self):
         return self.name
@@ -29,14 +30,10 @@ class User(AbstractUser):
     verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    roles = models.ManyToManyField(
-        Role,
-        through='UserRole',
-        related_name='users'
-    )
+    roles = models.ManyToManyField(Role, through="UserRole", related_name="users")
 
     class Meta:
-        db_table = 'users'
+        db_table = "users"
 
     def __str__(self):
         return self.username
@@ -51,11 +48,11 @@ class UserRole(models.Model):
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
 
     class Meta:
-        db_table = 'user_roles'
-        unique_together = ('user', 'role')
+        db_table = "user_roles"
+        unique_together = ("user", "role")
         indexes = [
-            models.Index(fields=['user']),
-            models.Index(fields=['role']),
+            models.Index(fields=["user"]),
+            models.Index(fields=["role"]),
         ]
 
     def __str__(self):

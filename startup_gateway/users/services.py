@@ -1,16 +1,14 @@
-
 import logging
 import uuid
 
-from investors.models import InvestorProfile
-from startups.models import StartupProfile
-from users.models import Role
-
-from django.db import transaction
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.db import transaction
+from investors.models import InvestorProfile
+from startups.models import StartupProfile
+from users.models import Role
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +73,7 @@ def verify_email_token(token):
 
     return user
 
+
 @transaction.atomic
 def register_user(validated_data, user_model):
     email = validated_data["email"].strip().lower()
@@ -116,4 +115,3 @@ def register_user(validated_data, user_model):
         )
 
     return user, True, True
-

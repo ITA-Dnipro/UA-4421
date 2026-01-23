@@ -1,8 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from startups.models import StartupProfile
-from users.models import User, Role, UserRole
-
+from users.models import Role, User, UserRole
 
 User = get_user_model()
 
@@ -27,6 +26,7 @@ def test_role_creation():
     assert role.name == "startup"
     assert str(role) == "startup"
 
+
 @pytest.mark.django_db
 def test_user_with_role():
     user = User.objects.create_user(
@@ -40,12 +40,10 @@ def test_user_with_role():
     assert role in user.roles.all()
     assert user in role.users.all()
 
+
 @pytest.mark.django_db
 def test_startup_profile_creation():
-    user = User.objects.create(
-        email="founder@example.com",
-        password="password123"
-    )
+    user = User.objects.create(email="founder@example.com", password="password123")
 
     profile = StartupProfile.objects.create(
         user=user,

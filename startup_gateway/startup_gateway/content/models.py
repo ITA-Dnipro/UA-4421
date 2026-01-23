@@ -1,4 +1,5 @@
 import copy
+
 from django.db import models
 
 from .landing_content import LANDING_CONTENT

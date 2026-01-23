@@ -1,11 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import override_settings
-from rest_framework.test import APITestCase
-
-from startups.models import StartupProfile
 from investors.models import InvestorProfile
-
+from rest_framework.test import APITestCase
+from startups.models import StartupProfile
 
 User = get_user_model()
 

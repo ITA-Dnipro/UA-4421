@@ -2,5 +2,5 @@ from django.apps import AppConfig
 
 
 class MessagesConfig(AppConfig):
-    name = 'messages'
-    label = 'custom_messages'
+    name = "messages"
+    label = "custom_messages"
