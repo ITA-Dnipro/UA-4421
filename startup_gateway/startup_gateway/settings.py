@@ -95,7 +95,7 @@ WSGI_APPLICATION = 'startup_gateway.wsgi.application'
 
 DB_ENGINE = os.getenv("DB_ENGINE", "sqlite")
 
-if DB_ENGINE == "postgres":
+if DB_ENGINE == "postgres": # pragma: no cover
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
