@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     'messages',
     'dashboard',
     'notifications',
-    'startup_gateway.content'
+    'startup_gateway.content',
 ]
 
 
@@ -105,6 +105,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        
         'rest_framework.authentication.SessionAuthentication',
     ],
 
@@ -149,3 +150,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_VERIFICATION_TOKEN_MAX_AGE = int(os.getenv("EMAIL_VERIFICATION_TOKEN_MAX_AGE", str(60 * 60 * 24)))

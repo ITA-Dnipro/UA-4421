@@ -81,10 +81,16 @@
     "fields": {
       "startup_profile": 1,
       "title": "Example Project",
-      "description": "This is a sample project for testing.",
+      "slug": "example-project",
+      "short_description": "Short desc",
+      "description": "Full description",
       "status": "idea",
-      "created_at": "2026-01-17T00:00:00Z",
-      "updated_at": "2026-01-17T00:00:00Z"
+      "target_amount": "1000.00",
+      "raised_amount": "0.00",
+      "currency": "UAH",
+      "visibility": "public",
+      "created_at": "2026-01-19T00:00:00Z",
+      "updated_at": "2026-01-19T00:00:00Z"
     }
   },
   {
