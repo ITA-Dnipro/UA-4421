@@ -44,21 +44,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r startup_gateway/requirements.txt
 
-      - name: Run tests with coverage
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        run: |
-          pytest --cov --cov-report=xml
-
       - name: Run linters
         working-directory: backend
         run: |
+          black --check .
           flake8 .
+          isort --check-only          
+
+      - name: Run tests
+        working-directory: backend
+        run: |
+          pytest
 
   frontend:
     name: frontend
