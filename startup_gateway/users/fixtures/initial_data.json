@@ -64,7 +64,9 @@
       "user": 1,
       "company_name": "Example Startup",
       "short_pitch": "We create awesome products!",
-      "website": "https://example-startup.com"
+      "website": "https://example-startup.com",
+      "slug": "example-startup",
+      "created_at": "2024-01-01T00:00:00Z"
     }
   },
   {
