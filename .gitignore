@@ -8,6 +8,7 @@ __pycache__/
 
 # local test payloads
 payload*.json
+create_test_data.py
 
 # Distribution / packaging
 .Python
