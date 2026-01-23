@@ -15,10 +15,13 @@ class StartupProjectsAPITestCase(APITestCase):
     def setUp(self):
         # Створюємо тестового користувача
         self.user = User.objects.create_user(
+            username='startupowner',  # ОБОВ'ЯЗКОВЕ ПОЛЕ
             email='startup@example.com',
             password='testpass123',
             first_name='John',
-            last_name='Doe'
+            last_name='Doe',
+            phone='+380991234567',
+            verified=True
         )
         
         # Створюємо стартап профіль
