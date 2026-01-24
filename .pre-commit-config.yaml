@@ -1,6 +1,5 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  # for some inexplicable reason pre-commit hooks have different versioning to pre-commit
   rev: v4.5.0
   hooks:
   - id: trailing-whitespace
@@ -11,11 +10,29 @@ repos:
   rev: 7.0.0
   hooks:
     - id: isort
+      name: isort (python)
 - repo: https://github.com/psf/black
   rev: 26.1.0
   hooks:
     - id: black
+      name: black
+      description: "Black: The uncompromising Python code formatter"
+      entry: black
+      language: python
+      minimum_pre_commit_version: 2.9.2
+      require_serial: true
+      types_or: [python, pyi]
 - repo: https://github.com/pycqa/pylint
   rev: v4.0.4
   hooks:
     - id: pylint
+      name: pylint
+      entry: pylint
+      language: system
+      types: [python]
+      require_serial: true
+      args:
+        [
+          "-rn", # Only display messages
+          "-sn", # Don't display the score
+        ]
