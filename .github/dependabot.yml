@@ -6,7 +6,7 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "pip"
-    directory: "/"
+    directory: "/startup_gateway"
     schedule:
       interval: "weekly"
 

@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/ITA-Dnipro/UA-4421/actions/workflows/ci.yml/badge.svg)
 ![Codecov](https://codecov.io/gh/ITA-Dnipro/UA-4421/branch/develop/graph/badge.svg)
-![Pylint](https://img.shields.io/badge/code%20quality-pylint-blue)
+![Pylint]()
 
 UA-4421Project-based learning Full Stack Python/React
 
