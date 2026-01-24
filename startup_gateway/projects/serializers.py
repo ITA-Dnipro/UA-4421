@@ -5,8 +5,8 @@ from .models import Project
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ["id", "slug", "title", "short_description", "description", "status", "raised_amount", "target_amount", "currency", "visibility", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "slug", "title", "short_description", "description", "thumbnail_url", "status", "raised_amount", "target_amount", "currency", "visibility", "created_at"]
+        read_only_fields = ["id", "created_at", "raised_amount"]
         extra_kwargs = {
             "status": {"required": False},
         }
@@ -14,8 +14,8 @@ class ProjectSerializer(serializers.ModelSerializer):
 class ProjectDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ["id", "slug", "title", "short_description", "description", "status", "raised_amount", "target_amount", "currency", "visibility", "created_at", "updated_at", "startup_profile_id"]
-        read_only_fields = ["created_at", "updated_at", "startup_profile_id"]
+        fields = ["id", "slug", "title", "short_description", "description", "thumbnail_url", "status", "raised_amount", "target_amount", "currency", "visibility", "created_at", "updated_at", "startup_profile_id"]
+        read_only_fields = ["id", "created_at", "updated_at", "startup_profile_id", "raised_amount"]
         extra_kwargs = {
             "status": {"required": False},
         }

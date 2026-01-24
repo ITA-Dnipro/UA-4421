@@ -31,6 +31,7 @@ urlpatterns = [
     path('api/health/', health_check),
     path("api/auth/", include("users.urls")),
     path("", include("startup_gateway.content.urls")),
+    path("", include('startups.urls')),
 
     path("api/", include("projects.urls")),
 

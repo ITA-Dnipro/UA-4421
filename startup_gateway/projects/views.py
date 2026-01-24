@@ -55,6 +55,18 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
         )
 
 class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
-    queryset = Project.objects.all()
     serializer_class = ProjectDetailsSerializer
     permission_classes = [IsOwnerOrReadOnly]
+
+    def get_queryset(self):
+        qs = Project.objects.filter(is_deleted=False)
+        user = self.request.user
+
+        if user.is_authenticated:
+            return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
+
+        return qs.filter(visibility="public")
+
+    def perform_destroy(self, instance):
+        instance.is_deleted = True
+        instance.save(update_fields=["is_deleted"])
