@@ -142,13 +142,7 @@ frontend (React in dev mode)
 db (Postgres)
 redis (optional, for channels/notifications)
 
-2. Apply Django migrations
-
-docker-compose exec backend python manage.py migrate
-
-This creates all necessary tables in Postgres.
-
-3. Create Django superuser
+2. Create Django superuser
 
 docker-compose exec backend python manage.py createsuperuser
 
@@ -156,7 +150,7 @@ Follow the prompts to set username, email, and password.
 
 This superuser can log into the admin panel at http://localhost:8000/admin.
 
-4. Stopping the Containers
+3. Stopping the Containers
 
 To stop and remove containers:
 
