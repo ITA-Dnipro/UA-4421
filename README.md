@@ -95,6 +95,14 @@ We are committed to delivering a platform that is not just a marketplace for ide
 pip install -r startup_gateway/requirements.txt
 ```
 
+For developers, there is an additional layer of dependencies to install.
+
+**Command:**
+
+```
+pip install -r startup_gateway/requirements-dev.txt
+```
+
 #### Step 2: Running the linter
 
 **Action**: To lint and format your staged files, run the following command from the project root:
