@@ -1,12 +1,28 @@
 from django.db import transaction
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+import logging
 
 
-from .serializers import RegisterSerializer
+from .serializers import RegisterSerializer, PasswordResetRequestSerializer
 from .services import send_verification_email, verify_email_token
+from .tokens import password_reset_token_generator
+from .email_service import PasswordResetEmailService
+from .models import PasswordResetAttempt
+
+logger = logging.getLogger(__name__)
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -32,3 +48,60 @@ class VerifyEmailView(APIView):
         if not user:
             return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Email verified."}, status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset'
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(
+                {"detail": "If the email exists, you will receive reset instructions."},
+                status=status.HTTP_200_OK
+            )
+
+        email = serializer.validated_data['email']
+        ip_address = get_client_ip(request)
+
+        email_cache_key = f'password_reset_email_{email}'
+        email_attempts = cache.get(email_cache_key, 0)
+
+        if email_attempts >= 3:
+            logger.warning(f"Too many reset attempts for {email}")
+            return Response(
+                {"detail": "If the email exists, you will receive reset instructions."},
+                status=status.HTTP_200_OK
+            )
+
+        user = serializer.save()
+        token_sent = False
+
+        if user:
+            token = password_reset_token_generator.make_token(user)
+            token_sent = PasswordResetEmailService.send_reset_email(
+                user=user,
+                token=token,
+                request=request
+            )
+
+            if token_sent:
+                cache.set(email_cache_key, email_attempts + 1, 3600)
+                logger.info(f"Password reset email sent to {email}")
+
+        try:
+            PasswordResetAttempt.objects.create(
+                user=user,
+                email=email,
+                ip_address=ip_address,
+                token_sent=token_sent
+            )
+        except Exception as e:
+            logger.error(f"Failed to log password reset attempt: {e}")
+
+        return Response(
+            {"detail": "If the email exists, you will receive reset instructions."},
+            status=status.HTTP_200_OK
+        )

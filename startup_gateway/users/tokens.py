@@ -1,0 +1,4 @@
+from django.contrib.auth.tokens import default_token_generator
+
+
+password_reset_token_generator = default_token_generator

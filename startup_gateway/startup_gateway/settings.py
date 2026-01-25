@@ -29,9 +29,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 if not SECRET_KEY:
-    raise ImproperlyConfigured(
-        "The SECRET_KEY setting must not be empty. Set SECRET_KEY in the .env file."
-    )
+    if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
+        SECRET_KEY = "django-insecure-test-key-for-ci-only-not-for-production"
+    else:
+        raise ImproperlyConfigured(
+            "The SECRET_KEY setting must not be empty. Set SECRET_KEY in the .env file."
+        )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -75,10 +78,11 @@ ROOT_URLCONF = 'startup_gateway.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -112,6 +116,11 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'password_reset': '5/hour',
+    }
 }
 
 
@@ -155,3 +164,7 @@ APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_VERIFICATION_TOKEN_MAX_AGE = int(os.getenv("EMAIL_VERIFICATION_TOKEN_MAX_AGE", str(60 * 60 * 24)))
+
+PASSWORD_RESET_TIMEOUT = 3600
+SITE_NAME = os.getenv("SITE_NAME", "Startup Gateway")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")

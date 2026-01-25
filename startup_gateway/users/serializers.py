@@ -58,3 +58,20 @@ class RegisterSerializer(serializers.Serializer):
         return register_user(validated_data, user_model=User)
 
 
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        required=True,
+        max_length=255,
+        help_text="Email address of the account"
+    )
+
+    def validate_email(self, value):
+        return value.lower().strip()
+
+    def save(self):
+        email = self.validated_data['email']
+        try:
+            user = User.objects.get(email=email, is_active=True)
+            return user
+        except User.DoesNotExist:
+            return None
