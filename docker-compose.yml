@@ -3,7 +3,6 @@ services:
     build:
       context: ./startup_gateway
       dockerfile: Dockerfile.backend
-    container_name: backend
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./startup_gateway:/app
@@ -18,7 +17,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.frontend
-    container_name: frontend
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -29,7 +27,6 @@ services:
 
   db:
     image: postgres:15
-    container_name: postgres
     environment:
       POSTGRES_DB: startup_db
       POSTGRES_USER: startup_user
@@ -41,7 +38,6 @@ services:
 
   redis:
     image: redis:7
-    container_name: redis
     ports:
       - "6379:6379"
 
