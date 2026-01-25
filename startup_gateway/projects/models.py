@@ -43,6 +43,7 @@ class Project(models.Model):
     slug = models.SlugField()
     short_description = models.TextField(max_length=500)
     description = models.TextField()
+    thumbnail_url = models.URLField(blank=True)
     status = models.CharField(
         max_length=20, choices=ProjectStatus.choices, default=ProjectStatus.IDEA
     )
