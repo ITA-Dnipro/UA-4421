@@ -47,8 +47,9 @@ jobs:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/startup_gateway
         run: |
-          pytest --cov --cov-report=xml
+          python -m pytest startup_gateway/ --cov --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
