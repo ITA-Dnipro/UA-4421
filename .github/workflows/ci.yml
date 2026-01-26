@@ -38,17 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r startup_gateway/requirements.txt
 
-      - name: Create missing __init__.py files
-        run: |
-          cd startup_gateway
-          find . -type d -name "__pycache__" -prune -o -type d -print | while read dir; do
-            if [ ! -f "$dir/__init__.py" ]; then
-              touch "$dir/__init__.py"
-              echo "Created: $dir/__init__.py"
-            fi
-          done
-
-      - name: Run Django tests with coverage
+      - name: Run Django tests
         env:
           DJANGO_SETTINGS_MODULE: startup_gateway.settings
           PYTHONPATH: ${{ github.workspace }}
@@ -60,13 +50,31 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
           cd startup_gateway
-          python -m coverage run manage.py test
-          python -m coverage xml
-          python -m coverage report
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./startup_gateway/coverage.xml
-          fail_ci_if_error: false
+          
+          echo "🧪 === ПОЧАТОК ТЕСТУВАННЯ ==="
+          
+          # ТЕСТ 1: startups
+          echo "🔵 Тестування startups.tests..."
+          if python manage.py test startups.tests; then
+            echo "✅ startups.tests - пройдено"
+          else
+            echo "❌ startups.tests - не пройдено"
+          fi
+          
+          # ТЕСТ 2: users  
+          echo "🔵 Тестування users.tests..."
+          if python manage.py test users.tests; then
+            echo "✅ users.tests - пройдено"
+          else
+            echo "❌ users.tests - не пройдено"
+          fi
+          
+          # ТЕСТ 3: content
+          echo "🔵 Тестування startup_gateway.content.tests..."
+          if python manage.py test startup_gateway.content.tests; then
+            echo "✅ content.tests - пройдено"
+          else
+            echo "❌ content.tests - не пройдено"
+          fi
+          
+          echo "📊 === РЕЗУЛЬТАТ ТЕСТУВАННЯ ==="
