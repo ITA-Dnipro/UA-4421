@@ -1,5 +1,9 @@
 # UA-4421
 
+![CI](https://github.com/ITA-Dnipro/UA-4421/actions/workflows/ci.yml/badge.svg)
+![Codecov](https://codecov.io/gh/ITA-Dnipro/UA-4421/branch/develop/graph/badge.svg)
+![Pylint]()
+
 UA-4421Project-based learning Full Stack Python/React
 
 **Project Vision Statement:**
@@ -83,6 +87,21 @@ If the email exists but is not yet verified, the backend may re-send the verific
 ### Database Schema
 
 ![Database Schema](images/DB_schema.png)
+
+## Automation & Quality
+
+### Code Coverage
+Project uses Codecov for coverage reporting.
+To enable coverage upload:
+1. Create `CODECOV_TOKEN` in GitHub Secrets
+2. Run CI pipeline
+
+### Dependabot
+Dependabot is enabled for:
+- GitHub Actions
+- Python (pip)
+- Frontend dependencies (npm)
+
 **Step 1: Installation**
 
 **Action**: Install pylint and pylint-django via pip. Pylint-django is a Pylint plugin that understands Django's structure and provides relevant linting.

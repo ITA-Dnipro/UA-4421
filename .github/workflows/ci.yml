@@ -49,6 +49,7 @@ jobs:
           POSTGRES_PORT: 5432
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
+        feature/64-startup-projects-api
           cd startup_gateway
           
           echo "🧪 === ПОЧАТОК ТЕСТУВАННЯ ==="
@@ -78,3 +79,4 @@ jobs:
           fi
           
           echo "📊 === РЕЗУЛЬТАТ ТЕСТУВАННЯ ==="
+
