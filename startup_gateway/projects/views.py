@@ -21,7 +21,7 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
     def get_queryset(self):
         startup_id = self.kwargs["startup_id"]
-        qs = Project.objects.filter(startup_profile_id=startup_id)
+        qs = Project.objects.filter(startup_profile_id=startup_id, is_deleted=False)
 
         user = self.request.user
         if user.is_authenticated:
