@@ -35,5 +35,5 @@ repos:
         [
           "-rn", # Only display messages
           "-sn", # Don't display the score
-          "--load-plugins pylint_django --load-plugins pylint_django.checkers.migrations", # Enable pylint-django
+          "--load-plugins pylint_django --load-plugins pylint_django.checkers.migrations", # Loads the pylint-django plugin
         ]
