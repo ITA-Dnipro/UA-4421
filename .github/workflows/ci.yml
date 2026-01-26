@@ -37,24 +37,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r startup_gateway/requirements.txt
-          pip install -r startup_gateway/requirements-dev.txt
 
-      - name: Run Django tests
-        env:
-          DJANGO_SETTINGS_MODULE: startup_gateway.settings
-          PYTHONPATH: ${{ github.workspace }}
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      - name: Create missing __init__.py files
         run: |
           cd startup_gateway
-          python manage.py test
+          find . -type d -name "__pycache__" -prune -o -type d -print | while read dir; do
+            if [ ! -f "$dir/__init__.py" ]; then
+              touch "$dir/__init__.py"
+              echo "Created: $dir/__init__.py"
+            fi
+          done
 
-      - name: Run tests with coverage
-        if: always()  # Запустити навіть якщо попередній крок упав
+      - name: Run Django tests with coverage
         env:
           DJANGO_SETTINGS_MODULE: startup_gateway.settings
           PYTHONPATH: ${{ github.workspace }}
