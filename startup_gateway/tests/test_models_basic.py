@@ -22,7 +22,7 @@ def test_create_user_basic():
 
 @pytest.mark.django_db
 def test_role_creation():
-    role = Role.objects.create(name="startup")
+    role, created = Role.objects.get_or_create(name="startup")
 
     assert role.name == "startup"
     assert str(role) == "startup"
@@ -33,7 +33,7 @@ def test_user_with_role():
         username="roleuser",
         password="password123",
     )
-    role = Role.objects.create(name="investor")
+    role, created = Role.objects.get_or_create(name="investor")
 
     UserRole.objects.create(user=user, role=role)
 
