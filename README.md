@@ -140,3 +140,38 @@ pre-commit run --all-files
 
 Pylint is also run automatically on each push or pull request to the developer branch using GitHub Actions.
 You can find the configuration in .github/workflows/pylint.yml.
+
+### How to read CI logs (GitHub Actions)
+
+#### Where to Find Logs
+
+1. Repository → **Actions**
+2. Open the failed **workflow run** (❌)
+3. Select the failed **job**
+4. Click the **red step** to open logs
+
+#### Log Structure
+
+* **Workflow** – entire pipeline (e.g. `CI`)
+* **Job** – group of steps (e.g. `backend`, `frontend`)
+* **Step** – single command (e.g. `Install backend dependencies`)
+Logs are printed top → bottom in execution order.
+
+#### How to Read Logs Quickly
+
+* Always start with the **failed (red) step**
+* Scroll to the **bottom** of that step
+* Search for:
+  * `ERROR`, `Exception`, `FAILED`
+  * `exit code 1`
+  * Tool-specific output (`pytest`, `npm ERR!`, `tsc`)
+Use **Ctrl/Cmd + F** inside logs.
+
+#### Common Failure Types
+
+* **Install errors** – dependency or version conflicts
+* **Test failures** – assertions, stack traces
+* **Build errors** – syntax, missing files, env vars
+* **Auth / permission errors** – secrets, tokens, access
+
+
