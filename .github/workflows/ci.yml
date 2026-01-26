@@ -51,30 +51,30 @@ jobs:
         run: |
           cd startup_gateway
           
-          echo "🧪 === ПОЧАТОК ТЕСТУВАННЯ ==="
+          echo "=== STARTING TESTS ==="
           
-          # ТЕСТ 1: startups
-          echo "🔵 Тестування startups.tests..."
+          # TEST 1: startups
+          echo "Testing startups.tests..."
           if python manage.py test startups.tests; then
-            echo "✅ startups.tests - пройдено"
+            echo "PASSED: startups.tests"
           else
-            echo "❌ startups.tests - не пройдено"
+            echo "FAILED: startups.tests"
           fi
           
-          # ТЕСТ 2: users  
-          echo "🔵 Тестування users.tests..."
+          # TEST 2: users  
+          echo "Testing users.tests..."
           if python manage.py test users.tests; then
-            echo "✅ users.tests - пройдено"
+            echo "PASSED: users.tests"
           else
-            echo "❌ users.tests - не пройдено"
+            echo "FAILED: users.tests"
           fi
           
-          # ТЕСТ 3: content
-          echo "🔵 Тестування startup_gateway.content.tests..."
+          # TEST 3: content
+          echo "Testing startup_gateway.content.tests..."
           if python manage.py test startup_gateway.content.tests; then
-            echo "✅ content.tests - пройдено"
+            echo "PASSED: startup_gateway.content.tests"
           else
-            echo "❌ content.tests - не пройдено"
+            echo "FAILED: startup_gateway.content.tests"
           fi
           
-          echo "📊 === РЕЗУЛЬТАТ ТЕСТУВАННЯ ==="
+          echo "=== TESTING COMPLETED ==="
