@@ -54,10 +54,16 @@ jobs:
           isort --check-only
           pylint .
 
-      - name: Backend lint Results
+      - name: Backend lint results
         if: steps.backend_lint.outcome == 'failure'
         run: |
-          echo "::warning::Backend linting failed, but CI continued. Recommended: fix before merge."          
+          echo "::warning::Backend linting failed, but CI continued. Recommended: fix before merge."
+
+      - name: Backend lint summary
+        if: steps.backend_lint.outcome == 'failure'
+        run: |
+          echo "## ⚠️ Backend lint issues detected" >> $GITHUB_STEP_SUMMARY
+          echo "Please review backend lint output in the logs." >> $GITHUB_STEP_SUMMARY                    
 
       - name: Run tests with coverage
         working-directory: startup_gateway
@@ -76,7 +82,8 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
-          fail_ci_if_error: false          
+          fail_ci_if_error: false
+                   
 
   frontend:
     name: frontend
@@ -105,8 +112,15 @@ jobs:
       - name: Frontend lint Results
         if: steps.frontend_lint.outcome == 'failure'
         run: |
-          echo "::warning::Frontend linting failed, but CI continued. Recommended: fix before merge."            
+          echo "::warning::Frontend linting failed, but CI continued. Recommended: fix before merge."
+
+      - name: Frontend lint summary
+        if: steps.frontend_lint.outcome == 'failure'
+        run: |
+          echo "## ⚠️ Frontend lint issues detected" >> $GITHUB_STEP_SUMMARY
+          echo "Please review frontend lint output in the logs." >> $GITHUB_STEP_SUMMARY                         
 
       - name: Run frontend build 
         working-directory: frontend
-        run: npm run build          
+        run: npm run build
+            
