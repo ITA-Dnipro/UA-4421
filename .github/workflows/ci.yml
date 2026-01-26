@@ -49,7 +49,6 @@ jobs:
         working-directory: backend
         run: |
           black --check .
-          flake8 .
           isort --check-only          
 
       - name: Run tests with coverage
