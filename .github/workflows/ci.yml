@@ -39,20 +39,40 @@ jobs:
           pip install -r startup_gateway/requirements.txt
           pip install -r startup_gateway/requirements-dev.txt
 
-      - name: Run tests with coverage
+      - name: Run Django tests
         env:
+          DJANGO_SETTINGS_MODULE: startup_gateway.settings
+          PYTHONPATH: ${{ github.workspace }}
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          PYTHONPATH: ${{ github.workspace }}/startup_gateway
         run: |
-          python -m pytest startup_gateway/ --cov --cov-report=xml
+          cd startup_gateway
+          python manage.py test
+
+      - name: Run tests with coverage
+        if: always()  # Запустити навіть якщо попередній крок упав
+        env:
+          DJANGO_SETTINGS_MODULE: startup_gateway.settings
+          PYTHONPATH: ${{ github.workspace }}
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        run: |
+          cd startup_gateway
+          python -m coverage run manage.py test
+          python -m coverage xml
+          python -m coverage report
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
+          files: ./startup_gateway/coverage.xml
+          fail_ci_if_error: false
