@@ -46,12 +46,18 @@ jobs:
           pip install -r startup_gateway/requirements-dev.txt
 
       - name: Run linters
+        id: backend_lint
         working-directory: startup_gateway
         continue-on-error: true
         run: |
           black --check .
           isort --check-only
           pylint .
+
+      - name: Backend lint Results
+        if: steps.backend_lint.outcome == 'failure'
+        run: |
+          echo "::warning::Backend linting failed, but CI continued. Recommended: fix before merge."          
 
       - name: Run tests with coverage
         working-directory: startup_gateway
@@ -94,7 +100,12 @@ jobs:
       - name: Run linters
         working-directory: frontend
         continue-on-error: true
-        run: npm run lint      
+        run: npm run lint
+
+      - name: Frontend lint Results
+        if: steps.frontend_lint.outcome == 'failure'
+        run: |
+          echo "::warning::Frontend linting failed, but CI continued. Recommended: fix before merge."            
 
       - name: Run frontend build 
         working-directory: frontend
