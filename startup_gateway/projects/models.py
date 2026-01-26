@@ -28,6 +28,15 @@ class Tag(models.Model):
     def __str__(self):
         return self.name
 
+class Region(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        db_table = 'regions'
+
+    def __str__(self):
+        return self.name
+
 class Project(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     startup_profile = models.ForeignKey(
@@ -68,6 +77,13 @@ class Project(models.Model):
         related_name="projects",
         blank=True
     )
+
+    region = models.ManyToManyField(
+        Region,
+        related_name='projects',
+        blank=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

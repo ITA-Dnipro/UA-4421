@@ -1,0 +1,453 @@
+[
+    {
+        "model": "users.user",
+        "pk": 3,
+        "fields": {
+        "username": "startup_user3",
+        "email": "founder3@test.com",
+        "password": "pbkdf2_sha256$260000$test$hash",
+        "first_name": "Victor",
+        "last_name": "Startup",
+        "phone": "+380671234567",
+        "verified": true,
+        "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+
+    {
+        "model": "startups.startupprofile",
+        "pk": 3,
+        "fields": {
+        "user": 3,
+        "company_name": "Асоціація рітейлерів України",
+        "slug": "retail_ua",
+        "short_pitch": "Woodwork and ceramics",
+        "about_html": "<p>About retails Co</p>",
+        "website": "https://retail.example",
+        "contact_email": "info@retail.co",
+        "contact_phone": "+380501234567",
+        "logo_url": "https://placehold.co/200x200",
+        "hero_image_url": "https://placehold.co/1200x400",
+        "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+
+    {
+        "model": "projects.region",
+        "pk": 1,
+        "fields": {
+        "name": "Київ"
+        }
+    },
+
+        {
+        "model": "projects.region",
+        "pk": 2,
+        "fields": {
+        "name": "Київська обл."
+        }
+    },
+
+        {
+        "model": "projects.region",
+        "pk": 3,
+        "fields": {
+        "name": "Закарпатська обл."
+        }
+    },
+
+    {
+        "model": "projects.tag",
+        "pk": 1,
+        "fields": {
+        "name": "Послуги"
+        }
+    },
+
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000003",
+        "fields": {
+        "startup_profile": 3,
+        "title": "Handmade Project",
+        "slug": "handmade-project",
+        "short_description": "Short project description",
+        "description": "Full project description",
+        "thumbnail_url": "https://placehold.co/400x300",
+        "status": "idea",
+        "target_amount": "10000.00",
+        "raised_amount": "0.00",
+        "currency": "UAH",
+        "visibility": "public",
+        "region": [1, 2, 3],
+        "tags": [1],
+        "created_at": "2026-01-17T00:00:00Z",
+        "updated_at": "2026-01-17T00:00:00Z"
+        }
+    },
+
+    {
+        "model": "users.user",
+        "pk": 4,
+        "fields": {
+            "username": "startup_user4",
+            "email": "founder4@test.com",
+            "password": "pbkdf2_sha256$260000$test$hash",
+            "first_name": "Ihor",
+            "last_name": "Startup",
+            "phone": "+380672345678",
+            "verified": true,
+            "created_at": "2026-01-18T00:00:00Z"
+        }
+    },
+    {
+        "model": "startups.startupprofile",
+        "pk": 4,
+        "fields": {
+            "user": 4,
+            "company_name": "REGNO",
+            "slug": "regno",
+            "short_pitch": "Software development and consulting",
+            "about_html": "<p>Innovative tech solutions</p>",
+            "website": "https://techsolutions.example",
+            "contact_email": "info@techsolutions.co",
+            "contact_phone": "+380502345678",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000004",
+        "fields": {
+            "startup_profile": 4,
+            "title": "Mobile App Platform",
+            "slug": "mobile-app-platform",
+            "short_description": "Cross-platform mobile development",
+            "description": "Full mobile app development platform",
+            "thumbnail_url": "https://placehold.co/400x300",
+            "status": "active",
+            "target_amount": "50000.00",
+            "raised_amount": "15000.00",
+            "currency": "UAH",
+            "visibility": "public",
+            "region": [1, 2, 3],
+            "tags": [1],
+            "created_at": "2026-01-17T00:00:00Z",
+            "updated_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 5,
+        "fields": {
+            "username": "startup_user5",
+            "email": "founder5@test.com",
+            "password": "pbkdf2_sha256$260000$test$hash",
+            "first_name": "Maksym",
+            "last_name": "Green",
+            "phone": "+380673456789",
+            "verified": true,
+            "created_at": "2026-01-19T00:00:00Z"
+        }
+    },
+    {
+        "model": "startups.startupprofile",
+        "pk": 5,
+        "fields": {
+            "user": 5,
+            "company_name": "MУККО",
+            "slug": "mucco",
+            "short_pitch": "Sustainable environmental products",
+            "about_html": "<p>Green energy and ecology</p>",
+            "website": "https://ecogreen.example",
+            "contact_email": "info@ecogreen.co",
+            "contact_phone": "+380503456789",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000005",
+        "fields": {
+            "startup_profile": 5,
+            "title": "Solar Panel Installation",
+            "slug": "solar-panel-installation",
+            "short_description": "Renewable energy solutions",
+            "description": "Comprehensive solar panel installation service",
+            "thumbnail_url": "https://placehold.co/400x300",
+            "status": "idea",
+            "target_amount": "100000.00",
+            "raised_amount": "5000.00",
+            "currency": "UAH",
+            "visibility": "public",
+            "region": [1, 2, 3],
+            "tags": [1],
+            "created_at": "2026-01-17T00:00:00Z",
+            "updated_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 6,
+        "fields": {
+            "username": "startup_user6",
+            "email": "founder6@test.com",
+            "password": "pbkdf2_sha256$260000$test$hash",
+            "first_name": "Olena",
+            "last_name": "Fashion",
+            "phone": "+380674567890",
+            "verified": true,
+            "created_at": "2026-01-20T00:00:00Z"
+        }
+    },
+    {
+        "model": "startups.startupprofile",
+        "pk": 6,
+        "fields": {
+            "user": 6,
+            "company_name": "МХП",
+            "slug": "mhp",
+            "short_pitch": "Contemporary fashion and clothing",
+            "about_html": "<p>Ukrainian fashion brand</p>",
+            "website": "https://ukrfashion.example",
+            "contact_email": "info@ukrfashion.co",
+            "contact_phone": "+380504567890",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000006",
+        "fields": {
+            "startup_profile": 6,
+            "title": "Designer Clothing Line",
+            "slug": "designer-clothing-line",
+            "short_description": "Premium fashion collection",
+            "description": "Exclusive designer clothing and accessories",
+            "thumbnail_url": "https://placehold.co/400x300",
+            "status": "active",
+            "target_amount": "30000.00",
+            "raised_amount": "20000.00",
+            "currency": "UAH",
+            "visibility": "public",
+            "region": [1, 2, 3],
+            "tags": [1],
+            "created_at": "2026-01-17T00:00:00Z",
+            "updated_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 7,
+        "fields": {
+            "username": "startup_user7",
+            "email": "founder7@test.com",
+            "password": "pbkdf2_sha256$260000$test$hash",
+            "first_name": "Sergiy",
+            "last_name": "Food",
+            "phone": "+380675678901",
+            "verified": true,
+            "created_at": "2026-01-21T00:00:00Z"
+        }
+    },
+    {
+        "model": "startups.startupprofile",
+        "pk": 7,
+        "fields": {
+            "user": 7,
+            "company_name": "HealthyFood Co",
+            "slug": "healthyfood_co",
+            "short_pitch": "Organic food products and delivery",
+            "about_html": "<p>Fresh organic food marketplace</p>",
+            "website": "https://healthyfood.example",
+            "contact_email": "info@healthyfood.co",
+            "contact_phone": "+380505678901",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000007",
+        "fields": {
+            "startup_profile": 7,
+            "title": "Organic Marketplace Platform",
+            "slug": "organic-marketplace-platform",
+            "short_description": "Online organic food store",
+            "description": "E-commerce platform for organic products",
+            "thumbnail_url": "https://placehold.co/400x300",
+            "status": "active",
+            "target_amount": "25000.00",
+            "raised_amount": "10000.00",
+            "currency": "UAH",
+            "visibility": "public",
+            "region": [1, 2, 3],
+            "tags": [1],
+            "created_at": "2026-01-17T00:00:00Z",
+            "updated_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 8,
+        "fields": {
+            "username": "startup_user8",
+            "email": "founder8@test.com",
+            "password": "pbkdf2_sha256$260000$test$hash",
+            "first_name": "Natalia",
+            "last_name": "Edu",
+            "phone": "+380676789012",
+            "verified": true,
+            "created_at": "2026-01-22T00:00:00Z"
+        }
+    },
+    {
+        "model": "startups.startupprofile",
+        "pk": 8,
+        "fields": {
+            "user": 8,
+            "company_name": "EduTech Academy",
+            "slug": "edutech_academy",
+            "short_pitch": "Online education and skill development",
+            "about_html": "<p>Leading online education platform</p>",
+            "website": "https://edutech.example",
+            "contact_email": "info@edutech.co",
+            "contact_phone": "+380506789012",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000008",
+        "fields": {
+            "startup_profile": 8,
+            "title": "Professional Courses Platform",
+            "slug": "professional-courses-platform",
+            "short_description": "Online learning and certification",
+            "description": "Comprehensive online education platform",
+            "thumbnail_url": "https://placehold.co/400x300",
+            "status": "idea",
+            "target_amount": "75000.00",
+            "raised_amount": "25000.00",
+            "currency": "UAH",
+            "visibility": "public",
+            "region": [1, 2, 3],
+            "tags": [1],
+            "created_at": "2026-01-17T00:00:00Z",
+            "updated_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 9,
+        "fields": {
+            "username": "startup_user9",
+            "email": "founder9@test.com",
+            "password": "pbkdf2_sha256$260000$test$hash",
+            "first_name": "Dmitry",
+            "last_name": "Travel",
+            "phone": "+380677890123",
+            "verified": true,
+            "created_at": "2026-01-23T00:00:00Z"
+        }
+    },
+    {
+        "model": "startups.startupprofile",
+        "pk": 9,
+        "fields": {
+            "user": 9,
+            "company_name": "Тревел",
+            "slug": "travel",
+            "short_pitch": "Travel booking and tourism services",
+            "about_html": "<p>Your travel partner for adventure</p>",
+            "website": "https://travelgo.example",
+            "contact_email": "info@travelgo.co",
+            "contact_phone": "+380507890123",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000009",
+        "fields": {
+            "startup_profile": 9,
+            "title": "Travel Booking Platform",
+            "slug": "travel-booking-platform",
+            "short_description": "Seamless travel experience",
+            "description": "Complete travel booking and planning service",
+            "thumbnail_url": "https://placehold.co/400x300",
+            "status": "active",
+            "target_amount": "40000.00",
+            "raised_amount": "18000.00",
+            "currency": "UAH",
+            "visibility": "public",
+            "region": [1, 2, 3],
+            "tags": [1],
+            "created_at": "2026-01-17T00:00:00Z",
+            "updated_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 10,
+        "fields": {
+            "username": "startup_user10",
+            "email": "founder10@test.com",
+            "password": "pbkdf2_sha256$260000$test$hash",
+            "first_name": "Irina",
+            "last_name": "Health",
+            "phone": "+380678901234",
+            "verified": true,
+            "created_at": "2026-01-24T00:00:00Z"
+        }
+    },
+    {
+        "model": "startups.startupprofile",
+        "pk": 10,
+        "fields": {
+            "user": 10,
+            "company_name": "HealthCare Digital",
+            "slug": "healthcare_digital",
+            "short_pitch": "Digital health and telemedicine solutions",
+            "about_html": "<p>Modern healthcare technology</p>",
+            "website": "https://healthcare.example",
+            "contact_email": "info@healthcare.co",
+            "contact_phone": "+380508901234",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "created_at": "2026-01-17T00:00:00Z"
+        }
+    },
+    {
+        "model": "projects.project",
+        "pk": "00000000-0000-0000-0000-000000000010",
+        "fields": {
+            "startup_profile": 10,
+            "title": "Telemedicine Platform",
+            "slug": "telemedicine-platform",
+            "short_description": "Online doctor consultations",
+            "description": "Comprehensive telemedicine and health monitoring",
+            "thumbnail_url": "https://placehold.co/400x300",
+            "status": "active",
+            "target_amount": "60000.00",
+            "raised_amount": "35000.00",
+            "currency": "UAH",
+            "visibility": "public",
+            "region": [1, 2, 3],
+            "tags": [1],
+            "created_at": "2026-01-17T00:00:00Z",
+            "updated_at": "2026-01-17T00:00:00Z"
+        }
+    }
+]
