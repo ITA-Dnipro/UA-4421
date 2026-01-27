@@ -2,8 +2,8 @@ from rest_framework import serializers
 from projects.models import Project, ProjectStatus
 
 class ProjectSummarySerializer(serializers.ModelSerializer):
-    """Серіалізатор для відображення проекту як картки"""
-    id = serializers.UUIDField(format='hex_verbose')
+    """Serializer for displaying project as a card"""
+    
     thumbnail = serializers.SerializerMethodField()
     short_desc = serializers.CharField(source='short_description')
     status = serializers.ChoiceField(choices=ProjectStatus.choices)
@@ -14,7 +14,7 @@ class ProjectSummarySerializer(serializers.ModelSerializer):
         read_only_fields = fields
     
     def get_thumbnail(self, obj):
-        """Повертає thumbnail URL або None"""
+        """Returns thumbnail URL or None"""
         if obj.thumbnail_url:
             request = self.context.get('request')
             if request:
