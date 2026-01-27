@@ -45,15 +45,20 @@ jobs:
           pip install -r startup_gateway/requirements.txt
           pip install -r startup_gateway/requirements-dev.txt
 
-      - name: Run linters
+      - name: Run backend linters
         id: backend_lint
         working-directory: startup_gateway
         continue-on-error: true
         run: |
           set +e
-          black --check . || echo "- ❌ Backend lint: Black failed" >> $GITHUB_STEP_SUMMARY
-          isort --check-only || echo "- ❌ Backend lint: Isort failed" >> $GITHUB_STEP_SUMMARY
-          pylint . || echo "- ❌ Backend lint: Pylint failed" >> $GITHUB_STEP_SUMMARY                
+          black --check .
+          isort --check-only
+          pylint .
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::❌ Backend lint failed. Run flake8, isort and pylint locally to see details."
+            exit 1
+          fi 
 
       - name: Run tests with coverage
         working-directory: startup_gateway
@@ -94,7 +99,7 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Run linters
+      - name: Run frontend linters
         working-directory: frontend
         continue-on-error: true
         run: |
@@ -104,7 +109,7 @@ jobs:
           if [ $STATUS -ne 0 ]; then
             echo "::error::❌ Frontend lint failed. Run 'npm run lint' locally to see details."
             exit 1
-          fi          
+          fi 
 
       - name: Run frontend build 
         working-directory: frontend
