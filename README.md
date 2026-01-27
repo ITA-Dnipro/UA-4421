@@ -264,3 +264,53 @@ Replace backend/ with the name of your Django project folder if it differs.
 
 Pylint is also run automatically on each push or pull request to the developer branch using GitHub Actions.
 You can find the configuration in .github/workflows/pylint.yml.
+
+**Local Development with Docker**
+
+This project provides a containerized environment for consistent development across machines using Docker.
+
+---
+
+## Prerequisites
+
+- [Docker](https://www.docker.com/get-started) installed and running
+- [Docker Compose](https://docs.docker.com/compose/install/) installed
+
+## Environment Variables
+
+1. **Create your local `.env.docker` file** from the example:
+
+```bash
+cd startup_gateway
+cp env.example .env.docker
+```
+
+2. **Edit .env.docker and fill in your real values.**
+   .env.docker must not be committed to Git. It is included in .gitignore.
+   env.example is safe to commit and serves as a template for your team.
+
+## Running the Project
+
+1. Build and start all services
+
+docker-compose up --build -d
+
+This will start:
+backend (Django)
+frontend (React in dev mode)
+db (Postgres)
+redis (optional, for channels/notifications)
+
+2. Create Django superuser
+
+docker-compose exec backend python manage.py createsuperuser
+
+Follow the prompts to set username, email, and password.
+
+This superuser can log into the admin panel at http://localhost:8000/admin.
+
+3. Stopping the Containers
+
+To stop and remove containers:
+
+docker-compose down

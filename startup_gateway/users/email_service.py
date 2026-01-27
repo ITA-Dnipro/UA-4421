@@ -15,13 +15,11 @@ class PasswordResetEmailService:
             uid = urlsafe_base64_encode(force_bytes(user.pk))
 
             if request:
-                domain = request.get_host()
-                protocol = 'https' if request.is_secure() else 'http'
+                base_url = f"{'https' if request.is_secure() else 'http'}://{request.get_host()}"
             else:
-                domain = getattr(settings, 'FRONTEND_URL', 'localhost:3000')
-                protocol = 'https' if 'localhost' not in domain else 'http'
+                base_url = settings.FRONTEND_URL.rstrip('/')
 
-            reset_link = f"{protocol}://{domain}/reset-password?uid={uid}&token={token}"
+            reset_link = f"{base_url}/reset-password?uid={uid}&token={token}"
 
             context = {
                 'user': user,

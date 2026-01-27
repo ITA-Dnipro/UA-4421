@@ -1,5 +1,4 @@
 from django.db import transaction
-from django.core.cache import cache
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,7 +10,7 @@ from .serializers import RegisterSerializer, PasswordResetRequestSerializer
 from .services import send_verification_email, verify_email_token
 from .tokens import password_reset_token_generator
 from .email_service import PasswordResetEmailService
-from .models import PasswordResetAttempt
+from .models import PasswordResetAttempt, User
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,6 @@ class PasswordResetRequestView(APIView):
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
-
         if not serializer.is_valid():
             return Response(
                 {"detail": "If the email exists, you will receive reset instructions."},
@@ -66,17 +64,7 @@ class PasswordResetRequestView(APIView):
         email = serializer.validated_data['email']
         ip_address = get_client_ip(request)
 
-        email_cache_key = f'password_reset_email_{email}'
-        email_attempts = cache.get(email_cache_key, 0)
-
-        if email_attempts >= 3:
-            logger.warning(f"Too many reset attempts for {email}")
-            return Response(
-                {"detail": "If the email exists, you will receive reset instructions."},
-                status=status.HTTP_200_OK
-            )
-
-        user = serializer.save()
+        user = User.objects.filter(email=email, is_active=True).first()
         token_sent = False
 
         if user:
@@ -88,7 +76,6 @@ class PasswordResetRequestView(APIView):
             )
 
             if token_sent:
-                cache.set(email_cache_key, email_attempts + 1, 3600)
                 logger.info(f"Password reset email sent to {email}")
 
         try:
@@ -96,7 +83,7 @@ class PasswordResetRequestView(APIView):
                 user=user,
                 email=email,
                 ip_address=ip_address,
-                token_sent=token_sent
+                token_sent=token_sent,
             )
         except Exception as e:
             logger.error(f"Failed to log password reset attempt: {e}")

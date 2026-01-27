@@ -3,11 +3,13 @@ from django.core import mail
 from django.test import override_settings
 from django.core.cache import cache
 from rest_framework.test import APITestCase
+from importlib import reload
 
 from startups.models import StartupProfile
 from investors.models import InvestorProfile
 from users.models import PasswordResetAttempt, Role
 from users.tokens import password_reset_token_generator
+from users import tokens
 
 User = get_user_model()
 
@@ -288,20 +290,6 @@ class TestPasswordResetApi(APITestCase):
         resp = self.client.post("/api/auth/password-reset/", payload, format="json")
         self.assertEqual(resp.status_code, 200)
 
-    def test_rate_limiting_by_email(self):
-        payload = {"email": "test@example.com"}
-
-        for i in range(3):
-            resp = self.client.post("/api/auth/password-reset/", payload, format="json")
-            self.assertEqual(resp.status_code, 200)
-
-        self.assertEqual(len(mail.outbox), 3)
-
-        resp = self.client.post("/api/auth/password-reset/", payload, format="json")
-        self.assertEqual(resp.status_code, 200)
-
-        self.assertEqual(len(mail.outbox), 3)
-
     def test_audit_log_tracks_ip(self):
         payload = {"email": "test@example.com"}
 
@@ -439,3 +427,29 @@ class TestPasswordResetEmailContent(APITestCase):
             '1 hour' in email_body.lower() or
             'expire' in email_body.lower()
         )
+
+
+class TestPasswordResetTokenTimeout(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='TestPass123!',
+        )
+
+    def test_token_uses_custom_timeout(self):
+        self.assertEqual(password_reset_token_generator.timeout, 3600)
+
+    @override_settings(PASSWORD_RESET_TIMEOUT=7200)
+    def test_token_respects_settings_timeout(self):
+
+        reload(tokens)
+
+        self.assertEqual(tokens.password_reset_token_generator.timeout, 7200)
+
+    def test_token_validation_basic(self):
+
+        token = password_reset_token_generator.make_token(self.user)
+        is_valid = password_reset_token_generator.check_token(self.user, token)
+
+        self.assertTrue(is_valid)
