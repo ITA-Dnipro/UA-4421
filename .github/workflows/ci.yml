@@ -99,7 +99,12 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          npm run lint || "::error::❌ Frontend lint failed. Run 'black .' locally to fix code." >> $GITHUB_STEP_SUMMARY                    
+          npm run lint
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::❌ Frontend lint failed. Run 'npm run lint' locally to see details."
+            exit 1
+          fi          
 
       - name: Run frontend build 
         working-directory: frontend
