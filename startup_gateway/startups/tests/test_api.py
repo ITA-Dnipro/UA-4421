@@ -10,12 +10,12 @@ from projects.models import Project, Tag, ProjectStatus, ProjectVisibility
 User = get_user_model()
 
 class StartupProjectsAPITestCase(APITestCase):
-    """Тести для API проектів стартапу"""
+    """Tests for startup projects API"""
     
     def setUp(self):
-        # Створюємо тестового користувача
+        # Create test user
         self.user = User.objects.create_user(
-            username='startupowner',  # ОБОВ'ЯЗКОВЕ ПОЛЕ
+            username='startupowner',  # REQUIRED FIELD
             email='startup@example.com',
             password='testpass123',
             first_name='John',
@@ -24,7 +24,7 @@ class StartupProjectsAPITestCase(APITestCase):
             verified=True
         )
         
-        # Створюємо стартап профіль
+        # Create startup profile
         self.startup_profile = StartupProfile.objects.create(
             user=self.user,
             company_name='Tech Innovations Inc.',
@@ -33,11 +33,11 @@ class StartupProjectsAPITestCase(APITestCase):
             slug='tech-innovations-inc'
         )
         
-        # Створюємо теги
+        # Create tags
         self.tech_tag = Tag.objects.create(name='Technology')
         self.eco_tag = Tag.objects.create(name='Eco-friendly')
         
-        # Створюємо тестові проекти
+        # Create test projects
         self.project1 = Project.objects.create(
             startup_profile=self.startup_profile,
             title='AI Assistant',
@@ -80,7 +80,7 @@ class StartupProjectsAPITestCase(APITestCase):
         )
     
     def test_get_startup_projects_success(self):
-        """Тест успішного отримання проектів стартапу"""
+        """Test successful retrieval of startup projects"""
         url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
         response = self.client.get(url)
         
@@ -90,10 +90,10 @@ class StartupProjectsAPITestCase(APITestCase):
         self.assertIn('count', data)
         self.assertIn('results', data)
         
-        # За замовчуванням показуємо тільки PUBLIC проекти
-        self.assertEqual(data['count'], 2)  # тільки 2 публічних проекти
+        # By default, we only show PUBLIC projects
+        self.assertEqual(data['count'], 2)  # Only 2 public projects
         
-        # Перевіряємо поля
+        # Check fields
         first_project = data['results'][0]
         expected_fields = ['id', 'title', 'status', 'thumbnail', 'short_desc']
         
@@ -101,10 +101,10 @@ class StartupProjectsAPITestCase(APITestCase):
             self.assertIn(field, first_project)
     
     def test_filter_by_status(self):
-        """Тест фільтрації проектів за статусом"""
+        """Test filtering projects by status"""
         url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
         
-        # Фільтруємо тільки активні проекти
+        # Filter only active projects
         response = self.client.get(f'{url}?status={ProjectStatus.ACTIVE}')
         data = response.json()
         
@@ -115,10 +115,10 @@ class StartupProjectsAPITestCase(APITestCase):
             self.assertEqual(project['status'], ProjectStatus.ACTIVE)
     
     def test_filter_by_tag(self):
-        """Тест фільтрації проектів за тегом"""
+        """Test filtering projects by tag"""
         url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
         
-        # Фільтруємо по тегу 'Technology'
+        # Filter by 'Technology' tag
         response = self.client.get(f'{url}?tag=Technology')
         data = response.json()
         
@@ -128,8 +128,8 @@ class StartupProjectsAPITestCase(APITestCase):
         self.assertEqual(data['results'][0]['title'], 'AI Assistant')
     
     def test_pagination(self):
-        """Тест пагінації згідно специфікації"""
-        # Додаємо більше проектів
+        """Test pagination according to specification"""
+        # Add more projects
         for i in range(10):
             Project.objects.create(
                 startup_profile=self.startup_profile,
@@ -143,14 +143,14 @@ class StartupProjectsAPITestCase(APITestCase):
         
         url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
         
-        # Дефолтна пагінація (page_size=6)
+        # Default pagination (page_size=6)
         response = self.client.get(url)
         data = response.json()
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(data['results']), 6)
         
-        # Кастомна пагінація
+        # Custom pagination
         response = self.client.get(f'{url}?page=2&page_size=4')
         data = response.json()
         
