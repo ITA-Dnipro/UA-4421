@@ -174,6 +174,10 @@ Use **Ctrl/Cmd + F** inside logs.
 * **Build errors** – syntax, missing files, env vars
 * **Auth / permission errors** – secrets, tokens, access
 
+#### Additional debug logging 
+If further effort is needed to understand where CI fails, debug logging can be enabled.
+Check [Github documentation](https://docs.github.com/en/actions/how-tos/monitor-workflows/enable-debug-logging) for detailed information.
+
 
 **Local Development with Docker**
 
