@@ -55,7 +55,7 @@ INSTALLED_APPS = [
     'projects',
     'messages',
     'dashboard',
-    'notifications',
+    'notifications',    
     'startup_gateway.content',
 ]
 
@@ -150,6 +150,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")

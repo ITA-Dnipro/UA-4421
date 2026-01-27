@@ -29,6 +29,23 @@ class User(AbstractUser):
     verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    slug = models.SlugField(unique=True, blank=True)
+    about_html = models.TextField(blank=True)
+    short_description = models.CharField(max_length=300, blank=True)
+    contact = models.CharField(max_length=20, blank=True)
+    website = models.URLField(max_length=200, blank=True)
+    stats = models.IntegerField(default=0)
+    media_urls = models.FileField(upload_to="user/%Y/%m/%d/", blank=True)
+    visibility = models.BooleanField(default=True)
+
+    # relationship with tags defined in projects.models.Tag
+    tags = models.ManyToManyField(
+        "projects.Tag",   # reference to a model from another app
+        through="UserTag",
+        related_name="users",
+        blank=True
+    )
+
     roles = models.ManyToManyField(
         Role,
         through='UserRole',
@@ -60,3 +77,21 @@ class UserRole(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.role.name}"
+        
+class UserTag(models.Model):
+    """
+    Intermediate table for linking User ↔ Tag (many-to-many).
+    """
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    tag = models.ForeignKey("projects.Tag", on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "users_tags"
+        unique_together = ("user", "tag")
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["tag"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} ↔ {self.tag.name}"
