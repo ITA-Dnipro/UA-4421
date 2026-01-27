@@ -1,0 +1,47 @@
+services:
+  backend:
+    build:
+      context: ./startup_gateway
+      dockerfile: Dockerfile.backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./startup_gateway:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./startup_gateway/.env.docker
+    depends_on:
+      - db
+      - redis
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: startup_db
+      POSTGRES_USER: startup_user
+      POSTGRES_PASSWORD: startup_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
