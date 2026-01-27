@@ -37,6 +37,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r startup_gateway/requirements.txt
+          pip install -r startup_gateway/requirements-dev.txt
 
       - name: Run Django tests
         env:
@@ -50,31 +51,23 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
           cd startup_gateway
-          
-          echo "=== STARTING TESTS ==="
-          
-          # TEST 1: startups
-          echo "Testing startups.tests..."
-          if python manage.py test startups.tests; then
-            echo "PASSED: startups.tests"
-          else
-            echo "FAILED: startups.tests"
-          fi
-          
-          # TEST 2: users  
-          echo "Testing users.tests..."
-          if python manage.py test users.tests; then
-            echo "PASSED: users.tests"
-          else
-            echo "FAILED: users.tests"
-          fi
-          
-          # TEST 3: content
-          echo "Testing startup_gateway.content.tests..."
-          if python manage.py test startup_gateway.content.tests; then
-            echo "PASSED: startup_gateway.content.tests"
-          else
-            echo "FAILED: startup_gateway.content.tests"
-          fi
-          
-          echo "=== TESTING COMPLETED ==="
+          set -e
+          python manage.py test startups.tests users.tests startup_gateway.content.tests
+
+      - name: Run tests with coverage
+        if: success()
+        env:
+          DJANGO_SETTINGS_MODULE: startup_gateway.settings
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          cd startup_gateway
+          python -m coverage run manage.py test startups.tests users.tests startup_gateway.content.tests
+          python -m coverage xml
+          python -m coverage report
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./startup_gateway/coverage.xml
+          fail_ci_if_error: false
