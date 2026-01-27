@@ -11,6 +11,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.utils.crypto import salted_hmac
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +21,18 @@ User = get_user_model()
 
 def build_email_verification_token(user):
     signer = TimestampSigner(salt="users.email.verify")
-    user.email_verification_nonce = uuid.uuid4().hex
+    raw_nonce = uuid.uuid4().hex
+    hashed_nonce = salted_hmac(
+        key_salt="users.email.verify",
+        value=raw_nonce,
+        algorithm="sha256",
+    ).hexdigest()
+
+    user.email_verification_nonce = hashed_nonce
     user.save(update_fields=["email_verification_nonce"])
-    payload = f"{user.pk}:{user.email.strip().lower()}:{user.email_verification_nonce}"
+
+    payload = f"{user.pk}:{user.email.strip().lower()}:{raw_nonce}"
+
     return signer.sign(payload)
 
 
@@ -58,7 +69,7 @@ def verify_email_token(token):
         return None
 
     parts = payload.split(":", 2)
-    if len(parts) not in (2, 3):
+    if len(parts) != 3:
         return None
 
     try:
@@ -67,7 +78,7 @@ def verify_email_token(token):
         return None
 
     email = parts[1]
-    nonce = parts[2] if len(parts) == 3 else None
+    nonce = parts[2]
 
     user = User.objects.filter(pk=user_id).first()
     if not user:
@@ -76,13 +87,20 @@ def verify_email_token(token):
     if user.email.strip().lower() != email.strip().lower():
         return None
 
-    if nonce is not None:
-        if not user.email_verification_nonce:
-            return None
-        if user.email_verification_nonce != nonce:
-            return None
+    if not user.email_verification_nonce:
+        return None
+
+    expected_hashed_nonce = salted_hmac(
+        key_salt="users.email.verify",
+        value=nonce,
+        algorithm="sha256",
+    ).hexdigest()
+
+    if user.email_verification_nonce != expected_hashed_nonce:
+        return None
 
     update_fields = []
+
     if not user.verified:
         user.verified = True
         update_fields.append("verified")
@@ -90,14 +108,14 @@ def verify_email_token(token):
         user.is_active = True
         update_fields.append("is_active")
 
-    if nonce is not None:
-        user.email_verification_nonce = ""
-        update_fields.append("email_verification_nonce")
+    user.email_verification_nonce = ""
+    update_fields.append("email_verification_nonce")
 
     if update_fields:
         user.save(update_fields=update_fields)
 
     return user
+
 
 
 @transaction.atomic

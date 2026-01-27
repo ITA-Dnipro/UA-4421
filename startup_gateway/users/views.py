@@ -60,17 +60,29 @@ class ResendVerificationView(APIView):
         email = serializer.validated_data["email"].strip().lower()
         ip = request.META.get("REMOTE_ADDR", "")
 
-        if is_resend_verification_throttled(email=email, ip=ip):
+        if is_resend_verification_throttled(email="", ip=ip):
             return Response(
                 {"detail": "If the email address is valid, a verification email has been sent."},
                 status=status.HTTP_200_OK,
             )
 
         user = User.objects.filter(email__iexact=email).first()
-        if user and not getattr(user, "verified", False):
-            send_verification_email(user)
+        if not user or getattr(user, "verified", False):
+            return Response(
+                {"detail": "If the email address is valid, a verification email has been sent."},
+                status=status.HTTP_200_OK,
+            )
+
+        if is_resend_verification_throttled(email=email, ip=""):
+            return Response(
+                {"detail": "If the email address is valid, a verification email has been sent."},
+                status=status.HTTP_200_OK,
+            )
+
+        send_verification_email(user)
 
         return Response(
             {"detail": "If the email address is valid, a verification email has been sent."},
             status=status.HTTP_200_OK,
         )
+
