@@ -1,6 +1,11 @@
 import { Navigate } from 'react-router-dom'
+import type { ReactNode } from 'react'
 
-export default function ProtectedRoute({ children }: { children: JSX.Element }) {
+type Props = {
+  children: ReactNode
+}
+
+export default function ProtectedRoute({ children }: Props) {
   const isAuthenticated = !!localStorage.getItem('token')
 
   if (!isAuthenticated) {
