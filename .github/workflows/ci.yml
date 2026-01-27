@@ -49,6 +49,9 @@ jobs:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DEBUG: "True"
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+
         run: |
           cd startup_gateway
           set -e
