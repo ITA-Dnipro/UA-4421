@@ -50,20 +50,10 @@ jobs:
         working-directory: startup_gateway
         continue-on-error: true
         run: |
-          black --check .
-          isort --check-only
-          pylint .
-
-      - name: Backend lint results
-        if: steps.backend_lint.outcome == 'failure'
-        run: |
-          echo "::warning::Backend linting failed, but CI continued. Recommended: fix before merge."
-
-      - name: Backend lint summary
-        if: steps.backend_lint.outcome == 'failure'
-        run: |
-          echo "## ⚠️ Backend lint issues detected" >> $GITHUB_STEP_SUMMARY
-          echo "Please review backend lint output in the logs." >> $GITHUB_STEP_SUMMARY                    
+          set +e
+          black --check . || echo "- ❌ Backend lint: Black failed" >> $GITHUB_STEP_SUMMARY
+          isort --check-only || echo "- ❌ Backend lint: Isort failed" >> $GITHUB_STEP_SUMMARY
+          pylint . || echo "- ❌ Backend lint: Pylint failed" >> $GITHUB_STEP_SUMMARY                
 
       - name: Run tests with coverage
         working-directory: startup_gateway
@@ -107,18 +97,9 @@ jobs:
       - name: Run linters
         working-directory: frontend
         continue-on-error: true
-        run: npm run lint
-
-      - name: Frontend lint Results
-        if: steps.frontend_lint.outcome == 'failure'
         run: |
-          echo "::warning::Frontend linting failed, but CI continued. Recommended: fix before merge."
-
-      - name: Frontend lint summary
-        if: steps.frontend_lint.outcome == 'failure'
-        run: |
-          echo "## ⚠️ Frontend lint issues detected" >> $GITHUB_STEP_SUMMARY
-          echo "Please review frontend lint output in the logs." >> $GITHUB_STEP_SUMMARY                         
+          set +e
+          npm run lint || "- ❌ Frondend lint failed" >> $GITHUB_STEP_SUMMARY                    
 
       - name: Run frontend build 
         working-directory: frontend
