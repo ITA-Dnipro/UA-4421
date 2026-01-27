@@ -8,6 +8,14 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      GITHUB_ACTIONS: "true"
 
     services:
       postgres:
@@ -39,38 +47,14 @@ jobs:
           pip install -r startup_gateway/requirements.txt
           pip install -r startup_gateway/requirements-dev.txt
 
-      - name: Run Django tests
-        env:
-          DJANGO_SETTINGS_MODULE: startup_gateway.settings
-          PYTHONPATH: ${{ github.workspace }}
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          DEBUG: "True"
-          ALLOWED_HOSTS: "localhost,127.0.0.1"
-
-        run: |
-          cd startup_gateway
-          set -e
-          python manage.py test startups.tests users.tests startup_gateway.content.tests
-
       - name: Run tests with coverage
-        if: success()
-        env:
-          DJANGO_SETTINGS_MODULE: startup_gateway.settings
-          PYTHONPATH: ${{ github.workspace }}
         run: |
           cd startup_gateway
-          python -m coverage run manage.py test startups.tests users.tests startup_gateway.content.tests
-          python -m coverage xml
-          python -m coverage report
+          pytest --cov --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./startup_gateway/coverage.xml
+          files: ./coverage.xml
           fail_ci_if_error: false
