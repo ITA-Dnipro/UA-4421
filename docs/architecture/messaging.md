@@ -1,15 +1,47 @@
-Why MongoDB for message store (fast append, BSON, flexible metadata) and Postgres for relational data (users, notifications).
+# Messaging architecture
 
-Channel layer: Redis (requirements and config).
+## Databases
 
-Websocket routing & authentication approach (JWT or session cookie).
+Why MongoDB for message store
 
-Message lifecycle: send → persist → publish to channel → create notification via background worker.
+- fast append
+- BSON
+- flexible metadata
 
-Scaling & retention strategy (sharding, TTL indexes in Mongo, archiving).
+Postgres for relational data
 
-Security (auth checks, sanitize message content, limit attachments).
+- users
+- notifications
 
-Backpressure & rate limiting approach.
+## Channel layer
+
+Redis
+
+- requirements
+- config
+
+## Websocket routing & authentication approach
+
+JWT, because I'm pretty sure we use JWT. Session cookie otherwise.
+
+## Message lifecycle
+
+send → persist → publish to channel → create notification via background worker.
+
+## Scaling & retention strategy
+
+- sharding
+- TTL indexes in Mongo
+- archiving
+
+## Security
+
+### auth checks
+
+### sanitize message content
+
+### limit attachments
+
+## Backpressure & rate limiting approach.
 
 // Diagrams (sequence for send/receive, flow for offline notifications).
