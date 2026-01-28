@@ -93,10 +93,25 @@ WSGI_APPLICATION = 'startup_gateway.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# DATABASES = {
+#         "default": {
+#             "ENGINE": "django.db.backends.postgresql",
+#             "NAME": os.getenv("DB_NAME"),
+#             "USER": os.getenv("DB_USER"),
+#             "PASSWORD": os.getenv("DB_PASSWORD"),
+#             "HOST": os.getenv("DB_HOST"),
+#             "PORT": os.getenv("DB_PORT", "5432"),
+#         }
+#     }
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME") or os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("DB_USER") or os.getenv("POSTGRES_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD"),
+        "HOST": os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -155,3 +170,4 @@ APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_VERIFICATION_TOKEN_MAX_AGE = int(os.getenv("EMAIL_VERIFICATION_TOKEN_MAX_AGE", str(60 * 60 * 24)))
+

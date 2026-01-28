@@ -8,6 +8,7 @@ __pycache__/
 
 # local test payloads
 payload*.json
+create_test_data.py
 
 # Distribution / packaging
 .Python
@@ -29,6 +30,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 settings.json
+node_modules
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -140,6 +142,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.docker
 .idea/
 .envrc
 .venv
