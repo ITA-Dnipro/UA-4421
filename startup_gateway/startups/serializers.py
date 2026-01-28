@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import StartupProfile
-from projects.models import Tag
 
 
 class StartupPublicSerializer(serializers.ModelSerializer):
@@ -44,4 +43,35 @@ class StartupPublicSerializer(serializers.ModelSerializer):
         for project in obj.projects.all():
             tags.update(project.tags.values_list('name', flat=True))
         return list(tags)
+    
 
+class StartupListSerializer(serializers.ModelSerializer):
+    short_description = serializers.CharField(source='short_pitch', read_only=True)
+    thumbnail_url = serializers.CharField(source='logo_url', read_only=True)
+    regions = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StartupProfile
+        fields = (
+            'id',
+            'company_name',
+            'short_description',
+            'thumbnail_url',
+            'regions',
+            'tags',
+        )
+
+    def get_regions(self, obj):
+        return list(
+            obj.region
+            .values_list('name', flat=True)
+            .distinct()
+        )
+
+    def get_tags(self, obj):
+        return list(
+            obj.projects
+            .values_list('tags__name', flat=True)
+            .distinct()
+        )
