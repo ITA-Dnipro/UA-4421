@@ -19,7 +19,7 @@ class StartupListView(ListAPIView):
     pagination_class = StartupListPagination
 
     def get_queryset(self):
-        queryset = StartupProfile.objects.all().prefetch_related('projects__tags', 'projects__region').order_by("-id")
+        queryset = StartupProfile.objects.all().prefetch_related('projects__tags', 'region').order_by("-id")
 
         tag = self.request.query_params.get('tag')
         if tag:

@@ -63,13 +63,15 @@ class StartupListSerializer(serializers.ModelSerializer):
         )
 
     def get_regions(self, obj):
-        regions = set()
-        for project in obj.projects.all():
-            regions.update(project.region.values_list('name', flat=True))
-        return list(regions)
+        return list(
+            obj.region
+            .values_list('name', flat=True)
+            .distinct()
+        )
 
     def get_tags(self, obj):
-        tags = set()
-        for project in obj.projects.all():
-            tags.update(project.tags.values_list('name', flat=True))
-        return list(tags)
+        return list(
+            obj.projects
+            .values_list('tags__name', flat=True)
+            .distinct()
+        )

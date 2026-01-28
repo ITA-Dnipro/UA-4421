@@ -3,14 +3,10 @@
         "model": "users.user",
         "pk": 3,
         "fields": {
-        "username": "startup_user3",
-        "email": "founder3@test.com",
-        "password": "pbkdf2_sha256$260000$test$hash",
-        "first_name": "Victor",
-        "last_name": "Startup",
-        "phone": "+380671234567",
-        "verified": true,
-        "created_at": "2026-01-17T00:00:00Z"
+            "username": "startup_user3",
+            "email": "founder3@test.com",
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
 
@@ -18,22 +14,23 @@
         "model": "startups.startupprofile",
         "pk": 3,
         "fields": {
-        "user": 3,
-        "company_name": "Асоціація рітейлерів України",
-        "slug": "retail_ua",
-        "short_pitch": "Woodwork and ceramics",
-        "about_html": "<p>About retails Co</p>",
-        "website": "https://retail.example",
-        "contact_email": "info@retail.co",
-        "contact_phone": "+380501234567",
-        "logo_url": "https://placehold.co/200x200",
-        "hero_image_url": "https://placehold.co/1200x400",
-        "created_at": "2026-01-17T00:00:00Z"
+            "user": 3,
+            "company_name": "Асоціація рітейлерів України",
+            "slug": "retail_ua",
+            "short_pitch": "Woodwork and ceramics",
+            "about_html": "<p>About retails Co</p>",
+            "website": "https://retail.example",
+            "contact_email": "info@retail.co",
+            "contact_phone": "+380501234567",
+            "logo_url": "https://placehold.co/200x200",
+            "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
 
     {
-        "model": "projects.region",
+        "model": "startups.region",
         "pk": 1,
         "fields": {
         "name": "Київ"
@@ -41,7 +38,7 @@
     },
 
         {
-        "model": "projects.region",
+        "model": "startups.region",
         "pk": 2,
         "fields": {
         "name": "Київська обл."
@@ -49,7 +46,7 @@
     },
 
         {
-        "model": "projects.region",
+        "model": "startups.region",
         "pk": 3,
         "fields": {
         "name": "Закарпатська обл."
@@ -79,7 +76,6 @@
         "raised_amount": "0.00",
         "currency": "UAH",
         "visibility": "public",
-        "region": [1, 2, 3],
         "tags": [1],
         "created_at": "2026-01-17T00:00:00Z",
         "updated_at": "2026-01-17T00:00:00Z"
@@ -92,12 +88,8 @@
         "fields": {
             "username": "startup_user4",
             "email": "founder4@test.com",
-            "password": "pbkdf2_sha256$260000$test$hash",
-            "first_name": "Ihor",
-            "last_name": "Startup",
-            "phone": "+380672345678",
-            "verified": true,
-            "created_at": "2026-01-18T00:00:00Z"
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
     {
@@ -114,6 +106,7 @@
             "contact_phone": "+380502345678",
             "logo_url": "https://placehold.co/200x200",
             "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
             "created_at": "2026-01-17T00:00:00Z"
         }
     },
@@ -132,7 +125,6 @@
             "raised_amount": "15000.00",
             "currency": "UAH",
             "visibility": "public",
-            "region": [1, 2, 3],
             "tags": [1],
             "created_at": "2026-01-17T00:00:00Z",
             "updated_at": "2026-01-17T00:00:00Z"
@@ -144,12 +136,8 @@
         "fields": {
             "username": "startup_user5",
             "email": "founder5@test.com",
-            "password": "pbkdf2_sha256$260000$test$hash",
-            "first_name": "Maksym",
-            "last_name": "Green",
-            "phone": "+380673456789",
-            "verified": true,
-            "created_at": "2026-01-19T00:00:00Z"
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
     {
@@ -166,6 +154,7 @@
             "contact_phone": "+380503456789",
             "logo_url": "https://placehold.co/200x200",
             "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
             "created_at": "2026-01-17T00:00:00Z"
         }
     },
@@ -184,7 +173,6 @@
             "raised_amount": "5000.00",
             "currency": "UAH",
             "visibility": "public",
-            "region": [1, 2, 3],
             "tags": [1],
             "created_at": "2026-01-17T00:00:00Z",
             "updated_at": "2026-01-17T00:00:00Z"
@@ -196,12 +184,8 @@
         "fields": {
             "username": "startup_user6",
             "email": "founder6@test.com",
-            "password": "pbkdf2_sha256$260000$test$hash",
-            "first_name": "Olena",
-            "last_name": "Fashion",
-            "phone": "+380674567890",
-            "verified": true,
-            "created_at": "2026-01-20T00:00:00Z"
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
     {
@@ -218,6 +202,7 @@
             "contact_phone": "+380504567890",
             "logo_url": "https://placehold.co/200x200",
             "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
             "created_at": "2026-01-17T00:00:00Z"
         }
     },
@@ -236,7 +221,6 @@
             "raised_amount": "20000.00",
             "currency": "UAH",
             "visibility": "public",
-            "region": [1, 2, 3],
             "tags": [1],
             "created_at": "2026-01-17T00:00:00Z",
             "updated_at": "2026-01-17T00:00:00Z"
@@ -248,12 +232,8 @@
         "fields": {
             "username": "startup_user7",
             "email": "founder7@test.com",
-            "password": "pbkdf2_sha256$260000$test$hash",
-            "first_name": "Sergiy",
-            "last_name": "Food",
-            "phone": "+380675678901",
-            "verified": true,
-            "created_at": "2026-01-21T00:00:00Z"
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
     {
@@ -270,6 +250,7 @@
             "contact_phone": "+380505678901",
             "logo_url": "https://placehold.co/200x200",
             "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
             "created_at": "2026-01-17T00:00:00Z"
         }
     },
@@ -288,7 +269,6 @@
             "raised_amount": "10000.00",
             "currency": "UAH",
             "visibility": "public",
-            "region": [1, 2, 3],
             "tags": [1],
             "created_at": "2026-01-17T00:00:00Z",
             "updated_at": "2026-01-17T00:00:00Z"
@@ -300,12 +280,8 @@
         "fields": {
             "username": "startup_user8",
             "email": "founder8@test.com",
-            "password": "pbkdf2_sha256$260000$test$hash",
-            "first_name": "Natalia",
-            "last_name": "Edu",
-            "phone": "+380676789012",
-            "verified": true,
-            "created_at": "2026-01-22T00:00:00Z"
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
     {
@@ -322,6 +298,7 @@
             "contact_phone": "+380506789012",
             "logo_url": "https://placehold.co/200x200",
             "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
             "created_at": "2026-01-17T00:00:00Z"
         }
     },
@@ -340,7 +317,6 @@
             "raised_amount": "25000.00",
             "currency": "UAH",
             "visibility": "public",
-            "region": [1, 2, 3],
             "tags": [1],
             "created_at": "2026-01-17T00:00:00Z",
             "updated_at": "2026-01-17T00:00:00Z"
@@ -352,12 +328,8 @@
         "fields": {
             "username": "startup_user9",
             "email": "founder9@test.com",
-            "password": "pbkdf2_sha256$260000$test$hash",
-            "first_name": "Dmitry",
-            "last_name": "Travel",
-            "phone": "+380677890123",
-            "verified": true,
-            "created_at": "2026-01-23T00:00:00Z"
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
     {
@@ -374,6 +346,7 @@
             "contact_phone": "+380507890123",
             "logo_url": "https://placehold.co/200x200",
             "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
             "created_at": "2026-01-17T00:00:00Z"
         }
     },
@@ -392,7 +365,6 @@
             "raised_amount": "18000.00",
             "currency": "UAH",
             "visibility": "public",
-            "region": [1, 2, 3],
             "tags": [1],
             "created_at": "2026-01-17T00:00:00Z",
             "updated_at": "2026-01-17T00:00:00Z"
@@ -404,12 +376,8 @@
         "fields": {
             "username": "startup_user10",
             "email": "founder10@test.com",
-            "password": "pbkdf2_sha256$260000$test$hash",
-            "first_name": "Irina",
-            "last_name": "Health",
-            "phone": "+380678901234",
-            "verified": true,
-            "created_at": "2026-01-24T00:00:00Z"
+            "password": "1234",
+            "created_at": "2026-01-17T00:00:00Z"
         }
     },
     {
@@ -426,6 +394,7 @@
             "contact_phone": "+380508901234",
             "logo_url": "https://placehold.co/200x200",
             "hero_image_url": "https://placehold.co/1200x400",
+            "region": [1, 2, 3],
             "created_at": "2026-01-17T00:00:00Z"
         }
     },
@@ -444,7 +413,6 @@
             "raised_amount": "35000.00",
             "currency": "UAH",
             "visibility": "public",
-            "region": [1, 2, 3],
             "tags": [1],
             "created_at": "2026-01-17T00:00:00Z",
             "updated_at": "2026-01-17T00:00:00Z"
