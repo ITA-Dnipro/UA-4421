@@ -64,3 +64,12 @@ class VerifyEmailSerializer(serializers.Serializer):
 class ResendVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.CharField(
+        required=True,
+        max_length=255,
+        help_text="Email address (not validated for security reasons)"
+    )
+
+    def validate_email(self, value):
+        return value.lower().strip()
