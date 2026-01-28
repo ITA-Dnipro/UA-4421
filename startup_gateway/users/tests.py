@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import override_settings
 from django.core.cache import cache
+from django.core.signing import SignatureExpired, TimestampSigner
+from unittest.mock import patch
+from django.test import override_settings
 from rest_framework.test import APITestCase
 from importlib import reload
 
@@ -49,6 +51,30 @@ class TestRegisterApi(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("verify-email/?token=", mail.outbox[0].body)
 
+    def test_email_verification_nonce_is_hashed(self):
+        payload = {
+            "email": "alice@example.com",
+            "password": "P@ssw0rd!123",
+            "role": "startup",
+            "company_name": "Handmade Co",
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post("/api/auth/register/", payload, format="json")
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+
+        body = mail.outbox[0].body
+        token = body.split("token=", 1)[1].strip()
+
+        raw_nonce = token.split(":", 4)[2]
+
+        user = User.objects.get(email="alice@example.com")
+        self.assertNotEqual(user.email_verification_nonce, raw_nonce)
+        self.assertTrue(user.email_verification_nonce)
+
+    
     def test_happy_path_investor(self):
         payload = {
             "email": "investor@example.com",
@@ -191,6 +217,165 @@ class TestVerifyEmailApi(APITestCase):
     def test_verify_email_invalid_token(self):
         resp = self.client.get("/api/auth/verify-email/?token=bad")
         self.assertEqual(resp.status_code, 400)
+    
+    def test_verify_email_rejects_legacy_token_without_nonce(self):
+        payload = {
+            "email": "alice@example.com",
+            "password": "P@ssw0rd!123",
+            "role": "startup",
+            "company_name": "Handmade Co",
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post("/api/auth/register/", payload, format="json")
+
+        self.assertEqual(resp.status_code, 201)
+
+        user = User.objects.get(email="alice@example.com")
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.verified)
+
+        signer = TimestampSigner(salt="users.email.verify")
+        legacy_token = signer.sign(f"{user.pk}:{user.email.strip().lower()}")
+
+        verify_resp = self.client.post("/api/auth/verify-email/", {"token": legacy_token}, format="json")
+        self.assertEqual(verify_resp.status_code, 400)
+
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.verified)
+
+    def test_verify_email_post_happy_path(self):
+        payload = {
+            "email": "alice@example.com",
+            "password": "P@ssw0rd!123",
+            "role": "startup",
+            "company_name": "Handmade Co",
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post("/api/auth/register/", payload, format="json")
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+
+        body = mail.outbox[0].body
+        token = body.split("token=", 1)[1].strip()
+
+        verify_resp = self.client.post("/api/auth/verify-email/", {"token": token}, format="json")
+        self.assertEqual(verify_resp.status_code, 200)
+
+        user = User.objects.get(email="alice@example.com")
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.verified)
+
+
+    def test_verify_email_post_single_use(self):
+        payload = {
+            "email": "alice@example.com",
+            "password": "P@ssw0rd!123",
+            "role": "startup",
+            "company_name": "Handmade Co",
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post("/api/auth/register/", payload, format="json")
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+
+        body = mail.outbox[0].body
+        token = body.split("token=", 1)[1].strip()
+
+        first = self.client.post("/api/auth/verify-email/", {"token": token}, format="json")
+        self.assertEqual(first.status_code, 200)
+
+        second = self.client.post("/api/auth/verify-email/", {"token": token}, format="json")
+        self.assertEqual(second.status_code, 400)
+
+        user = User.objects.get(email="alice@example.com")
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.verified)
+
+
+    def test_verify_email_post_expired_token(self):
+        with patch("users.services.TimestampSigner.unsign", side_effect=SignatureExpired("expired")):
+            resp = self.client.post("/api/auth/verify-email/", {"token": "any"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    EMAIL_VERIFICATION_RESEND_EMAIL_TTL=60,
+    EMAIL_VERIFICATION_RESEND_IP_TTL=60,
+)
+class TestResendVerificationApi(APITestCase):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def test_resend_returns_200_for_non_existing_email(self):
+        resp = self.client.post(
+            "/api/auth/resend-verification/",
+            {"email": "missing@example.com"},
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+
+
+    def test_resend_non_existing_email_does_not_set_email_cache_key(self):
+        self.client.post(
+            "/api/auth/resend-verification/",
+            {"email": "missing@example.com"},
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        self.assertIsNone(cache.get("auth:resend-verification:email:missing@example.com"))
+
+
+    def test_resend_non_existing_email_sets_ip_cache_key(self):
+        self.client.post(
+            "/api/auth/resend-verification/",
+            {"email": "missing@example.com"},
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        self.assertTrue(cache.get("auth:resend-verification:ip:10.0.0.1"))
+
+
+    def test_resend_throttles_multiple_calls(self):
+        user = User.objects.create_user(
+            username="alice",
+            email="alice@example.com",
+            password="P@ssw0rd!123",
+            verified=False,
+            is_active=False,
+        )
+
+        first = self.client.post(
+            "/api/auth/resend-verification/",
+            {"email": "alice@example.com"},
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+
+        user.refresh_from_db()
+        nonce_after_first = user.email_verification_nonce
+
+        second = self.client.post(
+            "/api/auth/resend-verification/",
+            {"email": "alice@example.com"},
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+
+        user.refresh_from_db()
+        self.assertEqual(user.email_verification_nonce, nonce_after_first)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
