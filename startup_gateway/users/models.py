@@ -32,10 +32,9 @@ class User(AbstractUser):
     slug = models.SlugField(unique=True, blank=True)
     about_html = models.TextField(blank=True)
     short_description = models.CharField(max_length=300, blank=True)
-    contact = models.CharField(max_length=20, blank=True)
-    website = models.URLField(max_length=200, blank=True)
-    stats = models.IntegerField(default=0)
-    media_urls = models.FileField(upload_to="user/%Y/%m/%d/", blank=True)
+    contact = models.JSONField(default=dict, blank=True)
+    website = models.URLField(max_length=200, blank=True)    
+    media_urls = models.JSONField(default=list, blank=True)
     visibility = models.BooleanField(default=True)
 
     # relationship with tags defined in projects.models.Tag
