@@ -2,9 +2,8 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 
-from startups.models import StartupProfile
-from projects.models import Project, Tag, Region
-
+from startups.models import StartupProfile, Region
+from projects.models import Project, Tag
 
 User = get_user_model()
 
@@ -23,12 +22,16 @@ class StartupListAPITest(APITestCase):
             password="password123"
         )
 
+        cls.region_lviv = Region.objects.create(name="Lviv")
+        cls.region_kyiv = Region.objects.create(name="Kyiv")
+
         cls.startup1 = StartupProfile.objects.create(
             user=cls.user1,
             company_name="Handmade Co",
             short_pitch="Woodwork and ceramics",
             logo_url="https://placehold.co/300x300"
         )
+        cls.startup1.region.add(cls.region_lviv)
 
         cls.startup2 = StartupProfile.objects.create(
             user=cls.user2,
@@ -36,13 +39,11 @@ class StartupListAPITest(APITestCase):
             short_pitch="AI & Robotics",
             logo_url="https://placehold.co/300x300"
         )
+        cls.startup2.region.add(cls.region_kyiv)
 
         cls.tag_craft = Tag.objects.create(name="craft")
         cls.tag_pottery = Tag.objects.create(name="pottery")
         cls.tag_ai = Tag.objects.create(name="ai")
-
-        cls.region_lviv = Region.objects.create(name="Lviv")
-        cls.region_kyiv = Region.objects.create(name="Kyiv")
 
         project1 = Project.objects.create(
             startup_profile=cls.startup1,
@@ -53,7 +54,6 @@ class StartupListAPITest(APITestCase):
             target_amount=10000
         )
         project1.tags.add(cls.tag_craft, cls.tag_pottery)
-        project1.region.add(cls.region_lviv)
 
         project2 = Project.objects.create(
             startup_profile=cls.startup2,
@@ -64,7 +64,6 @@ class StartupListAPITest(APITestCase):
             target_amount=50000
         )
         project2.tags.add(cls.tag_ai)
-        project2.region.add(cls.region_kyiv)
 
 
     def test_startup_list_returns_200(self):
@@ -124,7 +123,7 @@ class StartupListAPITest(APITestCase):
         )
 
 
-    def test_regions_are_aggregated_from_projects(self):
+    def test_regions_are_correctly_serialized(self):
         url = reverse("startup-list")
         response = self.client.get(url)
 
