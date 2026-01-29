@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 
-from .serializers import RegisterSerializer
-from .services import send_verification_email, verify_email_token
+from users.serializers.register import RegisterSerializer
+from users.services import send_verification_email, verify_email_token
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
