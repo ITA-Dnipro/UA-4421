@@ -57,4 +57,10 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         return register_user(validated_data, user_model=User)
 
+class VerifyEmailSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
