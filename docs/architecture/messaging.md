@@ -2,11 +2,11 @@
 
 ## Databases
 
-Why MongoDB for message store
+For storing messages we use MongoDB. It has these features:
 
-- fast append
-- BSON
-- flexible metadata
+- **Fast append speed,** which is important for users when messaging.
+- The **BSON** format has the human-readable qualities of JSON, while also builds and scans quickly.
+- **Flexible metadata** //TODO
 
 Postgres for relational data
 
