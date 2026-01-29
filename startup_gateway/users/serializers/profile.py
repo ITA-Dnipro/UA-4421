@@ -4,14 +4,22 @@ from projects.models import Tag
 
 User = get_user_model()
 
+class UserStatsMixin(serializers.Serializer):
+    stats = serializers.SerializerMethodField()
+
+    def get_stats(self, obj):
+        return {
+            "projects_count": getattr(obj, "projects_count", 0),
+            "followers": getattr(obj, "followers_count", 0),
+            "views": getattr(obj, "views_count", 0),
+        }
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ("id", "name")
 
-
-class PublicProfileSerializer(serializers.ModelSerializer):
+class PublicProfileSerializer(UserStatsMixin, serializers.ModelSerializer):
     tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
@@ -25,6 +33,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             "contact",
             "website",
             "tags",
+            "stats",          
             "media_urls",
             "visibility",
         )
@@ -61,45 +70,3 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             instance.tags.set(tags)
 
         return instance
-    
-class ProfileReadSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-    tags = serializers.SerializerMethodField()
-    stats = serializers.SerializerMethodField()
-
-    class Meta:
-        model = User
-        fields = (
-            "id",
-            "name",
-            "slug",
-            "about_html",
-            "short_description",
-            "contact",
-            "website",
-            "tags",
-            "stats",
-            "media_urls",
-            "visibility",
-        )
-
-    def get_name(self, obj):
-        full_name = f"{obj.first_name} {obj.last_name}".strip()
-        return full_name or obj.username
-
-    def get_tags(self, obj):
-        return [
-            {"id": tag.id, "name": tag.name}
-            for tag in obj.tags.all()
-        ]
-
-    def get_stats(self, obj):
-        """
-        Temporary implementation.
-        Later we will replace it with real aggregates.
-        """
-        return {
-            "projects_count": 0,
-            "followers": 0,
-            "views": 0,
-        }
