@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from models import ProjectStatus
+from projects.models import ProjectStatus
 
 
 ALLOWED_STATUS_TRANSITIONS = {

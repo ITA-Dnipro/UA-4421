@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from models import ProjectStatus
+from projects.models import ProjectStatus
 
 def update_raised_amount(project, new_amount):
 
