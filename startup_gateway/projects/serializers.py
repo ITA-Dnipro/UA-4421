@@ -22,3 +22,10 @@ class ProjectDetailsSerializer(serializers.ModelSerializer):
 
 class ProjectStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=ProjectStatus.choices)
+
+class ProjectRaisedAmountUpdateSerializer(serializers.Serializer):
+    raised_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=0
+    )
