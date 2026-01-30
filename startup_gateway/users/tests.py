@@ -11,6 +11,7 @@ from startups.models import StartupProfile
 from investors.models import InvestorProfile
 from users.models import PasswordResetAttempt, Role
 from users.tokens import password_reset_token_generator
+from users.email_service import PasswordResetEmailService
 from users import tokens
 
 User = get_user_model()
@@ -533,7 +534,7 @@ class TestPasswordResetToken(APITestCase):
 
         self.assertIsNotNone(token)
         self.assertIsInstance(token, str)
-        self.assertIn('-', token)
+        self.assertIn(':', token)
 
     def test_token_validation(self):
         token = password_reset_token_generator.make_token(self.user)
@@ -567,6 +568,83 @@ class TestPasswordResetToken(APITestCase):
         is_valid = password_reset_token_generator.check_token(self.user, None)
 
         self.assertFalse(is_valid)
+
+    def test_tampered_token_fails(self):
+        token = password_reset_token_generator.make_token(self.user)
+
+        tampered = token[:-5] + "xxxxx"
+
+        is_valid = password_reset_token_generator.check_token(self.user, tampered)
+        self.assertFalse(is_valid)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class TestPasswordResetEmailErrors(APITestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='TestPass123!',
+            is_active=True,
+        )
+
+    @patch('users.email_service.send_mail')
+    def test_email_service_handles_send_failure(self, mock_send):
+
+        mock_send.side_effect = Exception("SMTP server error")
+
+        token = password_reset_token_generator.make_token(self.user)
+        result = PasswordResetEmailService.send_reset_email(
+            user=self.user,
+            token=token,
+            request=None
+        )
+
+        self.assertFalse(result)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class TestPasswordResetAuditErrors(APITestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='TestPass123!',
+            is_active=True,
+        )
+
+    @patch('users.models.PasswordResetAttempt.objects.create')
+    def test_continues_when_audit_log_fails(self, mock_create):
+        mock_create.side_effect = Exception("Database error")
+
+        payload = {"email": "test@example.com"}
+        resp = self.client.post("/api/auth/password-reset/", payload, format="json")
+
+        self.assertEqual(resp.status_code, 200)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class TestPasswordResetAttemptModel(APITestCase):
+
+    def test_str_representation(self):
+        user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='TestPass123!',
+        )
+
+        attempt = PasswordResetAttempt.objects.create(
+            user=user,
+            email='test@example.com',
+            ip_address='192.168.1.1',
+            token_sent=True,
+        )
+
+        str_repr = str(attempt)
+        self.assertIn('test@example.com', str_repr)
+        self.assertIn('Reset attempt', str_repr)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

@@ -1,18 +1,36 @@
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from django.conf import settings
-from datetime import datetime
 
 
-class CustomPasswordResetTokenGenerator(PasswordResetTokenGenerator):
-    def __init__(self, timeout):
+class PasswordResetTokenGenerator:
+
+    def __init__(self, timeout=3600):
+
         self.timeout = timeout
-        super().__init__()
+        self.signer = TimestampSigner()
 
-    def _num_seconds(self, dt):
-        epoch = datetime(2001, 1, 1)
-        return int((dt - epoch).total_seconds())
+    def make_token(self, user):
+
+        return self.signer.sign(user.pk)
+
+    def check_token(self, user, token):
+
+        if not user or not token:
+            return False
+
+        try:
+            user_id = self.signer.unsign(token, max_age=self.timeout)
+
+            return str(user.pk) == str(user_id)
+
+        except SignatureExpired:
+            return False
+        except BadSignature:
+            return False
+        except (ValueError, TypeError):
+            return False
 
 
-password_reset_token_generator = CustomPasswordResetTokenGenerator(
+password_reset_token_generator = PasswordResetTokenGenerator(
     timeout=getattr(settings, 'PASSWORD_RESET_TIMEOUT', 3600)
 )
