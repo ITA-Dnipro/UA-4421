@@ -81,7 +81,7 @@ class StartupProjectsAPITestCase(APITestCase):
     
     def test_get_startup_projects_success(self):
         """Test successful retrieval of startup projects"""
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -95,14 +95,14 @@ class StartupProjectsAPITestCase(APITestCase):
         
         # Check fields
         first_project = data['results'][0]
-        expected_fields = ['id', 'title', 'status', 'thumbnail_url', 'short_description']
+        expected_fields = ['id', 'title', 'status', 'thumbnail', 'short_desc']
         
         for field in expected_fields:
             self.assertIn(field, first_project)
     
     def test_filter_by_status(self):
         """Test filtering projects by status"""
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         
         # Filter only active projects
         response = self.client.get(f'{url}?status={ProjectStatus.IDEA}')
@@ -116,7 +116,7 @@ class StartupProjectsAPITestCase(APITestCase):
     
     def test_filter_by_tag(self):
         """Test filtering projects by tag"""
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         
         # Filter by 'Technology' tag
         response = self.client.get(f'{url}?tag=Technology')
@@ -141,7 +141,7 @@ class StartupProjectsAPITestCase(APITestCase):
                 visibility=ProjectVisibility.PUBLIC
             )
         
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         
         # Default pagination (page_size=6)
         response = self.client.get(url)

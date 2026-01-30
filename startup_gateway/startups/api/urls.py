@@ -5,8 +5,8 @@ app_name = 'startups_api'
 
 urlpatterns = [
     path(
-        'startups/<int:id>/projects/',
+        'startups/<int:id>/projects/public/',
         StartupProjectsAPIView.as_view(),
-        name='startup-projects'
+        name='public-projects'
     ),
 ]
