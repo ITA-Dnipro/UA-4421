@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth import get_user_model
 
 from startups.models import StartupProfile
-from projects.models import Project
+from projects.models import Project, ProjectStatus
 
 
 class ProjectsAPITests(TestCase):
@@ -116,3 +116,93 @@ class ProjectsAPITests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         project.refresh_from_db()
         self.assertEqual(project.short_description, "orig")
+
+
+
+
+class ProjectCustomActionsAPITests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+
+        self.owner_user = User.objects.create_user(username="owner", password="pass12345")
+        self.admin_user = User.objects.create_user(username="admin", password="pass12345", is_staff=True)
+        self.other_user = User.objects.create_user(username="other", password="pass12345")
+
+        self.startup = StartupProfile.objects.create(user=self.owner_user)
+
+        self.project = Project.objects.create(
+            startup_profile=self.startup,
+            title="Test Project",
+            slug="test-project",
+            short_description="desc",
+            description="desc",
+            status=ProjectStatus.FUNDRAISING,
+            target_amount="100.00",
+            raised_amount="0.00",
+            currency="UAH",
+            visibility="public",
+            allow_overfunding=False
+        )
+
+    def auth_as(self, user):
+        token = str(AccessToken.for_user(user))
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    def clear_auth(self):
+        self.client.credentials()
+
+    def _status_url(self):
+        return reverse("projects:project-status-update", kwargs={"pk": self.project.pk})
+
+    def _raised_amount_url(self):
+        return reverse("projects:update-raised-amount", kwargs={"pk": self.project.pk})
+
+    # ----------------- Status update tests -----------------
+    def test_status_update_success(self):
+        self.auth_as(self.owner_user)
+        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.FUNDED}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.status, ProjectStatus.FUNDED)
+
+    def test_status_update_invalid_transition(self):
+        self.auth_as(self.owner_user)
+        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.IDEA}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Invalid status transition", resp.data["detail"])
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.status, ProjectStatus.FUNDRAISING)
+
+    def test_status_update_admin_override(self):
+        self.auth_as(self.admin_user)
+        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.MVP}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.status, ProjectStatus.MVP)
+
+    # ----------------- Raised amount tests -----------------
+    def test_update_raised_amount_success(self):
+        self.auth_as(self.owner_user)
+        resp = self.client.patch(self._raised_amount_url(), data={"raised_amount": "50.00"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(float(self.project.raised_amount), 50.0)
+        self.assertEqual(self.project.status, ProjectStatus.FUNDRAISING) 
+
+    def test_update_raised_amount_to_target(self):
+        self.auth_as(self.owner_user)
+        resp = self.client.patch(self._raised_amount_url(), data={"raised_amount": "100.00"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(float(self.project.raised_amount), 100.0)
+        self.assertEqual(self.project.status, ProjectStatus.FUNDED)
+        self.assertIsNotNone(self.project.funded_at)
+
+    def test_update_raised_amount_over_target_not_allowed(self):
+        self.auth_as(self.owner_user)
+        resp = self.client.patch(self._raised_amount_url(), data={"raised_amount": "150.00"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Raised amount cannot exceed target amount", resp.data["detail"])
+        self.project.refresh_from_db()
+        self.assertEqual(float(self.project.raised_amount), 0.0) 
