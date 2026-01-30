@@ -27,6 +27,7 @@ class User(AbstractUser):
 
     phone = models.CharField(max_length=20, blank=True)
     verified = models.BooleanField(default=False)
+    email_verification_nonce = models.CharField(max_length=64, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     roles = models.ManyToManyField(
