@@ -71,6 +71,7 @@ class Project(models.Model):
         related_name="projects",
         blank=True
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
