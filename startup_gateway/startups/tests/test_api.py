@@ -45,7 +45,7 @@ class StartupProjectsAPITestCase(APITestCase):
             short_description='An intelligent AI assistant that helps with daily tasks.',
             description='Full description of AI Assistant project...',
             thumbnail_url='https://example.com/ai-assistant.jpg',
-            status=ProjectStatus.ACTIVE,
+            status=ProjectStatus.IDEA,
             target_amount=50000,
             raised_amount=25000,
             visibility=ProjectVisibility.PUBLIC
@@ -59,7 +59,7 @@ class StartupProjectsAPITestCase(APITestCase):
             short_description='Sustainable packaging solution.',
             description='Full description of Eco Packaging...',
             thumbnail_url='',
-            status=ProjectStatus.ACTIVE,
+            status=ProjectStatus.IDEA,
             target_amount=30000,
             raised_amount=15000,
             visibility=ProjectVisibility.PUBLIC
@@ -95,7 +95,7 @@ class StartupProjectsAPITestCase(APITestCase):
         
         # Check fields
         first_project = data['results'][0]
-        expected_fields = ['id', 'title', 'status', 'thumbnail', 'short_desc']
+        expected_fields = ['id', 'title', 'status', 'thumbnail_url', 'short_description']
         
         for field in expected_fields:
             self.assertIn(field, first_project)
@@ -105,14 +105,14 @@ class StartupProjectsAPITestCase(APITestCase):
         url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
         
         # Filter only active projects
-        response = self.client.get(f'{url}?status={ProjectStatus.ACTIVE}')
+        response = self.client.get(f'{url}?status={ProjectStatus.IDEA}')
         data = response.json()
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(data['count'], 2)
         
         for project in data['results']:
-            self.assertEqual(project['status'], ProjectStatus.ACTIVE)
+            self.assertEqual(project['status'], ProjectStatus.IDEA)
     
     def test_filter_by_tag(self):
         """Test filtering projects by tag"""
@@ -124,9 +124,9 @@ class StartupProjectsAPITestCase(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(data['count'], 1)
-        
+        print(data)
         self.assertEqual(data['results'][0]['title'], 'AI Assistant')
-    
+
     def test_pagination(self):
         """Test pagination according to specification"""
         # Add more projects
@@ -136,7 +136,7 @@ class StartupProjectsAPITestCase(APITestCase):
                 title=f'Extra Project {i}',
                 slug=f'extra-project-{i}',
                 short_description=f'Description {i}',
-                status=ProjectStatus.ACTIVE,
+                status=ProjectStatus.IDEA,
                 target_amount=1000 * i,
                 visibility=ProjectVisibility.PUBLIC
             )
