@@ -5,6 +5,7 @@ from django.core.signing import SignatureExpired, TimestampSigner
 from unittest.mock import patch
 from django.test import override_settings
 from rest_framework.test import APITestCase
+from datetime import timedelta
 
 from startups.models import StartupProfile
 from investors.models import InvestorProfile
@@ -373,3 +374,102 @@ class TestResendVerificationApi(APITestCase):
 
         user.refresh_from_db()
         self.assertEqual(user.email_verification_nonce, nonce_after_first)
+
+@override_settings(
+    AXES_ENABLED=True,
+    AXES_FAILURE_LIMIT=5,
+    AXES_COOLOFF_TIME=timedelta(minutes=5),
+    AXES_USERNAME_FORM_FIELD="email",
+    REST_FRAMEWORK={
+        "DEFAULT_THROTTLE_CLASSES": [],
+        "DEFAULT_THROTTLE_RATES": {},
+    },
+)
+class TestLoginApi(APITestCase):
+    def setUp(self):
+        super().setUp()
+        self.user_password = "P@ssw0rd!123"
+        self.user = User.objects.create_user(
+            username="alice",
+            email="alice@example.com",
+            password=self.user_password,
+            is_active=True,
+            verified=True,
+        )
+
+        self.url = "/api/auth/login/"
+        self.ip = "10.0.0.1"
+
+    def test_login_success_returns_tokens_and_user(self):
+        payload = {
+            "email": self.user.email,
+            "password": self.user_password,
+        }
+
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+        self.assertIn("user", resp.data)
+        self.assertEqual(resp.data["user"]["email"], self.user.email)
+
+    def test_login_success_with_remember_returns_tokens(self):
+        payload = {
+            "email": self.user.email,
+            "password": self.user_password,
+            "remember": True,
+        }
+
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+        self.assertEqual(resp.data["user"]["email"], self.user.email)
+
+    def test_login_invalid_credentials_returns_401(self):
+        payload = {
+            "email": self.user.email,
+            "password": "wrong-password",
+        }
+
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+
+        self.assertEqual(resp.status_code, 401)
+        self.assertTrue("detail" in resp.data or "non_field_errors" in resp.data)
+
+    def test_login_lockout_after_repeated_failures_returns_429(self):
+        for _ in range(4):
+            resp = self.client.post(
+                self.url,
+                {"email": self.user.email, "password": "wrong"},
+                format="json",
+                REMOTE_ADDR=self.ip,
+            )
+            self.assertEqual(resp.status_code, 401)
+        locked = self.client.post(
+            self.url,
+            {"email": self.user.email, "password": "wrong"},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+        self.assertEqual(locked.status_code, 429)
+        self.assertIn("detail", locked.data)
+
+    def test_login_during_lockout_blocks_even_with_correct_password(self):
+        for _ in range(5):
+            self.client.post(
+                self.url,
+                {"email": self.user.email, "password": "wrong"},
+                format="json",
+                REMOTE_ADDR=self.ip,
+            )
+        resp = self.client.post(
+            self.url,
+            {"email": self.user.email, "password": self.user_password},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+        self.assertEqual(resp.status_code, 429)
+        self.assertIn("detail", resp.data)
