@@ -1,4 +1,5 @@
-import { type ChangeEvent, type CSSProperties, type FormEvent, useMemo, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react'
+import styles from './RegisterStartup.module.css'
 
 type FieldKey =
   | 'email'
@@ -27,24 +28,6 @@ type Values = {
 }
 
 type UiState = 'idle' | 'submitting' | 'success'
-
-const baseControlStyle: CSSProperties = {
-  width: '100%',
-  padding: '10px 12px',
-  borderRadius: 10,
-  border: '1px solid #cbd5e1',
-}
-
-const errorControlStyle: CSSProperties = {
-  ...baseControlStyle,
-  borderColor: '#dc2626',
-}
-
-const errorTextStyle: CSSProperties = {
-  color: '#dc2626',
-  fontSize: 13,
-  lineHeight: 1.3,
-}
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024
 const MAX_PITCH_DECK_BYTES = 10 * 1024 * 1024
@@ -199,8 +182,8 @@ export default function RegisterStartup() {
     return undefined
   }
 
-  function controlStyle(key: FieldKey) {
-    return getVisibleError(key) ? errorControlStyle : baseControlStyle
+  function controlClass(key: FieldKey) {
+    return getVisibleError(key) ? `${styles.input} ${styles.inputError}` : styles.input
   }
 
   function revalidate() {
@@ -323,278 +306,290 @@ export default function RegisterStartup() {
   const pitchDeckError = getVisibleError('pitchDeck')
   const termsError = getVisibleError('termsAccepted')
 
+  const isSubmitting = uiState === 'submitting'
+
   if (uiState === 'success') {
     return (
-      <div style={{ maxWidth: 560, width: '100%', margin: '0 auto', textAlign: 'left' }}>
-        <h1 style={{ fontSize: 28, marginBottom: 12 }}>Startup registration</h1>
-        <div aria-live="polite" style={{ marginBottom: 12 }}>
-          {banner}
-        </div>
-        <div style={{ opacity: 0.85 }}>
-          If you don&apos;t see the email, check your spam folder or try again later.
+      <div className={styles.page}>
+        <div className={styles.container}>
+          <div className={styles.card}>
+            <h1 className={styles.title}>Startup registration</h1>
+            <div aria-live="polite" className={styles.banner}>
+              {banner}
+            </div>
+            <div className={styles.successHint}>
+              If you don&apos;t see the email, check your spam folder or try again later.
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  const isSubmitting = uiState === 'submitting'
-
   return (
-    <div style={{ maxWidth: 560, width: '100%', margin: '0 auto', textAlign: 'left' }}>
-      <h1 style={{ fontSize: 28, marginBottom: 16 }}>Startup registration</h1>
+    <div className={styles.page}>
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>Startup registration</h1>
 
-      <div aria-live="polite" style={{ minHeight: 24, marginBottom: 12 }}>
-        {banner}
-      </div>
+          <div aria-live="polite" className={styles.banner}>
+            {banner}
+          </div>
 
-      <form onSubmit={onSubmit} noValidate aria-busy={isSubmitting}>
-        <div style={{ display: 'grid', gap: 12 }}>
-          <label style={{ display: 'grid', gap: 6 }}>
-            Email
-            <input
-              type="email"
-              name="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => {
-                markTouched('email')
-                revalidate()
-              }}
-              autoComplete="email"
-              required
-              disabled={isSubmitting}
-              style={controlStyle('email')}
-              aria-invalid={Boolean(emailError)}
-              aria-describedby={emailError ? 'email-error' : undefined}
-            />
-            {emailError && (
-              <div id="email-error" role="alert" style={errorTextStyle}>
-                {emailError}
-              </div>
-            )}
-          </label>
+          <form onSubmit={onSubmit} noValidate aria-busy={isSubmitting}>
+            <div className={styles.form}>
+              <label className={styles.field}>
+                <span className={styles.label}>Email</span>
+                <input
+                  type="email"
+                  name="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => {
+                    markTouched('email')
+                    revalidate()
+                  }}
+                  autoComplete="email"
+                  required
+                  disabled={isSubmitting}
+                  className={controlClass('email')}
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={emailError ? 'email-error' : undefined}
+                />
+                {emailError && (
+                  <div id="email-error" role="alert" className={styles.errorText}>
+                    {emailError}
+                  </div>
+                )}
+              </label>
 
-          <label style={{ display: 'grid', gap: 6 }}>
-            Password
-            <input
-              type="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => {
-                markTouched('password')
-                revalidate()
-              }}
-              autoComplete="new-password"
-              required
-              disabled={isSubmitting}
-              style={controlStyle('password')}
-              aria-invalid={Boolean(passwordError)}
-              aria-describedby={passwordError ? 'password-error' : undefined}
-            />
-            {passwordError && (
-              <div id="password-error" role="alert" style={errorTextStyle}>
-                {passwordError}
-              </div>
-            )}
-          </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Password</span>
+                <input
+                  type="password"
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onBlur={() => {
+                    markTouched('password')
+                    revalidate()
+                  }}
+                  autoComplete="new-password"
+                  required
+                  disabled={isSubmitting}
+                  className={controlClass('password')}
+                  aria-invalid={Boolean(passwordError)}
+                  aria-describedby={passwordError ? 'password-error' : undefined}
+                />
+                {passwordError && (
+                  <div id="password-error" role="alert" className={styles.errorText}>
+                    {passwordError}
+                  </div>
+                )}
+              </label>
 
-          <label style={{ display: 'grid', gap: 6 }}>
-            Confirm password
-            <input
-              type="password"
-              name="passwordConfirm"
-              value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
-              onBlur={() => {
-                markTouched('passwordConfirm')
-                revalidate()
-              }}
-              autoComplete="new-password"
-              required
-              disabled={isSubmitting}
-              style={controlStyle('passwordConfirm')}
-              aria-invalid={Boolean(passwordConfirmError)}
-              aria-describedby={passwordConfirmError ? 'passwordConfirm-error' : undefined}
-            />
-            {passwordConfirmError && (
-              <div id="passwordConfirm-error" role="alert" style={errorTextStyle}>
-                {passwordConfirmError}
-              </div>
-            )}
-          </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Confirm password</span>
+                <input
+                  type="password"
+                  name="passwordConfirm"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  onBlur={() => {
+                    markTouched('passwordConfirm')
+                    revalidate()
+                  }}
+                  autoComplete="new-password"
+                  required
+                  disabled={isSubmitting}
+                  className={controlClass('passwordConfirm')}
+                  aria-invalid={Boolean(passwordConfirmError)}
+                  aria-describedby={passwordConfirmError ? 'passwordConfirm-error' : undefined}
+                />
+                {passwordConfirmError && (
+                  <div id="passwordConfirm-error" role="alert" className={styles.errorText}>
+                    {passwordConfirmError}
+                  </div>
+                )}
+              </label>
 
-          <label style={{ display: 'grid', gap: 6 }}>
-            Company name
-            <input
-              type="text"
-              name="companyName"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              onBlur={() => {
-                markTouched('companyName')
-                revalidate()
-              }}
-              autoComplete="organization"
-              required
-              disabled={isSubmitting}
-              style={controlStyle('companyName')}
-              aria-invalid={Boolean(companyNameError)}
-              aria-describedby={companyNameError ? 'companyName-error' : undefined}
-            />
-            {companyNameError && (
-              <div id="companyName-error" role="alert" style={errorTextStyle}>
-                {companyNameError}
-              </div>
-            )}
-          </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Company name</span>
+                <input
+                  type="text"
+                  name="companyName"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  onBlur={() => {
+                    markTouched('companyName')
+                    revalidate()
+                  }}
+                  autoComplete="organization"
+                  required
+                  disabled={isSubmitting}
+                  className={controlClass('companyName')}
+                  aria-invalid={Boolean(companyNameError)}
+                  aria-describedby={companyNameError ? 'companyName-error' : undefined}
+                />
+                {companyNameError && (
+                  <div id="companyName-error" role="alert" className={styles.errorText}>
+                    {companyNameError}
+                  </div>
+                )}
+              </label>
 
-          <label style={{ display: 'grid', gap: 6 }}>
-            Short pitch
-            <textarea
-              name="shortPitch"
-              value={shortPitch}
-              onChange={(e) => setShortPitch(e.target.value)}
-              onBlur={() => {
-                markTouched('shortPitch')
-                revalidate()
-              }}
-              rows={3}
-              required
-              disabled={isSubmitting}
-              style={controlStyle('shortPitch')}
-              aria-invalid={Boolean(shortPitchError)}
-              aria-describedby={shortPitchError ? 'shortPitch-error' : undefined}
-            />
-            {shortPitchError && (
-              <div id="shortPitch-error" role="alert" style={errorTextStyle}>
-                {shortPitchError}
-              </div>
-            )}
-          </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Short pitch</span>
+                <textarea
+                  name="shortPitch"
+                  value={shortPitch}
+                  onChange={(e) => setShortPitch(e.target.value)}
+                  onBlur={() => {
+                    markTouched('shortPitch')
+                    revalidate()
+                  }}
+                  rows={3}
+                  required
+                  disabled={isSubmitting}
+                  className={
+                    getVisibleError('shortPitch')
+                      ? `${styles.textarea} ${styles.inputError}`
+                      : styles.textarea
+                  }
+                  aria-invalid={Boolean(shortPitchError)}
+                  aria-describedby={shortPitchError ? 'shortPitch-error' : undefined}
+                />
+                {shortPitchError && (
+                  <div id="shortPitch-error" role="alert" className={styles.errorText}>
+                    {shortPitchError}
+                  </div>
+                )}
+              </label>
 
-          <label style={{ display: 'grid', gap: 6 }}>
-            Website
-            <input
-              type="url"
-              name="website"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              onBlur={() => {
-                markTouched('website')
-                revalidate()
-              }}
-              placeholder="https://example.com"
-              required
-              disabled={isSubmitting}
-              style={controlStyle('website')}
-              aria-invalid={Boolean(websiteError)}
-              aria-describedby={websiteError ? 'website-error' : undefined}
-            />
-            {websiteError && (
-              <div id="website-error" role="alert" style={errorTextStyle}>
-                {websiteError}
-              </div>
-            )}
-          </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Website</span>
+                <input
+                  type="url"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  onBlur={() => {
+                    markTouched('website')
+                    revalidate()
+                  }}
+                  placeholder="https://example.com"
+                  required
+                  disabled={isSubmitting}
+                  className={controlClass('website')}
+                  aria-invalid={Boolean(websiteError)}
+                  aria-describedby={websiteError ? 'website-error' : undefined}
+                />
+                {websiteError && (
+                  <div id="website-error" role="alert" className={styles.errorText}>
+                    {websiteError}
+                  </div>
+                )}
+              </label>
 
-          <label style={{ display: 'grid', gap: 6 }}>
-            Contact
-            <input
-              type="text"
-              name="contact"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              onBlur={() => {
-                markTouched('contact')
-                revalidate()
-              }}
-              placeholder="+380..."
-              required
-              disabled={isSubmitting}
-              style={controlStyle('contact')}
-              aria-invalid={Boolean(contactError)}
-              aria-describedby={contactError ? 'contact-error' : undefined}
-            />
-            {contactError && (
-              <div id="contact-error" role="alert" style={errorTextStyle}>
-                {contactError}
-              </div>
-            )}
-          </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Contact</span>
+                <input
+                  type="text"
+                  name="contact"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  onBlur={() => {
+                    markTouched('contact')
+                    revalidate()
+                  }}
+                  placeholder="+380..."
+                  required
+                  disabled={isSubmitting}
+                  className={controlClass('contact')}
+                  aria-invalid={Boolean(contactError)}
+                  aria-describedby={contactError ? 'contact-error' : undefined}
+                />
+                {contactError && (
+                  <div id="contact-error" role="alert" className={styles.errorText}>
+                    {contactError}
+                  </div>
+                )}
+              </label>
 
-          <label style={{ display: 'grid', gap: 6 }}>
-            <span>Logo (optional)</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input
-                aria-label="Logo (optional)"
-                type="file"
-                name="logo"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={onLogoChange}
-                disabled={isSubmitting}
-                aria-invalid={Boolean(logoError)}
-                aria-describedby={logoError ? 'logo-error' : undefined}
-              />
-              <span style={{ fontSize: 14, opacity: 0.8 }}>{chosenLogoName}</span>
+              <label className={styles.field}>
+                <span className={styles.label}>Logo (optional)</span>
+                <div className={styles.fileRow}>
+                  <input
+                    aria-label="Logo (optional)"
+                    type="file"
+                    name="logo"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={onLogoChange}
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(logoError)}
+                    aria-describedby={logoError ? 'logo-error' : undefined}
+                  />
+                  <span className={styles.fileName}>{chosenLogoName}</span>
+                </div>
+                {logoError && (
+                  <div id="logo-error" role="alert" className={styles.errorText}>
+                    {logoError}
+                  </div>
+                )}
+              </label>
+
+              <label className={styles.field}>
+                <span className={styles.label}>Pitch deck (optional)</span>
+                <div className={styles.fileRow}>
+                  <input
+                    aria-label="Pitch deck (optional)"
+                    type="file"
+                    name="pitchDeck"
+                    accept="application/pdf"
+                    onChange={onPitchDeckChange}
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(pitchDeckError)}
+                    aria-describedby={pitchDeckError ? 'pitchDeck-error' : undefined}
+                  />
+                  <span className={styles.fileName}>{chosenPitchDeckName}</span>
+                </div>
+                {pitchDeckError && (
+                  <div id="pitchDeck-error" role="alert" className={styles.errorText}>
+                    {pitchDeckError}
+                  </div>
+                )}
+              </label>
+
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  name="termsAccepted"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  onBlur={() => {
+                    markTouched('termsAccepted')
+                    revalidate()
+                  }}
+                  required
+                  disabled={isSubmitting}
+                  aria-invalid={Boolean(termsError)}
+                  aria-describedby={termsError ? 'termsAccepted-error' : undefined}
+                />
+                <span>I accept the Terms &amp; Privacy Policy</span>
+              </label>
+              {termsError && (
+                <div id="termsAccepted-error" role="alert" className={styles.errorText}>
+                  {termsError}
+                </div>
+              )}
+
+              <button type="submit" className={styles.button} disabled={isSubmitting}>
+                {isSubmitting ? 'Registering...' : 'Register'}
+              </button>
             </div>
-            {logoError && (
-              <div id="logo-error" role="alert" style={errorTextStyle}>
-                {logoError}
-              </div>
-            )}
-          </label>
-
-          <label style={{ display: 'grid', gap: 6 }}>
-            <span>Pitch deck (optional)</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input
-                aria-label="Pitch deck (optional)"
-                type="file"
-                name="pitchDeck"
-                accept="application/pdf"
-                onChange={onPitchDeckChange}
-                disabled={isSubmitting}
-                aria-invalid={Boolean(pitchDeckError)}
-                aria-describedby={pitchDeckError ? 'pitchDeck-error' : undefined}
-              />
-              <span style={{ fontSize: 14, opacity: 0.8 }}>{chosenPitchDeckName}</span>
-            </div>
-            {pitchDeckError && (
-              <div id="pitchDeck-error" role="alert" style={errorTextStyle}>
-                {pitchDeckError}
-              </div>
-            )}
-          </label>
-
-          <label style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              name="termsAccepted"
-              checked={termsAccepted}
-              onChange={(e) => setTermsAccepted(e.target.checked)}
-              onBlur={() => {
-                markTouched('termsAccepted')
-                revalidate()
-              }}
-              required
-              disabled={isSubmitting}
-              aria-invalid={Boolean(termsError)}
-              aria-describedby={termsError ? 'termsAccepted-error' : undefined}
-            />
-            <span>I accept the Terms &amp; Privacy Policy</span>
-          </label>
-          {termsError && (
-            <div id="termsAccepted-error" role="alert" style={errorTextStyle}>
-              {termsError}
-            </div>
-          )}
-
-          <button type="submit" style={{ width: '100%' }} disabled={isSubmitting}>
-            {isSubmitting ? 'Registering...' : 'Register'}
-          </button>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   )
 }
