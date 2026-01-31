@@ -57,9 +57,21 @@ class User(AbstractUser):
         db_table = 'users'
 
     def save(self, *args, **kwargs):
-        if not self.slug:
+        if kwargs.get("raw", False):
+            super().save(*args, **kwargs)
+            return
+
+        if self._state.adding and not self.slug:
             base_slug = slugify(self.username)
-            self.slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+            slug = base_slug
+            counter = 1
+
+            while User.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
         super().save(*args, **kwargs)
 
     def __str__(self):
