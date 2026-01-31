@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils.text import slugify
+import uuid
 
 class Role(models.Model):
     """
@@ -53,6 +55,12 @@ class User(AbstractUser):
 
     class Meta:
         db_table = 'users'
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.username)
+            self.slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.username
