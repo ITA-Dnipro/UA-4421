@@ -1,6 +1,6 @@
-
 import logging
 import uuid
+from django.core.cache import cache
 
 from investors.models import InvestorProfile
 from startups.models import StartupProfile
@@ -11,6 +11,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.utils.crypto import salted_hmac
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,18 @@ User = get_user_model()
 
 def build_email_verification_token(user):
     signer = TimestampSigner(salt="users.email.verify")
-    payload = f"{user.pk}:{user.email.strip().lower()}"
+    raw_nonce = uuid.uuid4().hex
+    hashed_nonce = salted_hmac(
+        key_salt="users.email.verify",
+        value=raw_nonce,
+        algorithm="sha256",
+    ).hexdigest()
+
+    user.email_verification_nonce = hashed_nonce
+    user.save(update_fields=["email_verification_nonce"])
+
+    payload = f"{user.pk}:{user.email.strip().lower()}:{raw_nonce}"
+
     return signer.sign(payload)
 
 
@@ -55,11 +68,17 @@ def verify_email_token(token):
     except (BadSignature, SignatureExpired):
         return None
 
-    try:
-        user_id_str, email = payload.split(":", 1)
-        user_id = int(user_id_str)
-    except (ValueError, AttributeError):
+    parts = payload.split(":", 2)
+    if len(parts) != 3:
         return None
+
+    try:
+        user_id = int(parts[0])
+    except (ValueError, TypeError):
+        return None
+
+    email = parts[1]
+    nonce = parts[2]
 
     user = User.objects.filter(pk=user_id).first()
     if not user:
@@ -68,12 +87,36 @@ def verify_email_token(token):
     if user.email.strip().lower() != email.strip().lower():
         return None
 
-    if (not user.verified) or (not user.is_active):
+    if not user.email_verification_nonce:
+        return None
+
+    expected_hashed_nonce = salted_hmac(
+        key_salt="users.email.verify",
+        value=nonce,
+        algorithm="sha256",
+    ).hexdigest()
+
+    if user.email_verification_nonce != expected_hashed_nonce:
+        return None
+
+    update_fields = []
+
+    if not user.verified:
         user.verified = True
+        update_fields.append("verified")
+    if not user.is_active:
         user.is_active = True
-        user.save(update_fields=["verified", "is_active"])
+        update_fields.append("is_active")
+
+    user.email_verification_nonce = ""
+    update_fields.append("email_verification_nonce")
+
+    if update_fields:
+        user.save(update_fields=update_fields)
 
     return user
+
+
 
 @transaction.atomic
 def register_user(validated_data, user_model):
@@ -117,3 +160,33 @@ def register_user(validated_data, user_model):
 
     return user, True, True
 
+
+def _resend_verification_email_key(email: str) -> str:
+    return f"auth:resend-verification:email:{email}"
+
+
+def _resend_verification_ip_key(ip: str) -> str:
+    return f"auth:resend-verification:ip:{ip}"
+
+
+def is_resend_verification_throttled(email: str, ip: str) -> bool:
+    email = (email or "").strip().lower()
+    ip = (ip or "").strip()
+
+    email_ttl = int(getattr(settings, "EMAIL_VERIFICATION_RESEND_EMAIL_TTL", 60))
+    ip_ttl = int(getattr(settings, "EMAIL_VERIFICATION_RESEND_IP_TTL", 60))
+
+    email_key = _resend_verification_email_key(email) if email else ""
+    ip_key = _resend_verification_ip_key(ip) if ip else ""
+
+    if email_key and cache.get(email_key):
+        return True
+    if ip_key and cache.get(ip_key):
+        return True
+
+    if email_key:
+        cache.set(email_key, 1, timeout=email_ttl)
+    if ip_key:
+        cache.set(ip_key, 1, timeout=ip_ttl)
+
+    return False

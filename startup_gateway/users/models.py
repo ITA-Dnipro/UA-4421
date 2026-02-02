@@ -27,6 +27,7 @@ class User(AbstractUser):
 
     phone = models.CharField(max_length=20, blank=True)
     verified = models.BooleanField(default=False)
+    email_verification_nonce = models.CharField(max_length=64, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     roles = models.ManyToManyField(
@@ -60,3 +61,40 @@ class UserRole(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.role.name}"
+
+
+class PasswordResetAttempt(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='password_reset_attempts',
+        help_text="User who requested reset (null if email not found)"
+    )
+    email = models.EmailField(
+        db_index=True,
+        help_text="Email address used in request"
+    )
+    ip_address = models.GenericIPAddressField(
+        help_text="IP address of requester"
+    )
+    token_sent = models.BooleanField(
+        default=False,
+        help_text="Whether reset token was actually sent"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True
+    )
+
+    class Meta:
+        db_table = 'users_password_reset_attempts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email', 'created_at']),
+            models.Index(fields=['ip_address', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"Reset attempt: {self.email} at {self.created_at}"
