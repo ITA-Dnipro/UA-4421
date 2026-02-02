@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth import get_user_model
 
 from startups.models import StartupProfile
-from projects.models import Project, ProjectStatus
+from projects.models import Project, ProjectStatus, ProjectVisibility
 
 
 class ProjectsAPITests(TestCase):
@@ -142,7 +142,7 @@ class ProjectCustomActionsAPITests(TestCase):
             target_amount="100.00",
             raised_amount="0.00",
             currency="UAH",
-            visibility="public",
+            visibility=ProjectVisibility.PRIVATE,
             allow_overfunding=False
         )
 
@@ -159,6 +159,9 @@ class ProjectCustomActionsAPITests(TestCase):
     # ----------------- Status update tests -----------------
     def test_status_update_success(self):
         self.auth_as(self.owner_user)
+        self.project.raised_amount = 100
+        self.project.save(update_fields=["raised_amount"])
+
         resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.FUNDED}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.project.refresh_from_db()
@@ -167,9 +170,9 @@ class ProjectCustomActionsAPITests(TestCase):
 
     def test_status_update_invalid_transition(self):
         self.auth_as(self.owner_user)
-        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.IDEA}, format="json")
+        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.FUNDED}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Invalid status transition", resp.data["detail"])
+        self.assertIn("FUNDED status can only be set", resp.data["detail"])
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, ProjectStatus.FUNDRAISING)
 
@@ -206,12 +209,20 @@ class ProjectCustomActionsAPITests(TestCase):
         self.project.refresh_from_db()
         self.assertEqual(float(self.project.raised_amount), 0.0)
 
+    # ----------------- Visibility tests -----------------
+    def test_change_visibility_to_public_triggers_indexing(self):
+        self.auth_as(self.owner_user)
+        resp = self.client.patch(self._status_url(), data={"visibility": ProjectVisibility.PUBLIC}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)
+
     # ----------------- Combined update test -----------------
     def test_partial_update_status_and_amount(self):
         self.auth_as(self.owner_user)
         resp = self.client.patch(
             self._status_url(),
-            data={"status": ProjectStatus.FUNDED, "raised_amount": "100.00"},
+            data={"raised_amount": "100.00", "status": ProjectStatus.FUNDED, "visibility": ProjectVisibility.PUBLIC},
             format="json"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -219,3 +230,4 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(self.project.status, ProjectStatus.FUNDED)
         self.assertEqual(float(self.project.raised_amount), 100.0)
         self.assertIsNotNone(self.project.funded_at)
+        self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)

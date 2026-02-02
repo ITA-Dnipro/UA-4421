@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from projects.models import  ProjectStatus
-from .models import Project
+from projects.models import Project, ProjectStatus, ProjectVisibility
 
 class ProjectSerializer(serializers.ModelSerializer):
     tags = serializers.SlugRelatedField(
@@ -38,6 +37,10 @@ class ProjectStateSerializer(serializers.Serializer):
     raised_amount = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
+        required=False
+    )
+    visibility = serializers.ChoiceField(
+        choices=ProjectVisibility.choices,
         required=False
     )
 

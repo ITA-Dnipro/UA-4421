@@ -105,6 +105,12 @@ class ProjectStateServiceView(APIView):
                         new_status,
                         admin_override=request.user.is_staff
                     )
+
+            if "visibility" in serializer.validated_data:
+                state_service.change_visibility(
+                    project,
+                    serializer.validated_data["visibility"]
+                )
         except ValidationError as e:
             return Response(
                 {"detail": e.message},
