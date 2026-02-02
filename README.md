@@ -75,6 +75,7 @@ If the email exists but is not yet verified, the backend may re-send the verific
 ### Additional Features
 
 - **Security and Data Protection**: Ensure that user data, especially sensitive financial information, is securely handled.
+
 - **User Feedback System**: Create a system for users to provide feedback on the platform, contributing to continuous improvement.
 
 - **Analytical Tools**: Implement analytical tools for startups to understand investor engagement and for investors to analyze startup potential.
@@ -102,25 +103,43 @@ Dependabot is enabled for:
 - Python (pip)
 - Frontend dependencies (npm)
 
-**Step 1: Installation**
+#### Step 1: Installation
 
-**Action**: Install pylint and pylint-django via pip. Pylint-django is a Pylint plugin that understands Django's structure and provides relevant linting.
-
-**Command:**
-
-pip install pylint pylint-django
-
-**Step 2: Running the linter**
-
-**Action**: To check your code with Pylint, run the following command from the project root
+**Action**: All dependencies can be installed with a single pip command ran from the project root.
 
 **Command:**
 
-pylint --load-plugins pylint_django backend/
+```
+pip install -r startup_gateway/requirements.txt
+```
 
-Replace backend/ with the name of your Django project folder if it differs.
+For developers, there is an additional layer of dependencies to install.
 
-**GitHub Actions**
+**Command:**
+
+```
+pip install -r startup_gateway/requirements-dev.txt
+```
+
+#### Step 2: Running the linter
+
+**Action**: To lint and format your staged files, run the following command from the project root:
+
+**Command:**
+
+```
+pre-commit run
+```
+
+Alternatively, if you want to lint and format all files, run:
+
+**Command:**
+
+```
+pre-commit run --all-files
+```
+
+#### GitHub Actions
 
 Pylint is also run automatically on each push or pull request to the developer branch using GitHub Actions.
 You can find the configuration in .github/workflows/pylint.yml.
