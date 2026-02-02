@@ -40,7 +40,7 @@ class ProjectStateService:
             raise ValidationError("Raised amount cannot exceed target amount unless overfunding is allowed.")
 
         project.raised_amount = new_amount
-        if  project.status == ProjectStatus.FUNDRAISING and new_amount >= project.target_amount:
+        if  new_amount >= project.target_amount:
             self.change_status(project, ProjectStatus.FUNDED)
 
         project.save(update_fields=["raised_amount", "status", "funded_at"])
