@@ -39,6 +39,9 @@ jobs:
           pip install -r startup_gateway/requirements.txt
           pip install -r startup_gateway/requirements-dev.txt
 
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}/startup_gateway" >> $GITHUB_ENV
+
       - name: Run tests with coverage
         env:
           POSTGRES_DB: test_db
@@ -48,7 +51,6 @@ jobs:
           POSTGRES_PORT: 5432
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
-          echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
           pytest --cov --cov-report=xml
 
       - name: Upload coverage to Codecov
