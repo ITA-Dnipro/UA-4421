@@ -45,7 +45,7 @@ class StartupProjectsAPITestCase(APITestCase):
             short_description='An intelligent AI assistant that helps with daily tasks.',
             description='Full description of AI Assistant project...',
             thumbnail_url='https://example.com/ai-assistant.jpg',
-            status=ProjectStatus.ACTIVE,
+            status=ProjectStatus.IDEA,
             target_amount=50000,
             raised_amount=25000,
             visibility=ProjectVisibility.PUBLIC
@@ -59,7 +59,7 @@ class StartupProjectsAPITestCase(APITestCase):
             short_description='Sustainable packaging solution.',
             description='Full description of Eco Packaging...',
             thumbnail_url='',
-            status=ProjectStatus.ACTIVE,
+            status=ProjectStatus.IDEA,
             target_amount=30000,
             raised_amount=15000,
             visibility=ProjectVisibility.PUBLIC
@@ -81,7 +81,7 @@ class StartupProjectsAPITestCase(APITestCase):
     
     def test_get_startup_projects_success(self):
         """Test successful retrieval of startup projects"""
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -102,21 +102,21 @@ class StartupProjectsAPITestCase(APITestCase):
     
     def test_filter_by_status(self):
         """Test filtering projects by status"""
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         
         # Filter only active projects
-        response = self.client.get(f'{url}?status={ProjectStatus.ACTIVE}')
+        response = self.client.get(f'{url}?status={ProjectStatus.IDEA}')
         data = response.json()
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(data['count'], 2)
         
         for project in data['results']:
-            self.assertEqual(project['status'], ProjectStatus.ACTIVE)
+            self.assertEqual(project['status'], ProjectStatus.IDEA)
     
     def test_filter_by_tag(self):
         """Test filtering projects by tag"""
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         
         # Filter by 'Technology' tag
         response = self.client.get(f'{url}?tag=Technology')
@@ -124,9 +124,9 @@ class StartupProjectsAPITestCase(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(data['count'], 1)
-        
+        print(data)
         self.assertEqual(data['results'][0]['title'], 'AI Assistant')
-    
+
     def test_pagination(self):
         """Test pagination according to specification"""
         # Add more projects
@@ -136,12 +136,12 @@ class StartupProjectsAPITestCase(APITestCase):
                 title=f'Extra Project {i}',
                 slug=f'extra-project-{i}',
                 short_description=f'Description {i}',
-                status=ProjectStatus.ACTIVE,
+                status=ProjectStatus.IDEA,
                 target_amount=1000 * i,
                 visibility=ProjectVisibility.PUBLIC
             )
         
-        url = reverse('startups_api:startup-projects', args=[self.startup_profile.id])
+        url = reverse('startups_api:public-projects', args=[self.startup_profile.id])
         
         # Default pagination (page_size=6)
         response = self.client.get(url)
