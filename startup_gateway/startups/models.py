@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
+from django.contrib.contenttypes.fields import GenericRelation
 
 
 User = settings.AUTH_USER_MODEL
@@ -34,6 +35,10 @@ class StartupProfile(models.Model):
         Region,
         related_name='startups',
         blank=True
+    )
+    saved_by_investors = GenericRelation(
+        'dashboard.SavedItem',
+        related_query_name='saved_startups'
     )
 
     class Meta:
