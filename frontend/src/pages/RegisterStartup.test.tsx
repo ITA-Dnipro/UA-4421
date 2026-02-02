@@ -42,6 +42,7 @@ describe('RegisterStartup', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<RegisterStartup />)
+
     await user.click(screen.getByRole('button', { name: 'Register' }))
 
     expect(fetchMock).not.toHaveBeenCalled()
