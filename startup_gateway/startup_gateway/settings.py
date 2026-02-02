@@ -89,8 +89,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'startup_gateway.wsgi.application'
 
-
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
