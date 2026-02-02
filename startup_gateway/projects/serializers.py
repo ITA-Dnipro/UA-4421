@@ -30,12 +30,20 @@ class ProjectDetailsSerializer(serializers.ModelSerializer):
             "status": {"required": False},
         }
 
-class ProjectStatusUpdateSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=ProjectStatus.choices)
-
-class ProjectRaisedAmountUpdateSerializer(serializers.Serializer):
+class ProjectStateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=ProjectStatus.choices,
+        required=False
+    )
     raised_amount = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
-        min_value=0
+        required=False
     )
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError(
+                "At least one field (status or raised_amount) must be provided."
+            )
+        return attrs
