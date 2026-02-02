@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import styles from './RegisterStartup.module.css'
 
 type FieldKey =
@@ -9,8 +9,6 @@ type FieldKey =
   | 'shortPitch'
   | 'website'
   | 'contact'
-  | 'logo'
-  | 'pitchDeck'
   | 'termsAccepted'
 
 type FieldErrors = Partial<Record<FieldKey, string>>
@@ -28,24 +26,6 @@ type Values = {
 }
 
 type UiState = 'idle' | 'submitting' | 'success'
-
-const MAX_LOGO_BYTES = 2 * 1024 * 1024
-const MAX_PITCH_DECK_BYTES = 10 * 1024 * 1024
-
-const LOGO_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
-const PITCH_DECK_MIME_TYPES = new Set(['application/pdf'])
-
-function validateLogoFile(file: File) {
-  if (!LOGO_MIME_TYPES.has(file.type)) return 'Logo must be PNG, JPG, or WEBP.'
-  if (file.size > MAX_LOGO_BYTES) return 'Logo must be 2MB or smaller.'
-  return undefined
-}
-
-function validatePitchDeckFile(file: File) {
-  if (!PITCH_DECK_MIME_TYPES.has(file.type)) return 'Pitch deck must be a PDF.'
-  if (file.size > MAX_PITCH_DECK_BYTES) return 'Pitch deck must be 10MB or smaller.'
-  return undefined
-}
 
 function isBlank(value: string) {
   return value.trim().length === 0
@@ -78,12 +58,9 @@ function validateAll(values: Values): FieldErrors {
     next.passwordConfirm = 'Passwords do not match.'
 
   if (isBlank(values.companyName)) next.companyName = 'Company name is required.'
-  if (isBlank(values.shortPitch)) next.shortPitch = 'Short pitch is required.'
 
-  if (isBlank(values.website)) next.website = 'Website is required.'
-  else if (!isValidHttpUrl(values.website)) next.website = 'Enter a valid URL (http/https).'
-
-  if (isBlank(values.contact)) next.contact = 'Contact is required.'
+  if (!isBlank(values.website) && !isValidHttpUrl(values.website))
+    next.website = 'Enter a valid URL (http/https).'
 
   if (!values.termsAccepted) next.termsAccepted = 'You must accept the Terms & Privacy Policy.'
 
@@ -142,21 +119,12 @@ export default function RegisterStartup() {
   const [contact, setContact] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
 
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [pitchDeckFile, setPitchDeckFile] = useState<File | null>(null)
-
   const [errors, setErrors] = useState<FieldErrors>({})
   const [touched, setTouched] = useState<FieldTouched>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
 
   const [uiState, setUiState] = useState<UiState>('idle')
   const [banner, setBanner] = useState<string>('')
-
-  const chosenLogoName = useMemo(() => logoFile?.name ?? 'No file chosen', [logoFile])
-  const chosenPitchDeckName = useMemo(
-    () => pitchDeckFile?.name ?? 'No file chosen',
-    [pitchDeckFile],
-  )
 
   function getValues(): Values {
     return {
@@ -187,55 +155,7 @@ export default function RegisterStartup() {
   }
 
   function revalidate() {
-    setErrors((prev) => ({
-      ...validateAll(getValues()),
-      logo: prev.logo,
-      pitchDeck: prev.pitchDeck,
-    }))
-  }
-
-  function onLogoChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null
-    markTouched('logo')
-
-    if (!file) {
-      setLogoFile(null)
-      setErrors((prev) => ({ ...prev, logo: undefined }))
-      return
-    }
-
-    const message = validateLogoFile(file)
-    if (message) {
-      setLogoFile(null)
-      e.currentTarget.value = ''
-      setErrors((prev) => ({ ...prev, logo: message }))
-      return
-    }
-
-    setLogoFile(file)
-    setErrors((prev) => ({ ...prev, logo: undefined }))
-  }
-
-  function onPitchDeckChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null
-    markTouched('pitchDeck')
-
-    if (!file) {
-      setPitchDeckFile(null)
-      setErrors((prev) => ({ ...prev, pitchDeck: undefined }))
-      return
-    }
-
-    const message = validatePitchDeckFile(file)
-    if (message) {
-      setPitchDeckFile(null)
-      e.currentTarget.value = ''
-      setErrors((prev) => ({ ...prev, pitchDeck: message }))
-      return
-    }
-
-    setPitchDeckFile(file)
-    setErrors((prev) => ({ ...prev, pitchDeck: undefined }))
+    setErrors(validateAll(getValues()))
   }
 
   async function onSubmit(e: FormEvent) {
@@ -243,11 +163,7 @@ export default function RegisterStartup() {
     setSubmitAttempted(true)
     setBanner('')
 
-    const base = validateAll(getValues())
-    const combined: FieldErrors = { ...base }
-    if (errors.logo) combined.logo = errors.logo
-    if (errors.pitchDeck) combined.pitchDeck = errors.pitchDeck
-
+    const combined = validateAll(getValues())
     setErrors(combined)
     if (Object.keys(combined).length > 0) return
 
@@ -302,8 +218,6 @@ export default function RegisterStartup() {
   const shortPitchError = getVisibleError('shortPitch')
   const websiteError = getVisibleError('website')
   const contactError = getVisibleError('contact')
-  const logoError = getVisibleError('logo')
-  const pitchDeckError = getVisibleError('pitchDeck')
   const termsError = getVisibleError('termsAccepted')
 
   const isSubmitting = uiState === 'submitting'
@@ -449,7 +363,6 @@ export default function RegisterStartup() {
                     revalidate()
                   }}
                   rows={3}
-                  required
                   disabled={isSubmitting}
                   className={
                     getVisibleError('shortPitch')
@@ -478,7 +391,6 @@ export default function RegisterStartup() {
                     revalidate()
                   }}
                   placeholder="https://example.com"
-                  required
                   disabled={isSubmitting}
                   className={controlClass('website')}
                   aria-invalid={Boolean(websiteError)}
@@ -503,7 +415,6 @@ export default function RegisterStartup() {
                     revalidate()
                   }}
                   placeholder="+380..."
-                  required
                   disabled={isSubmitting}
                   className={controlClass('contact')}
                   aria-invalid={Boolean(contactError)}
@@ -512,50 +423,6 @@ export default function RegisterStartup() {
                 {contactError && (
                   <div id="contact-error" role="alert" className={styles.errorText}>
                     {contactError}
-                  </div>
-                )}
-              </label>
-
-              <label className={styles.field}>
-                <span className={styles.label}>Logo (optional)</span>
-                <div className={styles.fileRow}>
-                  <input
-                    aria-label="Logo (optional)"
-                    type="file"
-                    name="logo"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={onLogoChange}
-                    disabled={isSubmitting}
-                    aria-invalid={Boolean(logoError)}
-                    aria-describedby={logoError ? 'logo-error' : undefined}
-                  />
-                  <span className={styles.fileName}>{chosenLogoName}</span>
-                </div>
-                {logoError && (
-                  <div id="logo-error" role="alert" className={styles.errorText}>
-                    {logoError}
-                  </div>
-                )}
-              </label>
-
-              <label className={styles.field}>
-                <span className={styles.label}>Pitch deck (optional)</span>
-                <div className={styles.fileRow}>
-                  <input
-                    aria-label="Pitch deck (optional)"
-                    type="file"
-                    name="pitchDeck"
-                    accept="application/pdf"
-                    onChange={onPitchDeckChange}
-                    disabled={isSubmitting}
-                    aria-invalid={Boolean(pitchDeckError)}
-                    aria-describedby={pitchDeckError ? 'pitchDeck-error' : undefined}
-                  />
-                  <span className={styles.fileName}>{chosenPitchDeckName}</span>
-                </div>
-                {pitchDeckError && (
-                  <div id="pitchDeck-error" role="alert" className={styles.errorText}>
-                    {pitchDeckError}
                   </div>
                 )}
               </label>

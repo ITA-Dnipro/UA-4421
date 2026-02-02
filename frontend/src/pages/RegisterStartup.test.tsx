@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import RegisterStartup from './RegisterStartup'
@@ -30,26 +30,6 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByLabelText('I accept the Terms & Privacy Policy'))
 }
 
-function createFileList(files: File[]): FileList {
-  const fileList: Partial<FileList> & { [key: number]: File } = {
-    length: files.length,
-    item: (index: number) => files[index] ?? null,
-  }
-
-  files.forEach((file, i) => {
-    fileList[i] = file
-  })
-  ;(fileList as any)[Symbol.iterator] = function* () {
-    for (let i = 0; i < files.length; i++) yield files[i]
-  }
-
-  return fileList as FileList
-}
-
-function setInputFiles(input: HTMLInputElement, files: File[]) {
-  fireEvent.change(input, { target: { files: createFileList(files) } })
-}
-
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -68,10 +48,8 @@ describe('RegisterStartup', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(await screen.findByText('Email is required.')).toBeInTheDocument()
     expect(screen.getByText('Password is required.')).toBeInTheDocument()
+    expect(screen.getByText('Confirm your password.')).toBeInTheDocument()
     expect(screen.getByText('Company name is required.')).toBeInTheDocument()
-    expect(screen.getByText('Short pitch is required.')).toBeInTheDocument()
-    expect(screen.getByText('Website is required.')).toBeInTheDocument()
-    expect(screen.getByText('Contact is required.')).toBeInTheDocument()
     expect(screen.getByText('You must accept the Terms & Privacy Policy.')).toBeInTheDocument()
   })
 
@@ -96,11 +74,21 @@ describe('RegisterStartup', () => {
     expect(await screen.findByRole('button', { name: 'Registering...' })).toBeInTheDocument()
 
     const [, options] = fetchMock.mock.calls[0]
+
+    expect((options as any).method).toBe('POST')
+    expect((options as any).headers).toEqual(
+      expect.objectContaining({ 'Content-Type': 'application/json' }),
+    )
+
     const body = JSON.parse((options as { body: string }).body)
 
     expect(body.role).toBe('startup')
     expect(body.email).toBe('test@example.com')
+    expect(body.password).toBe('password123')
     expect(body.company_name).toBe('Acme Inc')
+    expect(body.short_pitch).toBe('We build something useful.')
+    expect(body.website).toBe('https://example.com')
+    expect(body.contact_phone).toBe('+380000000000')
 
     d.resolve({
       ok: true,
@@ -135,51 +123,5 @@ describe('RegisterStartup', () => {
     expect(
       await screen.findByText('Please fix the highlighted fields and try again.'),
     ).toBeInTheDocument()
-  })
-
-  it('validates logo file type and shows filename when valid', async () => {
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(<RegisterStartup />)
-
-    const logoInput = screen.getByLabelText('Logo (optional)') as HTMLInputElement
-    const logoLabel = logoInput.closest('label')
-    if (!logoLabel) throw new Error('Logo label not found')
-
-    setInputFiles(logoInput, [new File(['x'], 'logo.txt', { type: 'text/plain' })])
-
-    expect(await screen.findByText('Logo must be PNG, JPG, or WEBP.')).toBeInTheDocument()
-    expect(within(logoLabel).getByText('No file chosen')).toBeInTheDocument()
-
-    setInputFiles(logoInput, [new File(['x'], 'logo.png', { type: 'image/png' })])
-
-    await waitFor(() => {
-      expect(screen.queryByText('Logo must be PNG, JPG, or WEBP.')).not.toBeInTheDocument()
-    })
-    expect(within(logoLabel).getByText('logo.png')).toBeInTheDocument()
-  })
-
-  it('validates pitch deck file type and shows filename when valid', async () => {
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(<RegisterStartup />)
-
-    const deckInput = screen.getByLabelText('Pitch deck (optional)') as HTMLInputElement
-    const deckLabel = deckInput.closest('label')
-    if (!deckLabel) throw new Error('Pitch deck label not found')
-
-    setInputFiles(deckInput, [new File(['x'], 'deck.txt', { type: 'text/plain' })])
-
-    expect(await screen.findByText('Pitch deck must be a PDF.')).toBeInTheDocument()
-    expect(within(deckLabel).getByText('No file chosen')).toBeInTheDocument()
-
-    setInputFiles(deckInput, [new File(['x'], 'deck.pdf', { type: 'application/pdf' })])
-
-    await waitFor(() => {
-      expect(screen.queryByText('Pitch deck must be a PDF.')).not.toBeInTheDocument()
-    })
-    expect(within(deckLabel).getByText('deck.pdf')).toBeInTheDocument()
   })
 })
