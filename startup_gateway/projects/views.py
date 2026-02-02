@@ -93,7 +93,7 @@ class ProjectStateServiceView(APIView):
 
         try:
             if "raised_amount" in serializer.validated_data:
-                state_service.update_raised_amount(
+                state_service.set_raised_amount(
                     project,
                     serializer.validated_data["raised_amount"]
                 )

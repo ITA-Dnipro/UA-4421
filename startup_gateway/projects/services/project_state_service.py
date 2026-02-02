@@ -23,8 +23,8 @@ class ProjectStateService:
                 raise ValidationError("FUNDED status can only be set when raised_amount >= target_amount")
 
         if not admin_override:
-            alloved_status = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
-            if new_status not in alloved_status:
+            allowed_status = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
+            if new_status not in allowed_status:
                 raise ValidationError(
                     f"Invalid status transition: {current_status} → {new_status}"
                 )
@@ -36,7 +36,7 @@ class ProjectStateService:
         project.save(update_fields=["status", "funded_at"])
         return project
 
-    def update_raised_amount(self, project, new_amount):
+    def set_raised_amount(self, project, new_amount):
         if new_amount < 0:
             raise ValidationError("Raised amount cannot be negative")
 
@@ -52,12 +52,14 @@ class ProjectStateService:
         return project
     
     def change_visibility(self, project, new_visibility):
-        old_visibility = project.visibility
+
         project.visibility = new_visibility
         project.save(update_fields=["visibility"])
 
-        if old_visibility != ProjectVisibility.PUBLIC and new_visibility == ProjectVisibility.PUBLIC:
+        if new_visibility == ProjectVisibility.PUBLIC and not project.is_indexed:
             self.index_project_in_search(project)
+            project.is_indexed = True
+            project.save(update_fields=["is_indexed"])
 
         return project
     

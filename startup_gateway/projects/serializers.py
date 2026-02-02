@@ -45,7 +45,7 @@ class ProjectStateSerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
-        if not attrs:
+        if not any(field in attrs for field in ("status", "raised_amount", "visibility")):
             raise serializers.ValidationError(
                 "At least one field (status or raised_amount) must be provided."
             )
