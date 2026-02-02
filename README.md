@@ -1,9 +1,14 @@
 # UA-4421
+
+![CI](https://github.com/ITA-Dnipro/UA-4421/actions/workflows/ci.yml/badge.svg)
+![Codecov](https://codecov.io/gh/ITA-Dnipro/UA-4421/branch/develop/graph/badge.svg)
+![Pylint]()
+
 UA-4421Project-based learning Full Stack Python/React
 
 **Project Vision Statement:**
 
-*"Empowering Innovation: Bridging Startups and Investors for Ukraine's Economic Growth"*
+_"Empowering Innovation: Bridging Startups and Investors for Ukraine's Economic Growth"_
 
 **Overview:**
 
@@ -25,50 +30,47 @@ We are committed to delivering a platform that is not just a marketplace for ide
 
 ![image](https://github.com/mehalyna/Forum-Project-Stage-CC/assets/39273210/54b0de76-f6e3-4bf3-bf38-fb5bf1d1d63d)
 
+## Registration anti-enumeration policy
 
+The registration endpoint (`POST /api/auth/register/`) always returns `201` with a generic success message.
+If the email already exists and the user is already verified, the backend performs no side effects.
+If the email exists but is not yet verified, the backend may re-send the verification email.
 
 ### Basic Epics
 
 0. **As a user of the platform**, I want the ability to represent both as a startup and as an investor company, so that I can engage in the platform's ecosystem from both perspectives using a single account.
-
    - Features:
      - implement the functionality for users to select and switch roles.
 
-2. **As a startup company,** I want to create a profile on the platform, so that I can present my ideas and proposals to potential investors.
-
+1. **As a startup company,** I want to create a profile on the platform, so that I can present my ideas and proposals to potential investors.
    - Features:
-     -  user registration functionality for startups.
-     -  profile setup page where startups can add details about their company and ideas.
+     - user registration functionality for startups.
+     - profile setup page where startups can add details about their company and ideas.
 
-3. **As an investor,** I want to view profiles of startups, so that I can find promising ideas to invest in.
-
+2. **As an investor,** I want to view profiles of startups, so that I can find promising ideas to invest in.
    - Features:
-     -  feature for investors to browse and filter startup profiles.
-     -  viewing functionality for detailed startup profiles.
+     - feature for investors to browse and filter startup profiles.
+     - viewing functionality for detailed startup profiles.
 
-4. **As a startup company,** I want to update my project information, so that I can keep potential investors informed about our progress and milestones.
-
+3. **As a startup company,** I want to update my project information, so that I can keep potential investors informed about our progress and milestones.
    - Features:
-     -  functionality for startups to edit and update their project information.
-     -  system to notify investors about updates to startups they are following.
+     - functionality for startups to edit and update their project information.
+     - system to notify investors about updates to startups they are following.
 
-5. **As an investor,** I want to be able to contact startups directly through the platform, so that I can discuss investment opportunities.
-
+4. **As an investor,** I want to be able to contact startups directly through the platform, so that I can discuss investment opportunities.
    - Features:
-     -  secure messaging system within the platform for communication between startups and investors.
-     -  privacy and security measures to protect the communication.
+     - secure messaging system within the platform for communication between startups and investors.
+     - privacy and security measures to protect the communication.
 
-6. **As a startup company,** I want to receive notifications about interested investors, so that I can engage with them promptly.
-
+5. **As a startup company,** I want to receive notifications about interested investors, so that I can engage with them promptly.
    - Features:
-     -  notification functionality for startups when an investor shows interest or contacts them.
-     -  dashboard for startups to view and manage investor interactions.
+     - notification functionality for startups when an investor shows interest or contacts them.
+     - dashboard for startups to view and manage investor interactions.
 
-7. **As an investor,** I want to save and track startups that interest me, so that I can manage my investment opportunities effectively.
-
+6. **As an investor,** I want to save and track startups that interest me, so that I can manage my investment opportunities effectively.
    - Features:
-     -  feature for investors to save and track startups.
-     -  dashboard for investors to manage their saved startups and investment activities.
+     - feature for investors to save and track startups.
+     - dashboard for investors to manage their saved startups and investment activities.
 
 ### Additional Features
 
@@ -84,6 +86,22 @@ We are committed to delivering a platform that is not just a marketplace for ide
 - Regular feedback from both user groups (startups and investors) should be incorporated.
 
 ### Database Schema
+
+![Database Schema](images/DB_schema.png)
+
+## Automation & Quality
+
+### Code Coverage
+Project uses Codecov for coverage reporting.
+To enable coverage upload:
+1. Create `CODECOV_TOKEN` in GitHub Secrets
+2. Run CI pipeline
+
+### Dependabot
+Dependabot is enabled for:
+- GitHub Actions
+- Python (pip)
+- Frontend dependencies (npm)
 
 #### Step 1: Installation
 
@@ -125,3 +143,53 @@ pre-commit run --all-files
 
 Pylint is also run automatically on each push or pull request to the developer branch using GitHub Actions.
 You can find the configuration in .github/workflows/pylint.yml.
+
+**Local Development with Docker**
+
+This project provides a containerized environment for consistent development across machines using Docker.
+
+---
+
+## Prerequisites
+
+- [Docker](https://www.docker.com/get-started) installed and running
+- [Docker Compose](https://docs.docker.com/compose/install/) installed
+
+## Environment Variables
+
+1. **Create your local `.env.docker` file** from the example:
+
+```bash
+cd startup_gateway
+cp env.example .env.docker
+```
+
+2. **Edit .env.docker and fill in your real values.**
+   .env.docker must not be committed to Git. It is included in .gitignore.
+   env.example is safe to commit and serves as a template for your team.
+
+## Running the Project
+
+1. Build and start all services
+
+docker-compose up --build -d
+
+This will start:
+backend (Django)
+frontend (React in dev mode)
+db (Postgres)
+redis (optional, for channels/notifications)
+
+2. Create Django superuser
+
+docker-compose exec backend python manage.py createsuperuser
+
+Follow the prompts to set username, email, and password.
+
+This superuser can log into the admin panel at http://localhost:8000/admin.
+
+3. Stopping the Containers
+
+To stop and remove containers:
+
+docker-compose down
