@@ -914,3 +914,55 @@ class TestPasswordResetConfirm(APITestCase):
         str_repr = str(confirmation)
         self.assertIn(self.user.username, str_repr)
         self.assertIn('Password reset', str_repr)
+
+    def test_nonexistent_user_id_in_uid(self):
+        uid = urlsafe_base64_encode(force_bytes(99999))
+        token = "any-token"
+
+        payload = {"uid": uid, "token": token, "new_password": "NewP@ssw0rd123"}
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_token_cannot_be_reused(self):
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {"uid": uid, "token": token, "new_password": "NewP@ssw0rd123"}
+
+        self.client.post(self.url, payload, format="json")  # First use
+        resp2 = self.client.post(self.url, payload, format="json")  # Second use
+
+        self.assertEqual(resp2.status_code, 400)
+
+    @patch('users.models.PasswordResetConfirmation.objects.create')
+    def test_handles_audit_log_failure(self, mock_create):
+        mock_create.side_effect = Exception("DB error")
+
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {"uid": uid, "token": token, "new_password": "NewP@ssw0rd123"}
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 200)
+
+    def test_token_invalid_after_password_change(self):
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        self.assertTrue(password_reset_token_generator.check_token(self.user, token))
+
+        self.user.set_password("DifferentPassword123!")
+        self.user.save()
+
+        self.assertFalse(password_reset_token_generator.check_token(self.user, token))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "new_password": "HackerPassword123!"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 400)
