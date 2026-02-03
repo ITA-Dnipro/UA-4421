@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils.text import slugify
 
 class Role(models.Model):
     """
@@ -25,19 +26,58 @@ class User(AbstractUser):
     - password
     """
 
+    # --- core ---
     phone = models.CharField(max_length=20, blank=True)
     verified = models.BooleanField(default=False)
-    email_verification_nonce = models.CharField(max_length=64, blank=True, default="")
+    email_verification_nonce = models.CharField(
+        max_length=64,
+        blank=True,
+        default=""
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # --- profile ---
+    slug = models.SlugField(
+        max_length=160,
+        unique=True,
+        blank=True
+    )
+    about_html = models.TextField(blank=True)
+    short_description = models.CharField(max_length=300, blank=True)
+    contact = models.JSONField(default=dict, blank=True)
+    website = models.URLField(max_length=200, blank=True)
+    media_urls = models.JSONField(default=list, blank=True)
+    visibility = models.BooleanField(default=True)
+
+    # --- relations ---
     roles = models.ManyToManyField(
         Role,
         through='UserRole',
         related_name='users'
     )
 
+    tags = models.ManyToManyField(
+        "projects.Tag",
+        through="UserTag",
+        related_name="users",
+        blank=True
+    )
+
     class Meta:
         db_table = 'users'
+
+    def save(self, *args, **kwargs):
+        """
+        Slug rules:
+        - slug is always non-empty
+        - slug is unique
+        - on create: slug = username
+        - slug can be changed later via API (PUT / PATCH)
+        """
+        if self._state.adding and not self.slug:
+            self.slug = self.username
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.username
@@ -61,6 +101,32 @@ class UserRole(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.role.name}"
+
+
+class UserTag(models.Model):
+    """
+    Intermediate table for linking User ↔ Tag (many-to-many).
+    """
+
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE
+    )
+    tag = models.ForeignKey(
+        "projects.Tag",
+        on_delete=models.CASCADE
+    )
+
+    class Meta:
+        db_table = "users_tags"
+        unique_together = ("user", "tag")
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["tag"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} ↔ {self.tag.name}"
 
 
 class PasswordResetAttempt(models.Model):

@@ -18,6 +18,7 @@
     "pk": 1,
     "fields": {
       "username": "startup_user",
+      "slug": "startup_user",
       "password": "pbkdf2_sha256$260000$examplehash",
       "email": "startup@example.com",
       "first_name": "Anna",
@@ -32,6 +33,7 @@
     "pk": 2,
     "fields": {
       "username": "investor_user",
+      "slug": "investor_user",
       "password": "pbkdf2_sha256$260000$examplehash",
       "email": "investor@example.com",
       "first_name": "Ivan",
