@@ -59,18 +59,13 @@ class Conversation:
       "meta": {...}
     }
     """
-    participants: List[int]  
-    conversation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    participants: List[int]  # Simple array of user_ids (NOT objects!)
+    conversation_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # Auto-generate UUID
     created_at: datetime = field(default_factory=datetime.utcnow)
     last_message_at: Optional[datetime] = None
     project_id: Optional[str] = None  # UUID string or null
     startup_id: Optional[str] = None  # UUID string or null
     meta: Dict[str, Any] = field(default_factory=dict)  # meta, NOT metadata
-    
-    def __post_init__(self):
-        """Generate conversation_id if not provided."""
-        if not self.conversation_id:
-            self.conversation_id = str(uuid.uuid4())
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for MongoDB insertion."""
