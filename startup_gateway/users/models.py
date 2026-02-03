@@ -98,3 +98,32 @@ class PasswordResetAttempt(models.Model):
 
     def __str__(self):
         return f"Reset attempt: {self.email} at {self.created_at}"
+
+
+class PasswordResetConfirmation(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='password_reset_confirmations'
+    )
+    ip_address = models.GenericIPAddressField(
+        help_text="IP address where password was reset"
+    )
+    success = models.BooleanField(
+        default=True,
+        help_text="Whether password reset was successful"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True
+    )
+
+    class Meta:
+        db_table = 'users_password_reset_confirmations'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"Password reset for {self.user.username} at {self.created_at}"

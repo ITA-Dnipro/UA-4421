@@ -2,6 +2,9 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
 from django.core.signing import SignatureExpired, TimestampSigner
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.contrib.auth import authenticate
 from unittest.mock import patch
 from django.test import override_settings
 from rest_framework.test import APITestCase
@@ -9,7 +12,7 @@ from importlib import reload
 
 from startups.models import StartupProfile
 from investors.models import InvestorProfile
-from users.models import PasswordResetAttempt, Role
+from users.models import PasswordResetAttempt, Role, PasswordResetConfirmation
 from users.tokens import password_reset_token_generator
 from users.email_service import PasswordResetEmailService
 from users import tokens
@@ -716,3 +719,198 @@ class TestPasswordResetTokenTimeout(APITestCase):
         is_valid = password_reset_token_generator.check_token(self.user, token)
 
         self.assertTrue(is_valid)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class TestPasswordResetConfirm(APITestCase):
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='OldPass123!',
+            is_active=True,
+        )
+        self.url = '/api/auth/password-reset/confirm/'
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_valid_token_changes_password(self):
+
+
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "new_password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['detail'], "Password changed successfully.")
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewP@ssw0rd123"))
+        self.assertFalse(self.user.check_password("OldPass123!"))
+
+        confirmation = PasswordResetConfirmation.objects.get(user=self.user)
+        self.assertTrue(confirmation.success)
+
+    def test_invalid_token_returns_400(self):
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": "invalid-token-12345",
+            "new_password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('token', resp.data)
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("OldPass123!"))
+
+    def test_invalid_uid_returns_400(self):
+        token = password_reset_token_generator.make_token(self.user)
+
+        payload = {
+            "uid": "invalid-uid",
+            "token": token,
+            "new_password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('uid', resp.data)
+
+    def test_weak_password_returns_400(self):
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "new_password": "123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('new_password', resp.data)
+
+    def test_missing_fields_returns_400(self):
+        resp = self.client.post(self.url, {
+            "uid": "MQ",
+            "new_password": "NewP@ssw0rd123"
+        }, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+        resp = self.client.post(self.url, {
+            "token": "abc123",
+            "new_password": "NewP@ssw0rd123"
+        }, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+        resp = self.client.post(self.url, {
+            "uid": "MQ",
+            "token": "abc123"
+        }, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_token_for_different_user_fails(self):
+
+
+        user2 = User.objects.create_user(
+            username='testuser2',
+            email='test2@example.com',
+            password='OldPass123!',
+        )
+
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(user2.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "new_password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+
+        user2.refresh_from_db()
+        self.assertTrue(user2.check_password("OldPass123!"))
+
+    def test_user_can_login_with_new_password(self):
+
+
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "new_password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 200)
+
+        user = authenticate(username='testuser', password='NewP@ssw0rd123')
+        self.assertIsNotNone(user)
+        self.assertEqual(user, self.user)
+
+        user = authenticate(username='testuser', password='OldPass123!')
+        self.assertIsNone(user)
+
+    def test_audit_log_tracks_ip(self):
+
+
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "new_password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(
+            self.url,
+            payload,
+            format="json",
+            REMOTE_ADDR='192.168.1.100'
+        )
+
+        self.assertEqual(resp.status_code, 200)
+
+        confirmation = PasswordResetConfirmation.objects.get(user=self.user)
+        self.assertEqual(confirmation.ip_address, '192.168.1.100')
+
+    def test_model_str_representation(self):
+
+        confirmation = PasswordResetConfirmation.objects.create(
+            user=self.user,
+            ip_address='192.168.1.1',
+            success=True
+        )
+
+        str_repr = str(confirmation)
+        self.assertIn(self.user.username, str_repr)
+        self.assertIn('Password reset', str_repr)

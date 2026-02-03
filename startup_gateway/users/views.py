@@ -7,12 +7,11 @@ from rest_framework.permissions import AllowAny
 import logging
 
 
-from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer
+from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
 from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
 from .tokens import password_reset_token_generator
 from .email_service import PasswordResetEmailService
-from .models import PasswordResetAttempt, User
-
+from .models import PasswordResetAttempt, User, PasswordResetConfirmation
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
@@ -140,5 +139,39 @@ class PasswordResetRequestView(APIView):
 
         return Response(
             {"detail": "If the email exists, you will receive reset instructions."},
+            status=status.HTTP_200_OK
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset_confirm'
+
+    def post(self, request):
+
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = serializer.save()
+        ip_address = get_client_ip(request)
+
+        try:
+            PasswordResetConfirmation.objects.create(
+                user=user,
+                ip_address=ip_address,
+                success=True
+            )
+        except Exception as e:
+            logger.error(f"Failed to log password reset confirmation: {e}")
+
+        logger.info(f"Password reset successful for user {user.email}")
+
+        return Response(
+            {"detail": "Password changed successfully."},
             status=status.HTTP_200_OK
         )
