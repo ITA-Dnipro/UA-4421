@@ -1,29 +1,50 @@
+import logging
+
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-import logging
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
-
-from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer
-from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
-from .tokens import password_reset_token_generator
-from .email_service import PasswordResetEmailService
-from .models import PasswordResetAttempt, User
+from users.serializers import (
+    RegisterSerializer,
+    VerifyEmailSerializer,
+    ResendVerificationSerializer,
+    PasswordResetRequestSerializer,
+    PublicProfileSerializer,
+    ProfileUpdateSerializer,
+)
+from users.services import (
+    send_verification_email,
+    verify_email_token,
+    is_resend_verification_throttled,
+)
+from users.tokens import password_reset_token_generator
+from users.email_service import PasswordResetEmailService
+from users.permissions import IsOwnerOrReadOnly
+from users.models import PasswordResetAttempt
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0].strip()
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
 
+# =========================================================
+# HELPERS
+# =========================================================
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
+
+
+# =========================================================
+# AUTH
+# =========================================================
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -43,7 +64,7 @@ class RegisterView(APIView):
 
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -51,15 +72,29 @@ class VerifyEmailView(APIView):
         token = serializer.validated_data.get("token", "")
         user = verify_email_token(token)
         if not user:
-            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"detail": "Email verified."}, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"detail": "Email verified."},
+            status=status.HTTP_200_OK,
+        )
 
     def get(self, request):
         token = request.query_params.get("token", "")
         user = verify_email_token(token)
         if not user:
-            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"detail": "Email verified."}, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"detail": "Email verified."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class ResendVerificationView(APIView):
@@ -70,7 +105,7 @@ class ResendVerificationView(APIView):
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data["email"].strip().lower()
-        ip = request.META.get("REMOTE_ADDR", "")
+        ip = get_client_ip(request)
 
         if is_resend_verification_throttled(email="", ip=ip):
             return Response(
@@ -79,7 +114,7 @@ class ResendVerificationView(APIView):
             )
 
         user = User.objects.filter(email__iexact=email).first()
-        if not user or getattr(user, "verified", False):
+        if not user or user.verified:
             return Response(
                 {"detail": "If the email address is valid, a verification email has been sent."},
                 status=status.HTTP_200_OK,
@@ -101,17 +136,18 @@ class ResendVerificationView(APIView):
 
 class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
-    throttle_scope = 'password_reset'
+    throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
+
         if not serializer.is_valid():
             return Response(
                 {"detail": "If the email exists, you will receive reset instructions."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
-        email = serializer.validated_data['email']
+        email = serializer.validated_data["email"]
         ip_address = get_client_ip(request)
 
         user = User.objects.filter(email=email, is_active=True).first()
@@ -122,7 +158,7 @@ class PasswordResetRequestView(APIView):
             token_sent = PasswordResetEmailService.send_reset_email(
                 user=user,
                 token=token,
-                request=request
+                request=request,
             )
 
             if token_sent:
@@ -140,5 +176,66 @@ class PasswordResetRequestView(APIView):
 
         return Response(
             {"detail": "If the email exists, you will receive reset instructions."},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
+
+
+# =========================================================
+# PROFILE
+# =========================================================
+
+class ProfileDetailUpdateView(APIView):
+    """
+    GET    /api/profiles/{id}/
+    PATCH  /api/profiles/{id}/
+    PUT    /api/profiles/{id}/
+    """
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return [
+            IsAuthenticated(),
+            IsOwnerOrReadOnly(),
+        ]
+
+    def get_object(self, id):
+        return get_object_or_404(User, id=id)
+
+    def get(self, request, id):
+        user = self.get_object(id)
+
+        if not user.visibility:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PublicProfileSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, id):
+        user = self.get_object(id)
+        self.check_object_permissions(request, user)
+
+        serializer = ProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, id):
+        user = self.get_object(id)
+        self.check_object_permissions(request, user)
+
+        serializer = ProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=False,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
