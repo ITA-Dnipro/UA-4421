@@ -29,6 +29,28 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      
+      
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping:1})' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -59,15 +81,49 @@ jobs:
             echo "::error::❌ Backend lint failed. Run flake8, isort and pylint locally to see details."
           fi 
 
-      - name: Run tests with coverage
-        # working-directory: startup_gateway
+      
+      - name: Run Django migrations
+        working-directory: startup_gateway
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}        
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_DB_NAME: startup_gateway_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-ci
+          DEBUG: "True"
+        run: |
+          python manage.py migrate --noinput
+
+      
+      - name: Create MongoDB indexes
+        working-directory: startup_gateway
+        env:
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_DB_NAME: startup_gateway_test
+        run: |
+          python manage.py create_mongo_indexes
+
+      
+      - name: Run tests with coverage
+        working-directory: startup_gateway
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          MONGO_HOST: localhost              
+          MONGO_PORT: 27017                   
+          MONGO_DB_NAME: startup_gateway_test 
+          REDIS_URL: redis://localhost:6379/0 
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DEBUG: "True"                       
         run: |
           pytest --cov --cov-report=xml
 
@@ -75,7 +131,7 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
+          files: ./startup_gateway/coverage.xml  
           fail_ci_if_error: false
                    
 
@@ -112,4 +168,3 @@ jobs:
       - name: Run frontend build 
         working-directory: frontend
         run: npm run build
-            
