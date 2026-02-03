@@ -66,3 +66,5 @@ class ProjectStateService:
     def index_project_in_search(self, project):
         # Temporary plug so that tests don't fail
         print(f"[TEST] Indexing project {project.id} in search")
+
+        
