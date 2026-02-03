@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'messages',
     'dashboard',
     'notifications',
+    'chat',
     'startup_gateway.content',
 ]
 
@@ -113,6 +114,12 @@ DATABASES = {
         "HOST": os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST", "localhost"),
         "PORT": os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT", "5432"),
     }
+}
+
+MONGODB_SETTINGS = {
+    'host': os.environ.get('MONGO_HOST', 'localhost'),
+    'port': int(os.environ.get('MONGO_PORT', 27017)),
+    'database': os.environ.get('MONGO_DB_NAME', 'startup_gateway'),
 }
 
 REST_FRAMEWORK = {
