@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from rest_framework.exceptions import AuthenticationFailed, Throttled
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .services import register_user
@@ -79,21 +79,6 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         return value.lower().strip()
 
 
-try:
-    from axes.handlers.proxy import AxesProxyHandler
-except Exception:
-    AxesProxyHandler = None
-
-
-def axes_is_locked(request, identifier: str | None = None) -> bool:
-    if not request or AxesProxyHandler is None:
-        return False
-
-    cred_key = getattr(settings, "AXES_USERNAME_FORM_FIELD", "username")
-    credentials = {cred_key: identifier} if identifier else None
-    return AxesProxyHandler.is_locked(request, credentials=credentials)
-
-
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -105,18 +90,13 @@ class LoginSerializer(serializers.Serializer):
         password = attrs.get("password")
         remember = attrs.get("remember", False)
 
-        if axes_is_locked(request, email):
-            raise Throttled(detail="Too many login attempts. Try again later.")
-
-        user = authenticate(request=request, email=email, password=password)
+        user = authenticate(request=request, username=email, password=password)
 
         if user is None:
-            if axes_is_locked(request, email):
-                raise Throttled(detail="Too many login attempts. Try again later.")
             raise AuthenticationFailed("Invalid credentials.")
 
         if not user.is_active:
-            raise AuthenticationFailed("User inactive or deleted.")
+             raise AuthenticationFailed("User inactive or deleted.")
 
         refresh = RefreshToken.for_user(user)
 

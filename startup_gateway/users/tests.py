@@ -1,10 +1,13 @@
+import json
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
 from django.core.signing import SignatureExpired, TimestampSigner
+from django.conf import settings
 from unittest.mock import patch
 from django.test import override_settings
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from importlib import reload
 from datetime import timedelta
 from startups.models import StartupProfile
@@ -742,6 +745,24 @@ class TestLoginApi(APITestCase):
         self.url = "/api/auth/login/"
         self.ip = "10.0.0.1"
 
+    def _json(self, resp):
+        if hasattr(resp, "data"):
+            return resp.data
+        return json.loads(resp.content.decode("utf-8"))
+
+    def _ttl_seconds_from_token(self, token_str: str, token_cls):
+        token = token_cls(token_str)
+        exp = int(token["exp"])
+        iat = int(token["iat"])
+        return exp - iat
+
+    def _assert_ttl_close(self, actual_seconds: int, expected: timedelta, tolerance_seconds: int = 5):
+        expected_seconds = int(expected.total_seconds())
+        self.assertTrue(
+            abs(actual_seconds - expected_seconds) <= tolerance_seconds,
+            msg=f"TTL mismatch: got {actual_seconds}s, expected {expected_seconds}s ±{tolerance_seconds}s",
+        )
+
     def test_login_success_returns_tokens_and_user(self):
         payload = {
             "email": self.user.email,
@@ -797,7 +818,8 @@ class TestLoginApi(APITestCase):
             REMOTE_ADDR=self.ip,
         )
         self.assertEqual(locked.status_code, 429)
-        self.assertIn("detail", locked.data)
+        data = self._json(locked)
+        self.assertIn("detail", data)
 
     def test_login_during_lockout_blocks_even_with_correct_password(self):
         for _ in range(5):
@@ -814,4 +836,46 @@ class TestLoginApi(APITestCase):
             REMOTE_ADDR=self.ip,
         )
         self.assertEqual(resp.status_code, 429)
-        self.assertIn("detail", resp.data)
+        data = self._json(resp)
+        self.assertIn("detail", data)
+
+    def test_remember_true_changes_access_and_refresh_ttl(self):
+        payload = {"email": self.user.email, "password": self.user_password, "remember": True}
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+        self.assertEqual(resp.status_code, 200)
+
+        access_ttl = self._ttl_seconds_from_token(resp.data["access"], AccessToken)
+        refresh_ttl = self._ttl_seconds_from_token(resp.data["refresh"], RefreshToken)
+
+        self._assert_ttl_close(access_ttl, timedelta(minutes=30))
+        self._assert_ttl_close(refresh_ttl, timedelta(days=7))
+
+    def test_default_ttl_matches_simplejwt_settings_when_remember_not_set(self):
+        payload = {"email": self.user.email, "password": self.user_password}
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+        self.assertEqual(resp.status_code, 200)
+
+        access_ttl = self._ttl_seconds_from_token(resp.data["access"], AccessToken)
+        refresh_ttl = self._ttl_seconds_from_token(resp.data["refresh"], RefreshToken)
+
+        simple_jwt = getattr(settings, "SIMPLE_JWT", {})
+        expected_access = simple_jwt.get("ACCESS_TOKEN_LIFETIME", timedelta(minutes=5))
+        expected_refresh = simple_jwt.get("REFRESH_TOKEN_LIFETIME", timedelta(days=1))
+
+        self._assert_ttl_close(access_ttl, expected_access)
+        self._assert_ttl_close(refresh_ttl, expected_refresh)
+
+    def test_default_ttl_not_violated_even_if_remember_false(self):
+        payload = {"email": self.user.email, "password": self.user_password, "remember": False}
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+        self.assertEqual(resp.status_code, 200)
+
+        access_ttl = self._ttl_seconds_from_token(resp.data["access"], AccessToken)
+        refresh_ttl = self._ttl_seconds_from_token(resp.data["refresh"], RefreshToken)
+
+        simple_jwt = getattr(settings, "SIMPLE_JWT", {})
+        expected_access = simple_jwt.get("ACCESS_TOKEN_LIFETIME", timedelta(minutes=5))
+        expected_refresh = simple_jwt.get("REFRESH_TOKEN_LIFETIME", timedelta(days=1))
+
+        self._assert_ttl_close(access_ttl, expected_access)
+        self._assert_ttl_close(refresh_ttl, expected_refresh)

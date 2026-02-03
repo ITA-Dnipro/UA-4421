@@ -6,7 +6,6 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.throttling import AnonRateThrottle
 import logging
-
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
 from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer
 from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
@@ -186,6 +185,11 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer_class = LoginSerializer(data=request.data, context={"request": request})
-        serializer_class.is_valid(raise_exception=True)
-        return Response(serializer_class.validated_data, status=status.HTTP_200_OK)
+        django_request = getattr(request, "_request", request)
+
+        serializer = LoginSerializer(
+            data=request.data,
+            context={"request": django_request},
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
