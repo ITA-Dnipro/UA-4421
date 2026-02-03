@@ -8,8 +8,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('projects', '0005_remove_project_moderation_status'),
         ('users', '0004_merge_20260128_1318'),
+        ('projects', '0004_project_moderation_status'),
     ]
 
     operations = [
