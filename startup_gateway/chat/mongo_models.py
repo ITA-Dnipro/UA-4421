@@ -31,9 +31,9 @@ class Attachment:
     
     Task spec: {"upload_id": "...", "url":"...", "type":"image"}
     """
-    upload_id: str  # ← REQUIRED by task
+    upload_id: str  
     url: str
-    type: str  # image, document, video, audio
+    type: str  
     filename: Optional[str] = None
     size: Optional[int] = None
     
@@ -59,24 +59,24 @@ class Conversation:
       "meta": {...}
     }
     """
-    participants: List[int]  # Simple array of user_ids (NOT objects!)
-    conversation_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # Auto-generate UUID
+    participants: List[int]  
+    conversation_id: str = field(default_factory=lambda: str(uuid.uuid4()))  
     created_at: datetime = field(default_factory=datetime.utcnow)
     last_message_at: Optional[datetime] = None
-    project_id: Optional[str] = None  # UUID string or null
-    startup_id: Optional[str] = None  # UUID string or null
-    meta: Dict[str, Any] = field(default_factory=dict)  # meta, NOT metadata
+    project_id: Optional[str] = None  
+    startup_id: Optional[str] = None  
+    meta: Dict[str, Any] = field(default_factory=dict)  
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for MongoDB insertion."""
         data = {
             'conversation_id': self.conversation_id,
-            'participants': self.participants,  # Simple array
+            'participants': self.participants,  
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'meta': self.meta,
         }
         
-        # Add optional fields
+        
         if self.last_message_at:
             data['last_message_at'] = self.last_message_at.isoformat() if isinstance(self.last_message_at, datetime) else self.last_message_at
         if self.project_id:
@@ -104,20 +104,20 @@ class Message:
       "meta": {...}
     }
     """
-    conversation_id: str  # UUID string (matches conversation.conversation_id)
-    sender_id: int  # User ID
-    body: str  # Message text (NOT "content"!)
+    conversation_id: str  
+    sender_id: int  
+    body: str  
     attachments: List[Attachment] = field(default_factory=list)
-    status: str = MessageStatus.SENT  # "sent" | "delivered" | "read"
+    status: str = MessageStatus.SENT  
     created_at: datetime = field(default_factory=datetime.utcnow)
-    meta: Dict[str, Any] = field(default_factory=dict)  # meta, NOT metadata
+    meta: Dict[str, Any] = field(default_factory=dict)  
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for MongoDB insertion."""
         return {
-            'conversation_id': self.conversation_id,  # UUID string
+            'conversation_id': self.conversation_id,  
             'sender_id': self.sender_id,
-            'body': self.body,  # NOT "content"
+            'body': self.body,  
             'attachments': [a.to_dict() if isinstance(a, Attachment) else a for a in self.attachments],
             'status': self.status,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
@@ -125,6 +125,6 @@ class Message:
         }
 
 
-# Collection names
+
 CONVERSATIONS_COLLECTION = 'conversations'
 MESSAGES_COLLECTION = 'messages'

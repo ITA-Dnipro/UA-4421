@@ -97,13 +97,13 @@ class ChatService:
         Returns:
             str: Message MongoDB _id (ObjectId as string)
         """
-        # Create attachments
+        
         attachment_objects = []
         if attachments:
             for att in attachments:
                 attachment_objects.append(Attachment(**att))
         
-        # Create message
+        
         message = Message(
             conversation_id=conversation_id,
             sender_id=sender_id,
@@ -112,11 +112,11 @@ class ChatService:
             meta=meta or {}
         )
         
-        # Insert message
+        
         result = self.messages.insert_one(message.to_dict())
         message_id = str(result.inserted_id)
         
-        # Update conversation's last_message_at
+        
         self.conversations.update_one(
             {'conversation_id': conversation_id},
             {
@@ -157,11 +157,11 @@ class ChatService:
             doc['_id'] = str(doc['_id'])
             results.append(doc)
         
-        # Return in chronological order (oldest first)
+        
         return list(reversed(results))
 
 
-# Singleton instance
+
 _chat_service = None
 
 

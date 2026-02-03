@@ -6,5 +6,5 @@ from django.urls import path
 
 app_name = 'chat'
 
-# No API endpoints yet - will be implemented in API task
+
 urlpatterns = []

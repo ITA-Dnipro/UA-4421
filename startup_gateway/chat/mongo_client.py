@@ -26,7 +26,7 @@ def get_mongo_client():
         password = mongo_settings.get('password', os.environ.get('MONGO_PASSWORD'))
         database = mongo_settings.get('database', os.environ.get('MONGO_DB_NAME', 'startup_gateway'))
         
-        # Build connection string
+        
         if username and password:
             connection_string = f"mongodb://{username}:{password}@{host}:{port}/{database}"
         else:
@@ -38,7 +38,7 @@ def get_mongo_client():
                 serverSelectionTimeoutMS=5000,
                 connectTimeoutMS=10000,
             )
-            # Test connection
+            
             _mongo_client.admin.command('ping')
         except ConnectionFailure as e:
             raise ConnectionError(f"Failed to connect to MongoDB: {e}")

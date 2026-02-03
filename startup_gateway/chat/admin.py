@@ -40,7 +40,7 @@ class ChatAdminSite(admin.AdminSite):
             },
         }
         
-        # Count conversations by type
+        
         pipeline = [
             {'$group': {'_id': '$type', 'count': {'$sum': 1}}}
         ]
