@@ -12,59 +12,58 @@ ALLOWED_STATUS_TRANSITIONS = {
 }
 
 class ProjectStateService:
+    
+    def update_project_state(self, project, data, user_is_staff=False):
 
-    def change_status(self,project, new_status, *, admin_override=False):
-        current_status = project.status
-        
-        if new_status == ProjectStatus.FUNDED and not admin_override:
-            if current_status != ProjectStatus.FUNDRAISING:
-                raise ValidationError("FUNDED status can only be set from FUNDRAISING projects")
-            if project.raised_amount < project.target_amount:
-                raise ValidationError("FUNDED status can only be set when raised_amount >= target_amount")
+        if "raised_amount" in data:
+            self.set_raised_amount(project, data["raised_amount"])
 
-        if not admin_override:
-            allowed_status = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
-            if new_status not in allowed_status:
-                raise ValidationError(
-                    f"Invalid status transition: {current_status} → {new_status}"
-                )
-        project.status = new_status
+        if "status" in data:
+            self.change_status(project, data["status"], admin_override=user_is_staff)
 
-        if new_status == ProjectStatus.FUNDED and project.funded_at is None:
-            project.funded_at = timezone.now()
+        if "visibility" in data:
+            self.change_visibility(project, data["visibility"])
 
-        project.save(update_fields=["status", "funded_at"])
+        project.save()
         return project
 
     def set_raised_amount(self, project, new_amount):
         if new_amount < 0:
             raise ValidationError("Raised amount cannot be negative")
-
+        
         if new_amount > project.target_amount and not project.allow_overfunding:
-            raise ValidationError("Raised amount cannot exceed target amount unless overfunding is allowed.")
+            raise ValidationError("Overfunding is not allowed.")
 
         project.raised_amount = new_amount
-
+        
         if project.raised_amount >= project.target_amount and project.status == ProjectStatus.FUNDRAISING:
             self.change_status(project, ProjectStatus.FUNDED)
 
-        project.save(update_fields=["raised_amount", "status", "funded_at"])
-        return project
-    
+    def change_status(self, project, new_status, admin_override=False):
+        if project.status == new_status:
+            return
+
+        if not admin_override:
+            allowed = ALLOWED_STATUS_TRANSITIONS.get(project.status, set())
+            if new_status not in allowed:
+                raise ValidationError(f"Transition {project.status} -> {new_status} not allowed")
+
+        if new_status == ProjectStatus.FUNDED and project.raised_amount < project.target_amount:
+            raise ValidationError("Target amount not reached yet.")
+
+        project.status = new_status
+        if new_status == ProjectStatus.FUNDED and not project.funded_at:
+            project.funded_at = timezone.now()
+
     def change_visibility(self, project, new_visibility):
-
+        old_visibility = project.visibility
         project.visibility = new_visibility
-        project.save(update_fields=["visibility"])
-
-        if new_visibility == ProjectVisibility.PUBLIC and not project.is_indexed:
+        
+        if old_visibility != ProjectVisibility.PUBLIC and new_visibility == ProjectVisibility.PUBLIC:
             self.index_project_in_search(project)
-            project.is_indexed = True
-            project.save(update_fields=["is_indexed"])
-
-        return project
     
     def index_project_in_search(self, project):
-        # Temporary plug so that tests don't fail
-        print(f"[TEST] Indexing project {project.id} in search")
+        #TODO
+        pass
 
         

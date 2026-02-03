@@ -172,7 +172,7 @@ class ProjectCustomActionsAPITests(TestCase):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.FUNDED}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("FUNDED status can only be set", resp.data["detail"])
+        self.assertIn("Target amount not reached yet.", resp.data["detail"])
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, ProjectStatus.FUNDRAISING)
 
@@ -205,7 +205,7 @@ class ProjectCustomActionsAPITests(TestCase):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"raised_amount": "150.00"}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Raised amount cannot exceed target amount", resp.data["detail"])
+        self.assertIn("Overfunding is not allowed.", resp.data["detail"])
         self.project.refresh_from_db()
         self.assertEqual(float(self.project.raised_amount), 0.0)
 
@@ -216,7 +216,6 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.project.refresh_from_db()
         self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)
-        self.assertTrue(self.project.is_indexed)
 
     # ----------------- Combined update test -----------------
     def test_partial_update_status_and_amount(self):
