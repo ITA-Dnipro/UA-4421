@@ -30,6 +30,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/health/', health_check),
     path("api/auth/", include("users.urls")),
+    path("api/", include("users.profile_urls")),
     path("", include("startup_gateway.content.urls")),
     path("", include('startups.urls')),
     path('api/', include(('startups.api.urls', 'startups'), namespace='startups')),
