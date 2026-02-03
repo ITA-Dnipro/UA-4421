@@ -219,7 +219,6 @@ export default function RegisterStartup() {
   const websiteError = getVisibleError('website')
   const contactError = getVisibleError('contact')
   const termsError = getVisibleError('termsAccepted')
-
   const isSubmitting = uiState === 'submitting'
 
   if (uiState === 'success') {
