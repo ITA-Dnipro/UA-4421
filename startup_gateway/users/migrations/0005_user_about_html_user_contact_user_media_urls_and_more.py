@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('users', '0004_merge_20260128_1318'),
-        ('projects', '0004_project_moderation_status'),
+        ('projects', '0004_project_allow_overfunding_project_funded_at_and_more'),
     ]
 
     operations = [
