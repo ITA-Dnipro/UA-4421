@@ -5,8 +5,8 @@ from django.core.validators import MinValueValidator
 
 class ProjectStatus(models.TextChoices):
     IDEA = "idea", "Idea"
-    PROTOTYPE = "prototype", "Prototype"
-    ACTIVE = "active", "Active"
+    MVP = "mvp", "MVP"
+    FUNDRAISING = "fundraising", "Fundraising"
     FUNDED = "funded", "Funded"
     CLOSED = "closed", "Closed"
 
@@ -57,6 +57,9 @@ class Project(models.Model):
 
     currency = models.CharField(max_length=3, default="UAH")
 
+    allow_overfunding = models.BooleanField(default=False)
+    funded_at = models.DateTimeField(null=True, blank=True)
+    
     visibility = models.CharField(
         max_length=10,
         choices=ProjectVisibility.choices,

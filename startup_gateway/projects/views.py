@@ -7,11 +7,14 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from rest_framework import status
+from django.core.exceptions import ValidationError
+from rest_framework.views import APIView
 
+from projects.models import Project, ProjectStatus
+from projects.services.project_state_service import ProjectStateService
+from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer
 
 from startups.models import StartupProfile
-from .models import Project
-from .serializers import ProjectSerializer, ProjectDetailsSerializer
 from .permissions import IsOwnerOrReadOnly
 
 
@@ -70,3 +73,41 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         instance.is_deleted = True
         instance.save(update_fields=["is_deleted"])
+
+    
+class ProjectStateServiceView(APIView):
+    permission_classes = [IsOwnerOrReadOnly]
+
+    def patch(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        
+        self.check_object_permissions(request, project)
+
+        serializer = ProjectStateSerializer(
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+
+        state_service = ProjectStateService()
+
+        try:
+            if "raised_amount" in serializer.validated_data:
+                state_service.update_raised_amount(
+                    project,
+                    serializer.validated_data["raised_amount"]
+                )
+            if "status" in serializer.validated_data:
+                new_status = serializer.validated_data["status"]
+                if not (new_status == ProjectStatus.FUNDED and project.status == ProjectStatus.FUNDED):
+                    state_service.change_status(
+                        project,
+                        new_status,
+                        admin_override=request.user.is_staff
+                    )
+        except ValidationError as e:
+            return Response(
+                {"detail": e.message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(ProjectDetailsSerializer(project).data)
