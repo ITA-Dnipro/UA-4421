@@ -36,6 +36,147 @@ The registration endpoint (`POST /api/auth/register/`) always returns `201` with
 If the email already exists and the user is already verified, the backend performs no side effects.
 If the email exists but is not yet verified, the backend may re-send the verification email.
 
+### Password Reset Flow
+
+The password reset endpoint (`POST /api/auth/password-reset/`) implements a secure password reset mechanism with anti-enumeration protection.
+
+#### Endpoint
+
+**POST** `/api/auth/password-reset/`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:** Always `200 OK`
+```json
+{
+  "detail": "If the email exists, you will receive reset instructions."
+}
+```
+
+#### Security Features
+
+✅ **Anti-Enumeration Protection**
+- Always returns `200 OK` regardless of whether email exists
+- Same response message for existing and non-existing emails
+- Prevents attackers from discovering valid email addresses
+
+✅ **Rate Limiting**
+- **IP-based:** 5 requests per hour per IP address
+- **Email-based:** 3 requests per hour per email address
+- Returns `429 Too Many Requests` when limits exceeded
+
+✅ **Token Security**
+- Cryptographically secure tokens using Django's `PasswordResetTokenGenerator`
+- Tokens expire after 1 hour (configurable via `PASSWORD_RESET_TIMEOUT`)
+- One-time use tokens
+- Only active, verified users receive reset emails
+
+✅ **Audit Logging**
+- All password reset attempts logged to `PasswordResetAttempt` model
+- Tracks: user, email, IP address, token sent status, timestamp
+- Enables security monitoring and abuse detection
+
+#### Email Template
+
+When a valid user requests a password reset, they receive an email containing:
+
+**Subject:** `Password Reset Request - Startup Gateway`
+
+**Reset Link Format:**
+```
+{protocol}://{domain}/reset-password?uid={uid}&token={token}
+
+Example:
+https://startup-gateway.com/reset-password?uid=MQ&token=c7g8h9-abc123def456
+```
+
+**Link Parameters:**
+- `uid` - Base64-encoded user ID
+- `token` - Secure, time-limited reset token (valid for 1 hour)
+
+**Email Templates Location:**
+- Plain text: `templates/emails/password_reset.txt`
+- HTML: `templates/emails/password_reset.html`
+
+#### Configuration
+
+**Settings (settings.py):**
+```python
+# Password reset token expiry (in seconds)
+PASSWORD_RESET_TIMEOUT = 3600  # 1 hour
+
+# Email configuration
+DEFAULT_FROM_EMAIL = 'no-reply@startup-gateway.com'
+SITE_NAME = 'Startup Gateway'
+FRONTEND_URL = 'http://localhost:3000'
+
+# Throttling
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_RATES': {
+        'password_reset': '5/hour',
+    }
+}
+```
+
+#### Testing
+
+Run password reset tests:
+```bash
+python manage.py test users.tests.TestPasswordResetApi -v 2
+```
+
+**Test Coverage:**
+- Email sent for known, active users
+- No email for unknown users
+- No email for inactive users
+- Email normalization (lowercase)
+- Rate limiting (IP and email)
+- Audit logging with IP tracking
+- Token generation and validation
+- Anti-enumeration verification
+- Email content validation
+
+#### API Usage Example
+```bash
+# Request password reset
+curl -X POST http://localhost:8000/api/auth/password-reset/ \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+# Response
+{
+  "detail": "If the email exists, you will receive reset instructions."
+}
+```
+
+#### Database Schema
+
+**PasswordResetAttempt Model:**
+```python
+class PasswordResetAttempt(models.Model):
+    user = models.ForeignKey(User, null=True, blank=True)
+    email = models.EmailField(db_index=True)
+    ip_address = models.GenericIPAddressField()
+    token_sent = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+```
+
+#### Implementation Notes
+
+The password reset flow consists of two steps:
+
+1. **Request** (implemented) - User requests reset via email, receives link
+2. **Confirm** (to be implemented) - User submits new password with uid/token from email
+
+This endpoint implements step 1. The confirm endpoint will validate the uid/token and allow the user to set a new password.
+
+---
+
 ### Basic Epics
 
 0. **As a user of the platform**, I want the ability to represent both as a startup and as an investor company, so that I can engage in the platform's ecosystem from both perspectives using a single account.
@@ -75,8 +216,8 @@ If the email exists but is not yet verified, the backend may re-send the verific
 ### Additional Features
 
 - **Security and Data Protection**: Ensure that user data, especially sensitive financial information, is securely handled.
-- **User Feedback System**: Create a system for users to provide feedback on the platform, contributing to continuous improvement.
 
+- **User Feedback System**: Create a system for users to provide feedback on the platform, contributing to continuous improvement.
 - **Analytical Tools**: Implement analytical tools for startups to understand investor engagement and for investors to analyze startup potential.
 
 ### Agile Considerations
@@ -102,25 +243,43 @@ Dependabot is enabled for:
 - Python (pip)
 - Frontend dependencies (npm)
 
-**Step 1: Installation**
+#### Step 1: Installation
 
-**Action**: Install pylint and pylint-django via pip. Pylint-django is a Pylint plugin that understands Django's structure and provides relevant linting.
-
-**Command:**
-
-pip install pylint pylint-django
-
-**Step 2: Running the linter**
-
-**Action**: To check your code with Pylint, run the following command from the project root
+**Action**: All dependencies can be installed with a single pip command ran from the project root.
 
 **Command:**
 
-pylint --load-plugins pylint_django backend/
+```
+pip install -r startup_gateway/requirements.txt
+```
 
-Replace backend/ with the name of your Django project folder if it differs.
+For developers, there is an additional layer of dependencies to install.
 
-**GitHub Actions**
+**Command:**
+
+```
+pip install -r startup_gateway/requirements-dev.txt
+```
+
+#### Step 2: Running the linter
+
+**Action**: To lint and format your staged files, run the following command from the project root:
+
+**Command:**
+
+```
+pre-commit run
+```
+
+Alternatively, if you want to lint and format all files, run:
+
+**Command:**
+
+```
+pre-commit run --all-files
+```
+
+#### GitHub Actions
 
 Pylint is also run automatically on each push or pull request to the developer branch using GitHub Actions.
 You can find the configuration in .github/workflows/pylint.yml.
