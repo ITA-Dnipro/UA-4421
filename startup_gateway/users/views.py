@@ -4,28 +4,19 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-
-from users.serializers import (
-    RegisterSerializer,
-    VerifyEmailSerializer,
-    ResendVerificationSerializer,
-    PasswordResetRequestSerializer,
-    PublicProfileSerializer,
-    ProfileUpdateSerializer,
-)
-from users.services import (
-    send_verification_email,
-    verify_email_token,
-    is_resend_verification_throttled,
-)
-from users.tokens import password_reset_token_generator
-from users.email_service import PasswordResetEmailService
-from users.permissions import IsOwnerOrReadOnly
-from users.models import PasswordResetAttempt
+from rest_framework.permissions import AllowAny,IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle
+import logging
+from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
+from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer,PublicProfileSerializer,ProfileUpdateSerializer
+from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
+from .tokens import password_reset_token_generator
+from .email_service import PasswordResetEmailService
+from .permissions import IsOwnerOrReadOnly
+from .models import PasswordResetAttempt, User
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -246,3 +237,56 @@ class ProfileDetailUpdateView(APIView):
             PublicProfileSerializer(user).data,
             status=status.HTTP_200_OK,
         )
+
+
+@extend_schema(
+    request=LoginSerializer,
+    responses={
+        200: inline_serializer(
+            name="LoginResponse",
+            fields={
+                "access": serializers.CharField(),
+                "refresh": serializers.CharField(),
+                "user": inline_serializer(
+                    name="LoginUser",
+                    fields={
+                        "id": serializers.IntegerField(),
+                        "email": serializers.EmailField(),
+                        "role": serializers.CharField(),
+                    },
+                ),
+            },
+        ),
+        401: OpenApiResponse(
+            description="Invalid credentials / inactive user",
+            response=inline_serializer(
+                name="LoginError401",
+                fields={"detail": serializers.CharField()},
+            ),
+        ),
+        400: OpenApiResponse(
+            description="Validation error",
+            response=inline_serializer(
+                name="LoginError400",
+                fields={"detail": serializers.CharField()},
+            ),
+        ),
+    },
+    tags=["Auth"],
+    summary="Login",
+)
+
+class LoginView(APIView):
+    throttle_classes = [AnonRateThrottle]
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        django_request = getattr(request, "_request", request)
+
+        serializer = LoginSerializer(
+            data=request.data,
+            context={"request": django_request},
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
