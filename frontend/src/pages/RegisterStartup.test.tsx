@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import RegisterStartup from './RegisterStartup'
@@ -46,14 +46,55 @@ describe('RegisterStartup', () => {
     await user.click(screen.getByRole('button', { name: 'Register' }))
 
     expect(fetchMock).not.toHaveBeenCalled()
+
     expect(await screen.findByText('Email is required.')).toBeInTheDocument()
     expect(screen.getByText('Password is required.')).toBeInTheDocument()
     expect(screen.getByText('Confirm your password.')).toBeInTheDocument()
     expect(screen.getByText('Company name is required.')).toBeInTheDocument()
+
+    expect(screen.getByText('Short pitch is required.')).toBeInTheDocument()
+    expect(screen.getByText('Website is required.')).toBeInTheDocument()
+    expect(screen.getByText('Contact is required.')).toBeInTheDocument()
+
     expect(screen.getByText('You must accept the Terms & Privacy Policy.')).toBeInTheDocument()
   })
 
-  it('submits valid form, shows loading state, then success confirmation', async () => {
+  it('shows selected filenames when uploading files', async () => {
+    const user = userEvent.setup()
+    render(<RegisterStartup />)
+
+    const logoInput = screen.getByLabelText('Logo (optional)') as HTMLInputElement
+    const deckInput = screen.getByLabelText('Pitch deck (optional)') as HTMLInputElement
+
+    const logo = new File(['logo'], 'logo.png', { type: 'image/png' })
+    const deck = new File(['deck'], 'deck.pdf', { type: 'application/pdf' })
+
+    await user.upload(logoInput, logo)
+    expect(await screen.findByText('logo.png')).toBeInTheDocument()
+
+    await user.upload(deckInput, deck)
+    expect(await screen.findByText('deck.pdf')).toBeInTheDocument()
+  })
+
+  it('shows inline errors for invalid upload type and size', async () => {
+    const user = userEvent.setup()
+    render(<RegisterStartup />)
+
+    const logoInput = screen.getByLabelText('Logo (optional)') as HTMLInputElement
+    const deckInput = screen.getByLabelText('Pitch deck (optional)') as HTMLInputElement
+
+    const badLogo = new File(['nope'], 'logo.txt', { type: 'text/plain' })
+    fireEvent.change(logoInput, { target: { files: [badLogo] } })
+    expect(await screen.findByText('Logo has an unsupported file type.')).toBeInTheDocument()
+
+    const tooLargeDeck = new File([new Uint8Array(15 * 1024 * 1024 + 1)], 'big.pdf', {
+      type: 'application/pdf',
+    })
+    await user.upload(deckInput, tooLargeDeck)
+    expect(await screen.findByText('Pitch deck is too large.')).toBeInTheDocument()
+  })
+
+  it('submits valid form via FormData (no Content-Type header) and shows success', async () => {
     const user = userEvent.setup()
 
     const d = deferred<{
@@ -73,22 +114,73 @@ describe('RegisterStartup', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(await screen.findByRole('button', { name: 'Registering...' })).toBeInTheDocument()
 
-    const [, options] = fetchMock.mock.calls[0]
-
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/auth/register/')
     expect((options as any).method).toBe('POST')
-    expect((options as any).headers).toEqual(
-      expect.objectContaining({ 'Content-Type': 'application/json' }),
-    )
 
-    const body = JSON.parse((options as { body: string }).body)
+    expect((options as any).headers).toBeUndefined()
 
-    expect(body.role).toBe('startup')
-    expect(body.email).toBe('test@example.com')
-    expect(body.password).toBe('password123')
-    expect(body.company_name).toBe('Acme Inc')
-    expect(body.short_pitch).toBe('We build something useful.')
-    expect(body.website).toBe('https://example.com')
-    expect(body.contact_phone).toBe('+380000000000')
+    const body = (options as any).body
+    expect(body).toBeInstanceOf(FormData)
+
+    const fd = body as FormData
+    expect(fd.get('role')).toBe('startup')
+    expect(fd.get('email')).toBe('test@example.com')
+    expect(fd.get('password')).toBe('password123')
+    expect(fd.get('company_name')).toBe('Acme Inc')
+    expect(fd.get('short_pitch')).toBe('We build something useful.')
+    expect(fd.get('website')).toBe('https://example.com')
+    expect(fd.get('contact_phone')).toBe('+380000000000')
+
+    expect(fd.get('logo')).toBeNull()
+    expect(fd.get('pitch_deck')).toBeNull()
+
+    d.resolve({
+      ok: true,
+      status: 201,
+      json: async () => ({}),
+    })
+
+    expect(await screen.findByText('Check your email to verify your account.')).toBeInTheDocument()
+  })
+
+  it('includes selected files in FormData when uploading and submitting', async () => {
+    const user = userEvent.setup()
+
+    const d = deferred<{
+      ok: boolean
+      status: number
+      json: () => Promise<unknown>
+    }>()
+
+    const fetchMock = vi.fn().mockImplementation(() => d.promise)
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<RegisterStartup />)
+
+    const logoInput = screen.getByLabelText('Logo (optional)') as HTMLInputElement
+    const deckInput = screen.getByLabelText('Pitch deck (optional)') as HTMLInputElement
+
+    const logo = new File(['logo'], 'logo.png', { type: 'image/png' })
+    const deck = new File(['deck'], 'deck.pdf', { type: 'application/pdf' })
+
+    await user.upload(logoInput, logo)
+    await user.upload(deckInput, deck)
+
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Register' }))
+
+    const [, options] = fetchMock.mock.calls[0]
+    const fd = (options as any).body as FormData
+
+    const sentLogo = fd.get('logo')
+    const sentDeck = fd.get('pitch_deck')
+
+    expect(sentLogo).toBeInstanceOf(File)
+    expect((sentLogo as File).name).toBe('logo.png')
+
+    expect(sentDeck).toBeInstanceOf(File)
+    expect((sentDeck as File).name).toBe('deck.pdf')
 
     d.resolve({
       ok: true,
