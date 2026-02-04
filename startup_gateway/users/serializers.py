@@ -140,12 +140,10 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
                 "Slug may contain only lowercase letters, numbers and hyphens."
             )
 
-        qs = User.objects.filter(slug=value)
+        if self.instance and self.instance.slug == value:
+            return value
 
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-
-        if qs.exists():
+        if User.objects.filter(slug=value).exists():
             raise serializers.ValidationError("This slug is already in use.")
 
         return value

@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.utils.text import slugify
-
+import uuid 
 class Role(models.Model):
     """
     Roles: 'startup', 'investor'.
@@ -39,8 +38,8 @@ class User(AbstractUser):
     # --- profile ---
     slug = models.SlugField(
         max_length=160,
-        unique=True,
-        blank=True
+        default=uuid.uuid4,
+        unique=True
     )
     about_html = models.TextField(blank=True)
     short_description = models.CharField(max_length=300, blank=True)
@@ -65,19 +64,6 @@ class User(AbstractUser):
 
     class Meta:
         db_table = 'users'
-
-    def save(self, *args, **kwargs):
-        """
-        Slug rules:
-        - slug is always non-empty
-        - slug is unique
-        - on create: slug = username
-        - slug can be changed later via API (PUT / PATCH)
-        """
-        if self._state.adding and not self.slug:
-            self.slug = self.username
-
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.username

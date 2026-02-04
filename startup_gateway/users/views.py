@@ -222,9 +222,13 @@ class ProfileDetailUpdateView(APIView):
             partial=True,
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(
+            PublicProfileSerializer(user).data,
+            status=status.HTTP_200_OK,
+        )
+
 
     def put(self, request, id):
         user = self.get_object(id)
@@ -236,6 +240,9 @@ class ProfileDetailUpdateView(APIView):
             partial=False,
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(
+            PublicProfileSerializer(user).data,
+            status=status.HTTP_200_OK,
+        )
