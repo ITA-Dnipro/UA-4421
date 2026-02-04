@@ -33,6 +33,6 @@ urlpatterns = [
     path("", include("startup_gateway.content.urls")),
     path("", include('startups.urls')),
     path('api/', include(('startups.api.urls', 'startups'), namespace='startups_api')),
-    path("api/", include("projects.urls")),
+    path('api/', include('projects.urls', namespace='projects')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),]
