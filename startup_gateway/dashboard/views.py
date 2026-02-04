@@ -16,21 +16,19 @@ class SavedItemView(APIView):
         serializer = SavedItemCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
-        investor = serializer.validated_data["investor"]
-        ct = serializer.validated_data["content_type"]
-        object_id = serializer.validated_data["target_id_str"]
-
         saved, created = SavedItem.objects.get_or_create(
-            investor_profile=investor,
-            content_type=ct,
-            object_id=object_id,
+            investor_profile=serializer.validated_data["investor"],
+            content_type=serializer.validated_data["content_type"],
+            object_id=serializer.validated_data["object_id"],
         )
 
-        payload = {
-            "saved_id": saved.id,
-            "saved_at": saved.created_at.isoformat(),
-        }
-        return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        return Response(
+            {
+                "saved_id": saved.id,
+                "saved_at": saved.created_at.isoformat().replace('+00:00', 'Z'),
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
     def delete(self, request, user_id, saved_id):
         if request.user.id != int(user_id):

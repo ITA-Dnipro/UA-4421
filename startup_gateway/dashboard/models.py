@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from uuid import UUID
 
 
 class SavedItem(models.Model):
@@ -11,7 +12,7 @@ class SavedItem(models.Model):
     )
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.CharField(max_length=64)
+    object_id = models.UUIDField(db_index=True)
     target = GenericForeignKey('content_type', 'object_id')
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -21,6 +22,7 @@ class SavedItem(models.Model):
         unique_together = ('investor_profile', 'content_type', 'object_id')
         indexes = [
             models.Index(fields=['content_type', 'object_id']),
+            models.Index(fields=['investor_profile', 'content_type']),
         ]
 
     def __str__(self):

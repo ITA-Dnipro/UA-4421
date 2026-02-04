@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 from django.contrib.contenttypes.fields import GenericRelation
+import uuid
 
 
 User = settings.AUTH_USER_MODEL
@@ -16,6 +17,13 @@ class Region(models.Model):
         return self.name
 
 class StartupProfile(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+        db_index=True
+    )
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -38,7 +46,7 @@ class StartupProfile(models.Model):
     )
     saved_by_investors = GenericRelation(
         'dashboard.SavedItem',
-        related_query_name='saved_startups'
+        related_query_name='startup'
     )
 
     class Meta:
@@ -46,6 +54,7 @@ class StartupProfile(models.Model):
         indexes = [
             models.Index(fields=['company_name']),
             models.Index(fields=['slug']),
+            models.Index(fields=['uuid']),
         ]
 
     def save(self, *args, **kwargs):

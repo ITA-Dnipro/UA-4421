@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import uuid
 
 class Role(models.Model):
     """
@@ -25,6 +26,13 @@ class User(AbstractUser):
     - password
     """
 
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+        db_index=True
+    )
+
     phone = models.CharField(max_length=20, blank=True)
     verified = models.BooleanField(default=False)
     email_verification_nonce = models.CharField(max_length=64, blank=True, default="")
@@ -41,6 +49,12 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+    
+    def is_startup(self) -> bool:
+        return (
+            hasattr(self, "startup_profile") or
+            self.roles.filter(name__iexact="startup").exists()
+        )
 
 
 class UserRole(models.Model):

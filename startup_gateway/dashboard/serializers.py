@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
 from startups.models import StartupProfile
 from projects.models import Project
 
@@ -15,7 +16,7 @@ TARGET_MAP = {
 
 class SavedItemCreateSerializer(serializers.Serializer):
     target_type = serializers.ChoiceField(choices=list(TARGET_MAP.keys()))
-    target_id = serializers.CharField()
+    target_id = serializers.UUIDField()
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -28,37 +29,33 @@ class SavedItemCreateSerializer(serializers.Serializer):
 
         target_type = attrs["target_type"]
         target_id = attrs["target_id"]
-
         model = TARGET_MAP[target_type]
 
+        lookup_field = "id" if target_type == "project" else "uuid"
+
         try:
-            target_obj = model.objects.get(pk=target_id)
-        except Exception:
+            target_obj = model.objects.get(**{lookup_field: target_id})
+        except ObjectDoesNotExist:
             raise serializers.ValidationError({"target_id": "Target does not exist."})
 
-        if target_type == "company":
-            is_startup_user = (
-                hasattr(target_obj, "startup_profile") or
-                target_obj.roles.filter(name__iexact="startup").exists()
-            )
-            if not is_startup_user:
-                raise serializers.ValidationError({"target_type": "Target user is not a startup/company."})
+        if attrs["target_type"] == "company":
+            if not target_obj.is_startup():
+                raise serializers.ValidationError("Target user is not a startup/company.")
 
-            if target_obj.pk == request.user.pk:
+            if target_obj.id == request.user.id:
                 raise serializers.ValidationError("You cannot save your own company.")
-
-        if target_type == "startup":
-            if hasattr(request.user, "startup_profile") and request.user.startup_profile.pk == target_obj.pk:
+        
+        if attrs["target_type"] == "startup":
+            if hasattr(request.user, "startup_profile") and \
+               request.user.startup_profile.uuid == target_obj.uuid:
                 raise serializers.ValidationError("You cannot save your own startup.")
 
-        if target_type == "project":
-            proj = target_obj
-            owner_user = getattr(proj.startup_profile, "user", None)
-            if owner_user and owner_user.pk == request.user.pk:
+        if attrs["target_type"] == "project":
+            owner = target_obj.startup_profile.user
+            if owner.id == request.user.id:
                 raise serializers.ValidationError("You cannot save your own project.")
 
         attrs["investor"] = investor
         attrs["content_type"] = ContentType.objects.get_for_model(model)
-        attrs["target_id_str"] = str(target_obj.pk)
-        attrs["target_obj"] = target_obj
+        attrs["object_id"] = getattr(target_obj, lookup_field)
         return attrs

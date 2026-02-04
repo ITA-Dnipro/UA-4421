@@ -53,7 +53,7 @@ class SavedItemAPITests(APITestCase):
     def test_create_saved_startup(self):
         url = f'/api/users/{self.inv_user.id}/saved/'
         self.client.force_authenticate(self.inv_user)
-        r = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.id)}, format='json')
+        r = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.uuid)}, format='json')
         assert r.status_code == 201
         assert 'saved_id' in r.data
         assert SavedItem.objects.filter(id=r.data['saved_id']).exists()
@@ -61,8 +61,8 @@ class SavedItemAPITests(APITestCase):
     def test_duplicate_create_is_idempotent(self):
         url = f'/api/users/{self.inv_user.id}/saved/'
         self.client.force_authenticate(self.inv_user)
-        r1 = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.id)}, format='json')
-        r2 = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.id)}, format='json')
+        r1 = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.uuid)}, format='json')
+        r2 = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.uuid)}, format='json')
         assert r1.status_code == 201
         assert r2.status_code == 200
         assert r1.data['saved_id'] == r2.data['saved_id']
@@ -77,7 +77,7 @@ class SavedItemAPITests(APITestCase):
     def test_create_saved_company(self):
         url = f'/api/users/{self.inv_user.id}/saved/'
         self.client.force_authenticate(self.inv_user)
-        r = self.client.post(url, {"target_type": "company", "target_id": str(self.startup_user.id)}, format='json')
+        r = self.client.post(url, {"target_type": "company", "target_id": str(self.startup_user.uuid)}, format='json')
         assert r.status_code == 201
         assert SavedItem.objects.filter(id=r.data['saved_id']).exists()
 
@@ -90,7 +90,7 @@ class SavedItemAPITests(APITestCase):
 
         url = f'/api/users/{both.id}/saved/'
         self.client.force_authenticate(both)
-        r = self.client.post(url, {"target_type": "startup", "target_id": str(both_startup.id)}, format='json')
+        r = self.client.post(url, {"target_type": "startup", "target_id": str(both_startup.uuid)}, format='json')
         assert r.status_code == 400
 
     def test_invalid_target_returns_400(self):
@@ -101,19 +101,19 @@ class SavedItemAPITests(APITestCase):
 
     def test_unauthenticated_returns_401(self):
         url = f'/api/users/{self.inv_user.id}/saved/'
-        r = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.id)}, format='json')
+        r = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.uuid)}, format='json')
         assert r.status_code == 401
 
     def test_forbidden_if_url_user_mismatch(self):
         url = f'/api/users/{self.startup_user.id}/saved/'
         self.client.force_authenticate(self.inv_user)
-        r = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.id)}, format='json')
+        r = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.uuid)}, format='json')
         assert r.status_code == 403
 
     def test_delete_saved(self):
         url = f'/api/users/{self.inv_user.id}/saved/'
         self.client.force_authenticate(self.inv_user)
-        create = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.id)}, format='json')
+        create = self.client.post(url, {"target_type": "startup", "target_id": str(self.startup_profile.uuid)}, format='json')
         saved_id = create.data['saved_id']
         delete_url = f'/api/users/{self.inv_user.id}/saved/{saved_id}/'
         r = self.client.delete(delete_url)
