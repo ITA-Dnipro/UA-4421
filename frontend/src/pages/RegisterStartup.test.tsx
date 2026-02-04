@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import RegisterStartup from './RegisterStartup'
@@ -59,6 +59,91 @@ describe('RegisterStartup', () => {
     expect(screen.getByText('You must accept the Terms & Privacy Policy.')).toBeInTheDocument()
   })
 
+  it('validates email format and blocks submit', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<RegisterStartup />)
+
+    await fillValidForm(user)
+
+    const emailInput = screen.getByLabelText('Email')
+    await user.clear(emailInput)
+    await user.type(emailInput, 'not-an-email')
+
+    await user.click(screen.getByRole('button', { name: 'Register' }))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(await screen.findByText('Enter a valid email.')).toBeInTheDocument()
+  })
+
+  it('validates password min length and blocks submit', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<RegisterStartup />)
+
+    await fillValidForm(user)
+
+    const passwordInput = screen.getByLabelText('Password')
+    const confirmInput = screen.getByLabelText('Confirm password')
+
+    await user.clear(passwordInput)
+    await user.type(passwordInput, '1234567')
+
+    await user.clear(confirmInput)
+    await user.type(confirmInput, '1234567')
+
+    await user.click(screen.getByRole('button', { name: 'Register' }))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(
+      await screen.findByText('Password must be at least 8 characters.'),
+    ).toBeInTheDocument()
+  })
+
+  it('validates password confirmation match and blocks submit', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<RegisterStartup />)
+
+    await fillValidForm(user)
+
+    const confirmInput = screen.getByLabelText('Confirm password')
+    await user.clear(confirmInput)
+    await user.type(confirmInput, 'password124')
+
+    await user.click(screen.getByRole('button', { name: 'Register' }))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(await screen.findByText('Passwords do not match.')).toBeInTheDocument()
+  })
+
+  it('validates website URL format (http/https) and blocks submit', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<RegisterStartup />)
+
+    await fillValidForm(user)
+
+    const websiteInput = screen.getByLabelText('Website')
+    await user.clear(websiteInput)
+    await user.type(websiteInput, 'example.com')
+
+    await user.click(screen.getByRole('button', { name: 'Register' }))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(
+      await screen.findByText('Enter a valid URL (http/https).'),
+    ).toBeInTheDocument()
+  })
+
   it('shows selected filenames when uploading files', async () => {
     const user = userEvent.setup()
     render(<RegisterStartup />)
@@ -77,22 +162,32 @@ describe('RegisterStartup', () => {
   })
 
   it('shows inline errors for invalid upload type and size', async () => {
-    const user = userEvent.setup()
     render(<RegisterStartup />)
 
     const logoInput = screen.getByLabelText('Logo (optional)') as HTMLInputElement
     const deckInput = screen.getByLabelText('Pitch deck (optional)') as HTMLInputElement
 
+    // Use fireEvent to bypass any accept-filtering behavior from userEvent.upload
     const badLogo = new File(['nope'], 'logo.txt', { type: 'text/plain' })
     fireEvent.change(logoInput, { target: { files: [badLogo] } })
     expect(await screen.findByText('Logo has an unsupported file type.')).toBeInTheDocument()
 
-    const tooLargeDeck = new File([new Uint8Array(15 * 1024 * 1024 + 1)], 'big.pdf', {
-      type: 'application/pdf',
-    })
-    await user.upload(deckInput, tooLargeDeck)
+    // Avoid allocating a 15+MB buffer; try to override the size first, fallback to real buffer if needed
+    let tooLargeDeck = new File(['deck'], 'big.pdf', { type: 'application/pdf' })
+    try {
+      Object.defineProperty(tooLargeDeck, 'size', { value: 15 * 1024 * 1024 + 1 })
+    } catch {
+      // ignore
+    }
+    if (tooLargeDeck.size <= 15 * 1024 * 1024) {
+      tooLargeDeck = new File([new Uint8Array(15 * 1024 * 1024 + 1)], 'big.pdf', {
+        type: 'application/pdf',
+      })
+    }
+    fireEvent.change(deckInput, { target: { files: [tooLargeDeck] } })
     expect(await screen.findByText('Pitch deck is too large.')).toBeInTheDocument()
   })
+
 
   it('submits valid form via FormData (no Content-Type header) and shows success', async () => {
     const user = userEvent.setup()
