@@ -1,13 +1,17 @@
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
 from django.contrib.auth import get_user_model
 
 from startups.models import StartupProfile
-from projects.models import Project, ProjectStatus
+from projects.models import Project, ProjectStatus, ProjectVisibility, ModerationStatus, ModerationAction
+from django.test import TestCase
+from projects.services.moderation_service import ProjectModerationService
+
+User = get_user_model()
 
 
 class ProjectsAPITests(TestCase):
@@ -219,3 +223,139 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(self.project.status, ProjectStatus.FUNDED)
         self.assertEqual(float(self.project.raised_amount), 100.0)
         self.assertIsNotNone(self.project.funded_at)
+
+
+class AdminProjectAPITest(APITestCase):
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username="admin", email="admin@test.com", password="admin123", is_staff=True
+        )
+        self.startup_user = User.objects.create_user(
+            username="startup", email="startup@test.com", password="pass123"
+        )
+
+        self.startup = StartupProfile.objects.create(
+            user=self.startup_user, company_name="Tech Inc", slug="tech-inc"
+        )
+
+        self.project1 = Project.objects.create(
+            startup_profile=self.startup,
+            title="Project 1",
+            slug="project-1",
+            short_description="Short description 1",
+            description="Description of project 1",
+            moderation_status=ModerationStatus.PENDING,
+            target_amount=10000.00,
+            raised_amount=0.00,
+            currency="UAH",
+        )
+
+        self.project2 = Project.objects.create(
+            startup_profile=self.startup,
+            title="Project 2",
+            slug="project-2",
+            short_description="Short description 2",
+            description="Description of project 2",
+            moderation_status=ModerationStatus.APPROVED,
+            target_amount=20000.00,
+            raised_amount=5000.00,
+            currency="UAH",
+        )
+
+    def test_non_admin_forbidden(self):
+        self.client.force_authenticate(user=self.startup_user)
+        response = self.client.get(reverse('projects:admin-project-list'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_list_projects(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get(reverse('projects:admin-project-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+        self.assertGreater(len(response.data['results']), 0)
+
+
+class ProjectModerationServiceTest(TestCase):
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username="admin", email="admin@test.com", password="admin123", is_staff=True
+        )
+        self.startup_user = User.objects.create_user(
+            username="startup", email="startup@test.com", password="pass123"
+        )
+
+        self.startup = StartupProfile.objects.create(
+            user=self.startup_user, company_name="Tech Inc", slug="tech-inc"
+        )
+
+        self.project = Project.objects.create(
+            startup_profile=self.startup,
+            title="Sample Project",
+            slug="sample-project",
+            short_description="A short description",
+            description="A detailed description",
+            moderation_status=ModerationStatus.PENDING,
+            target_amount=10000.00,
+            raised_amount=0.00,
+            currency="UAH",
+            status=ProjectStatus.IDEA,
+        )
+
+    def test_approve_project(self):
+        success, message, project = ProjectModerationService.moderate_project(
+            self.project, ModerationAction.APPROVE, self.admin_user
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(message, 'Project approved successfully')
+        self.assertEqual(project.moderation_status, ModerationStatus.APPROVED)
+
+    def test_reject_requires_reason(self):
+        success, message, _ = ProjectModerationService.moderate_project(
+            self.project, ModerationAction.REJECT, self.admin_user
+        )
+        self.assertFalse(success)
+        self.assertIn("reason is required", message.lower())
+
+    def test_reject_project(self):
+        reason = "Violates guidelines"
+        success, message, project = ProjectModerationService.moderate_project(
+            self.project, ModerationAction.REJECT, self.admin_user, reason
+        )
+        self.assertTrue(success)
+        self.assertEqual(message, "Project rejected and owner notified")
+        self.assertEqual(project.moderation_status, ModerationStatus.REJECTED)
+        self.assertEqual(project.rejection_reason, reason)
+
+    def test_cannot_approve_deleted_project(self):
+        self.project.is_deleted = True
+        self.project.save()
+
+        success, message, _ = ProjectModerationService.moderate_project(
+            self.project, ModerationAction.APPROVE, self.admin_user
+        )
+        self.assertFalse(success)
+        self.assertIn("cannot approve deleted project", message.lower())
+
+    def test_soft_delete_project(self):
+        success, message, project = ProjectModerationService.moderate_project(
+            self.project, ModerationAction.DELETE, self.admin_user, reason="Spam"
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(message, "Project deleted successfully")
+        self.assertTrue(project.is_deleted)
+
+    def test_restore_project(self):
+        self.project.is_deleted = True
+        self.project.save()
+
+        success, message, project = ProjectModerationService.moderate_project(
+            self.project, ModerationAction.RESTORE, self.admin_user
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(message, "Project restored successfully")
+        self.assertFalse(project.is_deleted)
