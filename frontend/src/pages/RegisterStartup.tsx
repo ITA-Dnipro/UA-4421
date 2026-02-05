@@ -9,6 +9,8 @@ type FieldKey =
   | 'shortPitch'
   | 'website'
   | 'contact'
+  | 'logoFile'
+  | 'pitchDeckFile'
   | 'termsAccepted'
 
 type FieldErrors = Partial<Record<FieldKey, string>>
@@ -22,6 +24,8 @@ type Values = {
   shortPitch: string
   website: string
   contact: string
+  logoFile: File | null
+  pitchDeckFile: File | null
   termsAccepted: boolean
 }
 
@@ -44,6 +48,26 @@ function isValidHttpUrl(value: string) {
   }
 }
 
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
+const PITCH_DECK_MAX_BYTES = 15 * 1024 * 1024
+
+const LOGO_ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
+const PITCH_DECK_ALLOWED_TYPES = new Set([
+  'application/pdf',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+])
+
+function validateOptionalFile(
+  file: File | null,
+  opts: { label: string; allowedTypes: Set<string>; maxBytes: number },
+): string | undefined {
+  if (!file) return undefined
+  if (!opts.allowedTypes.has(file.type)) return `${opts.label} has an unsupported file type.`
+  if (file.size > opts.maxBytes) return `${opts.label} is too large.`
+  return undefined
+}
+
 function validateAll(values: Values): FieldErrors {
   const next: FieldErrors = {}
 
@@ -59,8 +83,26 @@ function validateAll(values: Values): FieldErrors {
 
   if (isBlank(values.companyName)) next.companyName = 'Company name is required.'
 
-  if (!isBlank(values.website) && !isValidHttpUrl(values.website))
-    next.website = 'Enter a valid URL (http/https).'
+  if (isBlank(values.shortPitch)) next.shortPitch = 'Short pitch is required.'
+
+  if (isBlank(values.website)) next.website = 'Website is required.'
+  else if (!isValidHttpUrl(values.website)) next.website = 'Enter a valid URL (http/https).'
+
+  if (isBlank(values.contact)) next.contact = 'Contact is required.'
+
+  const logoMsg = validateOptionalFile(values.logoFile, {
+    label: 'Logo',
+    allowedTypes: LOGO_ALLOWED_TYPES,
+    maxBytes: LOGO_MAX_BYTES,
+  })
+  if (logoMsg) next.logoFile = logoMsg
+
+  const deckMsg = validateOptionalFile(values.pitchDeckFile, {
+    label: 'Pitch deck',
+    allowedTypes: PITCH_DECK_ALLOWED_TYPES,
+    maxBytes: PITCH_DECK_MAX_BYTES,
+  })
+  if (deckMsg) next.pitchDeckFile = deckMsg
 
   if (!values.termsAccepted) next.termsAccepted = 'You must accept the Terms & Privacy Policy.'
 
@@ -106,6 +148,12 @@ function mapServerErrorsToFields(payload: unknown): { fieldErrors: FieldErrors; 
   const contactMsg = toMessage(obj.contact_phone)
   if (contactMsg) fieldErrors.contact = contactMsg
 
+  const logoMsg = toMessage(obj.logo)
+  if (logoMsg) fieldErrors.logoFile = logoMsg
+
+  const pitchDeckMsg = toMessage(obj.pitch_deck)
+  if (pitchDeckMsg) fieldErrors.pitchDeckFile = pitchDeckMsg
+
   return { fieldErrors, general }
 }
 
@@ -117,6 +165,8 @@ export default function RegisterStartup() {
   const [shortPitch, setShortPitch] = useState('')
   const [website, setWebsite] = useState('')
   const [contact, setContact] = useState('')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [pitchDeckFile, setPitchDeckFile] = useState<File | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
 
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -135,6 +185,8 @@ export default function RegisterStartup() {
       shortPitch,
       website,
       contact,
+      logoFile,
+      pitchDeckFile,
       termsAccepted,
     }
   }
@@ -170,20 +222,21 @@ export default function RegisterStartup() {
     setUiState('submitting')
 
     try {
-      const payload = {
-        email: email.trim(),
-        password,
-        role: 'startup',
-        company_name: companyName.trim(),
-        short_pitch: shortPitch.trim(),
-        website: website.trim(),
-        contact_phone: contact.trim(),
-      }
+      const formData = new FormData()
+      formData.append('email', email.trim())
+      formData.append('password', password)
+      formData.append('role', 'startup')
+      formData.append('company_name', companyName.trim())
+      formData.append('short_pitch', shortPitch.trim())
+      formData.append('website', website.trim())
+      formData.append('contact_phone', contact.trim())
+
+      if (logoFile) formData.append('logo', logoFile)
+      if (pitchDeckFile) formData.append('pitch_deck', pitchDeckFile)
 
       const res = await fetch('/api/auth/register/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: formData,
       })
 
       const data = await res.json().catch(() => undefined)
@@ -218,6 +271,8 @@ export default function RegisterStartup() {
   const shortPitchError = getVisibleError('shortPitch')
   const websiteError = getVisibleError('website')
   const contactError = getVisibleError('contact')
+  const logoFileError = getVisibleError('logoFile')
+  const pitchDeckFileError = getVisibleError('pitchDeckFile')
   const termsError = getVisibleError('termsAccepted')
 
   const isSubmitting = uiState === 'submitting'
@@ -363,6 +418,7 @@ export default function RegisterStartup() {
                     revalidate()
                   }}
                   rows={3}
+                  required
                   disabled={isSubmitting}
                   className={
                     getVisibleError('shortPitch')
@@ -391,6 +447,7 @@ export default function RegisterStartup() {
                     revalidate()
                   }}
                   placeholder="https://example.com"
+                  required
                   disabled={isSubmitting}
                   className={controlClass('website')}
                   aria-invalid={Boolean(websiteError)}
@@ -415,6 +472,7 @@ export default function RegisterStartup() {
                     revalidate()
                   }}
                   placeholder="+380..."
+                  required
                   disabled={isSubmitting}
                   className={controlClass('contact')}
                   aria-invalid={Boolean(contactError)}
@@ -423,6 +481,72 @@ export default function RegisterStartup() {
                 {contactError && (
                   <div id="contact-error" role="alert" className={styles.errorText}>
                     {contactError}
+                  </div>
+                )}
+              </label>
+
+              <label className={styles.field}>
+                <span className={styles.label}>Logo (optional)</span>
+                <input
+                  type="file"
+                  name="logoFile"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  disabled={isSubmitting}
+                  className={controlClass('logoFile')}
+                  aria-invalid={Boolean(logoFileError)}
+                  aria-describedby={logoFileError ? 'logoFile-error' : undefined}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    setLogoFile(file)
+                    markTouched('logoFile')
+                    setErrors(validateAll({ ...getValues(), logoFile: file }))
+                  }}
+                  onBlur={() => {
+                    markTouched('logoFile')
+                    revalidate()
+                  }}
+                />
+                {logoFile && (
+                  <div className={styles.fileRow}>
+                    <span className={styles.fileName}>{logoFile.name}</span>
+                  </div>
+                )}
+                {logoFileError && (
+                  <div id="logoFile-error" role="alert" className={styles.errorText}>
+                    {logoFileError}
+                  </div>
+                )}
+              </label>
+
+              <label className={styles.field}>
+                <span className={styles.label}>Pitch deck (optional)</span>
+                <input
+                  type="file"
+                  name="pitchDeckFile"
+                  accept="application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                  disabled={isSubmitting}
+                  className={controlClass('pitchDeckFile')}
+                  aria-invalid={Boolean(pitchDeckFileError)}
+                  aria-describedby={pitchDeckFileError ? 'pitchDeckFile-error' : undefined}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    setPitchDeckFile(file)
+                    markTouched('pitchDeckFile')
+                    setErrors(validateAll({ ...getValues(), pitchDeckFile: file }))
+                  }}
+                  onBlur={() => {
+                    markTouched('pitchDeckFile')
+                    revalidate()
+                  }}
+                />
+                {pitchDeckFile && (
+                  <div className={styles.fileRow}>
+                    <span className={styles.fileName}>{pitchDeckFile.name}</span>
+                  </div>
+                )}
+                {pitchDeckFileError && (
+                  <div id="pitchDeckFile-error" role="alert" className={styles.errorText}>
+                    {pitchDeckFileError}
                   </div>
                 )}
               </label>
@@ -437,12 +561,12 @@ export default function RegisterStartup() {
                     markTouched('termsAccepted')
                     revalidate()
                   }}
-                  required
                   disabled={isSubmitting}
+                  className={styles.checkbox}
                   aria-invalid={Boolean(termsError)}
                   aria-describedby={termsError ? 'termsAccepted-error' : undefined}
                 />
-                <span>I accept the Terms &amp; Privacy Policy</span>
+                <span className={styles.checkboxText}>I accept the Terms &amp; Privacy Policy</span>
               </label>
               {termsError && (
                 <div id="termsAccepted-error" role="alert" className={styles.errorText}>
