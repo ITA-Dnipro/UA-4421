@@ -1,14 +1,18 @@
+import json
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
 from django.core.signing import SignatureExpired, TimestampSigner
+from django.conf import settings
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import authenticate
 from unittest.mock import patch
 from django.test import override_settings
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from importlib import reload
+from datetime import timedelta
 
 from startups.models import StartupProfile
 from investors.models import InvestorProfile
@@ -221,7 +225,7 @@ class TestVerifyEmailApi(APITestCase):
     def test_verify_email_invalid_token(self):
         resp = self.client.get("/api/auth/verify-email/?token=bad")
         self.assertEqual(resp.status_code, 400)
-    
+
     def test_verify_email_rejects_legacy_token_without_nonce(self):
         payload = {
             "email": "alice@example.com",
@@ -721,6 +725,167 @@ class TestPasswordResetTokenTimeout(APITestCase):
         self.assertTrue(is_valid)
 
 
+@override_settings(
+    AXES_ENABLED=True,
+    AXES_FAILURE_LIMIT=5,
+    AXES_COOLOFF_TIME=timedelta(minutes=5),
+    AXES_USERNAME_FORM_FIELD="email",
+    REST_FRAMEWORK={
+        "DEFAULT_THROTTLE_CLASSES": [],
+        "DEFAULT_THROTTLE_RATES": {},
+    },
+)
+class TestLoginApi(APITestCase):
+    def setUp(self):
+        super().setUp()
+        self.user_password = "P@ssw0rd!123"
+        self.user = User.objects.create_user(
+            username="alice",
+            email="alice@example.com",
+            password=self.user_password,
+            is_active=True,
+            verified=True,
+        )
+
+        self.url = "/api/auth/login/"
+        self.ip = "10.0.0.1"
+
+    def _json(self, resp):
+        if hasattr(resp, "data"):
+            return resp.data
+        return json.loads(resp.content.decode("utf-8"))
+
+    def _ttl_seconds_from_token(self, token_str: str, token_cls):
+        token = token_cls(token_str)
+        exp = int(token["exp"])
+        iat = int(token["iat"])
+        return exp - iat
+
+    def _assert_ttl_close(self, actual_seconds: int, expected: timedelta, tolerance_seconds: int = 5):
+        expected_seconds = int(expected.total_seconds())
+        self.assertTrue(
+            abs(actual_seconds - expected_seconds) <= tolerance_seconds,
+            msg=f"TTL mismatch: got {actual_seconds}s, expected {expected_seconds}s ±{tolerance_seconds}s",
+        )
+
+    def test_login_success_returns_tokens_and_user(self):
+        payload = {
+            "email": self.user.email,
+            "password": self.user_password,
+        }
+
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+        self.assertIn("user", resp.data)
+        self.assertEqual(resp.data["user"]["email"], self.user.email)
+
+    def test_login_success_with_remember_returns_tokens(self):
+        payload = {
+            "email": self.user.email,
+            "password": self.user_password,
+            "remember": True,
+        }
+
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+        self.assertEqual(resp.data["user"]["email"], self.user.email)
+
+    def test_login_invalid_credentials_returns_401(self):
+        payload = {
+            "email": self.user.email,
+            "password": "wrong-password",
+        }
+
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+
+        self.assertEqual(resp.status_code, 401)
+        self.assertTrue("detail" in resp.data or "non_field_errors" in resp.data)
+
+    def test_login_lockout_after_repeated_failures_returns_429(self):
+        for _ in range(4):
+            resp = self.client.post(
+                self.url,
+                {"email": self.user.email, "password": "wrong"},
+                format="json",
+                REMOTE_ADDR=self.ip,
+            )
+            self.assertEqual(resp.status_code, 401)
+        locked = self.client.post(
+            self.url,
+            {"email": self.user.email, "password": "wrong"},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+        self.assertEqual(locked.status_code, 429)
+        data = self._json(locked)
+        self.assertIn("detail", data)
+
+    def test_login_during_lockout_blocks_even_with_correct_password(self):
+        for _ in range(5):
+            self.client.post(
+                self.url,
+                {"email": self.user.email, "password": "wrong"},
+                format="json",
+                REMOTE_ADDR=self.ip,
+            )
+        resp = self.client.post(
+            self.url,
+            {"email": self.user.email, "password": self.user_password},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+        self.assertEqual(resp.status_code, 429)
+        data = self._json(resp)
+        self.assertIn("detail", data)
+
+    def test_remember_true_changes_access_and_refresh_ttl(self):
+        payload = {"email": self.user.email, "password": self.user_password, "remember": True}
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+        self.assertEqual(resp.status_code, 200)
+
+        access_ttl = self._ttl_seconds_from_token(resp.data["access"], AccessToken)
+        refresh_ttl = self._ttl_seconds_from_token(resp.data["refresh"], RefreshToken)
+
+        self._assert_ttl_close(access_ttl, timedelta(minutes=30))
+        self._assert_ttl_close(refresh_ttl, timedelta(days=7))
+
+    def test_default_ttl_matches_simplejwt_settings_when_remember_not_set(self):
+        payload = {"email": self.user.email, "password": self.user_password}
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+        self.assertEqual(resp.status_code, 200)
+
+        access_ttl = self._ttl_seconds_from_token(resp.data["access"], AccessToken)
+        refresh_ttl = self._ttl_seconds_from_token(resp.data["refresh"], RefreshToken)
+
+        simple_jwt = getattr(settings, "SIMPLE_JWT", {})
+        expected_access = simple_jwt.get("ACCESS_TOKEN_LIFETIME", timedelta(minutes=5))
+        expected_refresh = simple_jwt.get("REFRESH_TOKEN_LIFETIME", timedelta(days=1))
+
+        self._assert_ttl_close(access_ttl, expected_access)
+        self._assert_ttl_close(refresh_ttl, expected_refresh)
+
+    def test_default_ttl_not_violated_even_if_remember_false(self):
+        payload = {"email": self.user.email, "password": self.user_password, "remember": False}
+        resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
+        self.assertEqual(resp.status_code, 200)
+
+        access_ttl = self._ttl_seconds_from_token(resp.data["access"], AccessToken)
+        refresh_ttl = self._ttl_seconds_from_token(resp.data["refresh"], RefreshToken)
+
+        simple_jwt = getattr(settings, "SIMPLE_JWT", {})
+        expected_access = simple_jwt.get("ACCESS_TOKEN_LIFETIME", timedelta(minutes=5))
+        expected_refresh = simple_jwt.get("REFRESH_TOKEN_LIFETIME", timedelta(days=1))
+
+        self._assert_ttl_close(access_ttl, expected_access)
+        self._assert_ttl_close(refresh_ttl, expected_refresh)
+
+
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class TestPasswordResetConfirm(APITestCase):
 
@@ -833,8 +998,6 @@ class TestPasswordResetConfirm(APITestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_token_for_different_user_fails(self):
-
-
         user2 = User.objects.create_user(
             username='testuser2',
             email='test2@example.com',
@@ -858,7 +1021,7 @@ class TestPasswordResetConfirm(APITestCase):
         self.assertTrue(user2.check_password("OldPass123!"))
 
     def test_user_can_login_with_new_password(self):
-
+        from django.test import RequestFactory
 
         token = password_reset_token_generator.make_token(self.user)
         uid = urlsafe_base64_encode(force_bytes(self.user.pk))
@@ -872,11 +1035,12 @@ class TestPasswordResetConfirm(APITestCase):
         resp = self.client.post(self.url, payload, format="json")
         self.assertEqual(resp.status_code, 200)
 
-        user = authenticate(username='testuser', password='NewP@ssw0rd123')
+        request = RequestFactory().post('/api/auth/login/')
+        user = authenticate(request=request, username='testuser', password='NewP@ssw0rd123')
         self.assertIsNotNone(user)
         self.assertEqual(user, self.user)
 
-        user = authenticate(username='testuser', password='OldPass123!')
+        user = authenticate(request=request, username='testuser', password='OldPass123!')
         self.assertIsNone(user)
 
     def test_audit_log_tracks_ip(self):
@@ -904,7 +1068,6 @@ class TestPasswordResetConfirm(APITestCase):
         self.assertEqual(confirmation.ip_address, '192.168.1.100')
 
     def test_model_str_representation(self):
-
         confirmation = PasswordResetConfirmation.objects.create(
             user=self.user,
             ip_address='192.168.1.1',

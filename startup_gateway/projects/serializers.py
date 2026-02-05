@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from projects.models import  ProjectStatus
-from .models import Project
+from projects.models import Project, ProjectStatus, ProjectVisibility
 
 class ProjectSerializer(serializers.ModelSerializer):
     tags = serializers.SlugRelatedField(
@@ -40,9 +39,13 @@ class ProjectStateSerializer(serializers.Serializer):
         decimal_places=2,
         required=False
     )
+    visibility = serializers.ChoiceField(
+        choices=ProjectVisibility.choices,
+        required=False
+    )
 
     def validate(self, attrs):
-        if not attrs:
+        if not any(field in attrs for field in ("status", "raised_amount", "visibility")):
             raise serializers.ValidationError(
                 "At least one field (status or raised_amount) must be provided."
             )
