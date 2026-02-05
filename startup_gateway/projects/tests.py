@@ -274,7 +274,7 @@ class AdminModerationAPITest(TestCase):
     def test_approve_project(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            reverse('projects:admin-project-moderate', kwargs={'pk': self.project.pk}),
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
             {'action': ModerationAction.APPROVE},
             format='json'
         )
@@ -285,7 +285,7 @@ class AdminModerationAPITest(TestCase):
     def test_reject_project(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            reverse('projects:admin-project-moderate', kwargs={'pk': self.project.pk}),
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
             {'action': ModerationAction.REJECT, 'reason': 'Violates guidelines'},
             format='json'
         )
@@ -296,7 +296,7 @@ class AdminModerationAPITest(TestCase):
     def test_flag_project(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            reverse('projects:admin-project-moderate', kwargs={'pk': self.project.pk}),
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
             {'action': ModerationAction.FLAG, 'reason': 'Suspicious content'},
             format='json'
         )
@@ -307,7 +307,7 @@ class AdminModerationAPITest(TestCase):
     def test_reject_without_reason_fails(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            reverse('projects:admin-project-moderate', kwargs={'pk': self.project.pk}),
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
             {'action': ModerationAction.REJECT},
             format='json'
         )
