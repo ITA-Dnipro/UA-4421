@@ -12,8 +12,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .services import register_user
 from users.models import Role
+from django.db import transaction
+from django.db.models import F
+from .models import PasswordResetConfirmation
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -133,53 +138,77 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         required=True,
         help_text="Password reset token from email"
     )
-    new_password = serializers.CharField(
+    password = serializers.CharField(
         required=True,
         write_only=True,
         min_length=8,
         help_text="New password (min 8 characters)"
     )
 
-    def validate_uid(self, value):
-        try:
-            from django.utils.http import urlsafe_base64_decode
-            from django.utils.encoding import force_str
-            uid = force_str(urlsafe_base64_decode(value))
-            return uid
-        except (ValueError, TypeError, OverflowError):
-            raise serializers.ValidationError("Invalid user ID.")
-
     def validate(self, attrs):
-        uid = attrs.get('uid')
+        from django.utils.http import urlsafe_base64_decode
+        from django.utils.encoding import force_str
+        from .tokens import password_reset_token_generator
+
+        uid_encoded = attrs.get('uid')
         token = attrs.get('token')
-        new_password = attrs.get('new_password')
+        password = attrs.get('password')
+
+        generic_error = "Invalid or expired password reset link."
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uid_encoded))
+        except (ValueError, TypeError, OverflowError):
+            raise serializers.ValidationError(generic_error)
 
         try:
             user = User.objects.get(pk=uid)
         except (User.DoesNotExist, ValueError, TypeError):
-            raise serializers.ValidationError({"uid": "Invalid user ID."})
+            raise serializers.ValidationError(generic_error)
 
-        from .tokens import password_reset_token_generator
         if not password_reset_token_generator.check_token(user, token):
-            raise serializers.ValidationError({
-                "token": "Invalid or expired token."
-            })
+            raise serializers.ValidationError(generic_error)
 
         try:
-            validate_password(new_password, user=user)
+            validate_password(password, user=user)
         except DjangoValidationError as e:
             raise serializers.ValidationError({
-                "new_password": list(e.messages)
+                "password": list(e.messages)
             })
 
         attrs['user'] = user
         return attrs
 
-    def save(self):
+    def save(self, ip_address=None):
         user = self.validated_data['user']
-        new_password = self.validated_data['new_password']
+        password = self.validated_data['password']
 
-        user.set_password(new_password)
-        user.save(update_fields=['password'])
+        with transaction.atomic():
+            user.set_password(password)
+            user.jwt_version = F('jwt_version') + 1
+            user.save(update_fields=['password', 'jwt_version'])
+            user.refresh_from_db(fields=['jwt_version'])
+
+        if ip_address is not None:
+            try:
+                PasswordResetConfirmation.objects.create(
+                    user=user,
+                    ip_address=ip_address,
+                    success=True,
+                    failure_reason=None
+                )
+            except Exception as e:
+                logger.error(f"Failed to create password reset audit log: {e}")
 
         return user
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        token['jwt_version'] = user.jwt_version
+
+        return token

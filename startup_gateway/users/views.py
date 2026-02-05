@@ -202,30 +202,98 @@ class PasswordResetConfirmView(APIView):
     throttle_scope = 'password_reset_confirm'
 
     def post(self, request):
+        from django.db import transaction
 
         serializer = PasswordResetConfirmSerializer(data=request.data)
-
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user = serializer.save()
         ip_address = get_client_ip(request)
 
+        # Try to extract user from uid for failed attempt logging (internal only)
+        user_for_logging = None
+        internal_error_type = None
+
+        if 'uid' in request.data:
+            try:
+                from django.utils.http import urlsafe_base64_decode
+                from django.utils.encoding import force_str
+                uid = force_str(urlsafe_base64_decode(request.data['uid']))
+                user_for_logging = User.objects.filter(pk=uid).first()
+            except Exception:
+                internal_error_type = 'invalid_uid_format'
+
+        # Validate the request
+        if not serializer.is_valid():
+            # Determine internal error type for audit logging
+            if internal_error_type is None:
+                internal_error_type = self._categorize_error_internal(
+                    serializer.errors,
+                    user_for_logging
+                )
+
+            # Log failed attempt with detailed internal categorization
+            try:
+                PasswordResetConfirmation.objects.create(
+                    user=user_for_logging,
+                    ip_address=ip_address,
+                    success=False,
+                    failure_reason=internal_error_type
+                )
+                logger.warning(
+                    f"Password reset failed from IP {ip_address}: {internal_error_type} "
+                    f"(user_id={user_for_logging.id if user_for_logging else 'unknown'})"
+                )
+            except Exception as e:
+                logger.error(f"Failed to log password reset failure: {e}")
+
+            # Return GENERIC error to client (security!)
+            # Exception: password validation errors are specific (user has valid link)
+            if 'password' in serializer.errors:
+                # User has valid reset link, safe to show password errors
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                # Generic response for uid/token errors
+                return Response(
+                    {"detail": "Invalid or expired password reset link."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Perform password reset and audit logging atomically
         try:
-            PasswordResetConfirmation.objects.create(
-                user=user,
-                ip_address=ip_address,
-                success=True
+            user = serializer.save(ip_address=ip_address)
+            logger.info(
+                f"Password reset successful for user {user.id} ({user.email}) "
+                f"from IP {ip_address}"
             )
         except Exception as e:
-            logger.error(f"Failed to log password reset confirmation: {e}")
-
-        logger.info(f"Password reset successful for user {user.email}")
+            logger.error(f"Failed to complete password reset transaction: {e}")
+            return Response(
+                {"detail": "An error occurred while resetting your password. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
             {"detail": "Password changed successfully."},
             status=status.HTTP_200_OK
         )
+
+    def _categorize_error_internal(self, errors, user):
+        """
+        Categorize validation errors for INTERNAL audit logging only.
+        This detailed categorization is never exposed to the client.
+        """
+        if 'password' in errors:
+            return 'weak_password'
+
+        # For generic errors, try to determine what failed
+        error_str = str(errors).lower()
+
+        if 'invalid or expired' in error_str:
+            # Could be invalid uid, nonexistent user, or bad token
+            if user is None:
+                return 'invalid_uid_or_user'
+            else:
+                return 'invalid_token'
+
+        return 'validation_error'

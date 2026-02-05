@@ -911,7 +911,7 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": uid,
             "token": token,
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }
 
         resp = self.client.post(self.url, payload, format="json")
@@ -935,13 +935,13 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": uid,
             "token": "invalid-token-12345",
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }
 
         resp = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('token', resp.data)
+        self.assertEqual(resp.data['detail'], "Invalid or expired password reset link.")
 
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("OldPass123!"))
@@ -952,13 +952,13 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": "invalid-uid",
             "token": token,
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }
 
         resp = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('uid', resp.data)
+        self.assertEqual(resp.data['detail'], "Invalid or expired password reset link.")
 
     def test_weak_password_returns_400(self):
         from django.utils.http import urlsafe_base64_encode
@@ -970,24 +970,24 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": uid,
             "token": token,
-            "new_password": "123"
+            "password": "123"
         }
 
         resp = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('new_password', resp.data)
+        self.assertIn('password', resp.data)
 
     def test_missing_fields_returns_400(self):
         resp = self.client.post(self.url, {
             "uid": "MQ",
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }, format="json")
         self.assertEqual(resp.status_code, 400)
 
         resp = self.client.post(self.url, {
             "token": "abc123",
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }, format="json")
         self.assertEqual(resp.status_code, 400)
 
@@ -1010,7 +1010,7 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": uid,
             "token": token,
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }
 
         resp = self.client.post(self.url, payload, format="json")
@@ -1029,11 +1029,12 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": uid,
             "token": token,
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }
 
         resp = self.client.post(self.url, payload, format="json")
         self.assertEqual(resp.status_code, 200)
+        self.assertIn('detail', resp.data)
 
         request = RequestFactory().post('/api/auth/login/')
         user = authenticate(request=request, username='testuser', password='NewP@ssw0rd123')
@@ -1052,7 +1053,7 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": uid,
             "token": token,
-            "new_password": "NewP@ssw0rd123"
+            "password": "NewP@ssw0rd123"
         }
 
         resp = self.client.post(
@@ -1082,7 +1083,7 @@ class TestPasswordResetConfirm(APITestCase):
         uid = urlsafe_base64_encode(force_bytes(99999))
         token = "any-token"
 
-        payload = {"uid": uid, "token": token, "new_password": "NewP@ssw0rd123"}
+        payload = {"uid": uid, "token": token, "password": "NewP@ssw0rd123"}
         resp = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(resp.status_code, 400)
@@ -1091,10 +1092,10 @@ class TestPasswordResetConfirm(APITestCase):
         token = password_reset_token_generator.make_token(self.user)
         uid = urlsafe_base64_encode(force_bytes(self.user.pk))
 
-        payload = {"uid": uid, "token": token, "new_password": "NewP@ssw0rd123"}
+        payload = {"uid": uid, "token": token, "password": "NewP@ssw0rd123"}
 
-        self.client.post(self.url, payload, format="json")  # First use
-        resp2 = self.client.post(self.url, payload, format="json")  # Second use
+        self.client.post(self.url, payload, format="json")
+        resp2 = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(resp2.status_code, 400)
 
@@ -1105,10 +1106,13 @@ class TestPasswordResetConfirm(APITestCase):
         token = password_reset_token_generator.make_token(self.user)
         uid = urlsafe_base64_encode(force_bytes(self.user.pk))
 
-        payload = {"uid": uid, "token": token, "new_password": "NewP@ssw0rd123"}
+        payload = {"uid": uid, "token": token, "password": "NewP@ssw0rd123"}
         resp = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(resp.status_code, 200)
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewP@ssw0rd123"))
 
     def test_token_invalid_after_password_change(self):
         token = password_reset_token_generator.make_token(self.user)
@@ -1124,8 +1128,270 @@ class TestPasswordResetConfirm(APITestCase):
         payload = {
             "uid": uid,
             "token": token,
-            "new_password": "HackerPassword123!"
+            "password": "HackerPassword123!"
         }
 
         resp = self.client.post(self.url, payload, format="json")
         self.assertEqual(resp.status_code, 400)
+
+
+class TestPasswordResetConfirmAuditLogging(APITestCase):
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='OldPass123!',
+            is_active=True,
+        )
+        self.url = '/api/auth/password-reset/confirm/'
+
+    def test_logs_failed_attempt_with_invalid_token(self):
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": "invalid-token-12345",
+            "password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(
+            self.url,
+            payload,
+            format="json",
+            REMOTE_ADDR='192.168.1.100'
+        )
+
+        self.assertEqual(resp.status_code, 400)
+
+        confirmation = PasswordResetConfirmation.objects.filter(
+            user=self.user,
+            success=False
+        ).first()
+
+        self.assertIsNotNone(confirmation)
+        self.assertEqual(confirmation.ip_address, '192.168.1.100')
+        self.assertEqual(confirmation.failure_reason, 'invalid_token')
+
+    def test_logs_failed_attempt_with_invalid_uid(self):
+        token = password_reset_token_generator.make_token(self.user)
+
+        payload = {
+            "uid": "invalid-uid",
+            "token": token,
+            "password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(
+            self.url,
+            payload,
+            format="json",
+            REMOTE_ADDR='192.168.1.101'
+        )
+
+        self.assertEqual(resp.status_code, 400)
+
+        confirmation = PasswordResetConfirmation.objects.filter(
+            success=False,
+            ip_address='192.168.1.101'
+        ).first()
+
+        self.assertIsNotNone(confirmation)
+        self.assertIsNone(confirmation.user)
+        self.assertEqual(confirmation.failure_reason, 'invalid_uid_format')
+
+    def test_logs_failed_attempt_with_weak_password(self):
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "password": "123"
+        }
+
+        resp = self.client.post(
+            self.url,
+            payload,
+            format="json",
+            REMOTE_ADDR='192.168.1.102'
+        )
+
+        self.assertEqual(resp.status_code, 400)
+
+        confirmation = PasswordResetConfirmation.objects.filter(
+            user=self.user,
+            success=False
+        ).first()
+
+        self.assertIsNotNone(confirmation)
+        self.assertEqual(confirmation.failure_reason, 'weak_password')
+
+    def test_logs_successful_attempt(self):
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(
+            self.url,
+            payload,
+            format="json",
+            REMOTE_ADDR='192.168.1.103'
+        )
+
+        self.assertEqual(resp.status_code, 200)
+
+        confirmation = PasswordResetConfirmation.objects.filter(
+            user=self.user,
+            success=True
+        ).first()
+
+        self.assertIsNotNone(confirmation)
+        self.assertEqual(confirmation.ip_address, '192.168.1.103')
+        self.assertIsNone(confirmation.failure_reason)
+
+    def test_can_detect_brute_force_attempts(self):
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        for i in range(5):
+            self.client.post(
+                self.url,
+                {
+                    "uid": uid,
+                    "token": f"invalid-token-{i}",
+                    "password": "NewP@ssw0rd123"
+                },
+                format="json",
+                REMOTE_ADDR='192.168.1.200'
+            )
+
+        failed_attempts = PasswordResetConfirmation.objects.filter(
+            ip_address='192.168.1.200',
+            success=False
+        )
+
+        self.assertEqual(failed_attempts.count(), 5)
+
+        for attempt in failed_attempts:
+            self.assertEqual(attempt.user, self.user)
+            self.assertEqual(attempt.failure_reason, 'invalid_token')
+
+
+class TestPasswordResetSecurityMessages(APITestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='OldPass123!',
+            is_active=True,
+        )
+        self.url = '/api/auth/password-reset/confirm/'
+
+    def test_invalid_uid_gives_generic_error(self):
+        payload = {
+            "uid": "invalid-uid",
+            "token": "any-token",
+            "password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn('user', str(resp.data).lower())
+        self.assertNotIn('uid', str(resp.data).lower())
+        self.assertIn('invalid or expired', str(resp.data).lower())
+
+    def test_nonexistent_user_gives_generic_error(self):
+        uid = urlsafe_base64_encode(force_bytes(99999))
+
+        payload = {
+            "uid": uid,
+            "token": "any-token",
+            "password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn('not found', str(resp.data).lower())
+        self.assertNotIn('does not exist', str(resp.data).lower())
+        self.assertIn('invalid or expired', str(resp.data).lower())
+
+    def test_invalid_token_gives_generic_error(self):
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": "invalid-token",
+            "password": "NewP@ssw0rd123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.data.get('detail'),
+            "Invalid or expired password reset link."
+        )
+
+    def test_weak_password_gives_specific_error(self):
+        token = password_reset_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        payload = {
+            "uid": uid,
+            "token": token,
+            "password": "123"
+        }
+
+        resp = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('password', resp.data)
+        self.assertNotIn('detail', resp.data)
+
+    def test_all_failure_types_look_identical_to_attacker(self):
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        test_cases = [
+            ("invalid_uid", {"uid": "bad", "token": "x", "password": "P@ssw0rd123"}),
+            ("nonexistent_user",
+             {"uid": urlsafe_base64_encode(force_bytes(99999)), "token": "x", "password": "P@ssw0rd123"}),
+            ("invalid_token", {"uid": uid, "token": "bad-token", "password": "P@ssw0rd123"}),
+        ]
+
+        responses = []
+        for desc, payload in test_cases:
+            resp = self.client.post(self.url, payload, format="json")
+            responses.append(resp.data.get('detail', str(resp.data)))
+
+        self.assertEqual(len(set(responses)), 1, "Different errors revealed different messages!")
+        self.assertIn('invalid or expired', responses[0].lower())
+
+    def test_audit_log_still_tracks_specific_error_types(self):
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        resp = self.client.post(
+            self.url,
+            {"uid": uid, "token": "bad-token", "password": "P@ssw0rd123"},
+            format="json",
+            REMOTE_ADDR='192.168.1.100'
+        )
+
+        self.assertEqual(resp.status_code, 400)
+
+        confirmation = PasswordResetConfirmation.objects.filter(
+            ip_address='192.168.1.100'
+        ).first()
+
+        self.assertIsNotNone(confirmation)
+        self.assertFalse(confirmation.success)
+        self.assertEqual(confirmation.failure_reason, 'invalid_token')
+        self.assertEqual(confirmation.user, self.user)

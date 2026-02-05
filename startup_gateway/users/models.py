@@ -29,6 +29,10 @@ class User(AbstractUser):
     verified = models.BooleanField(default=False)
     email_verification_nonce = models.CharField(max_length=64, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+    jwt_version = models.IntegerField(
+        default=0,
+        help_text="Incremented on password change to invalidate existing JWT tokens"
+    )
 
     roles = models.ManyToManyField(
         Role,
@@ -104,14 +108,29 @@ class PasswordResetConfirmation(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='password_reset_confirmations'
+        related_name='password_reset_confirmations',
+        null=True,
+        blank=True
     )
     ip_address = models.GenericIPAddressField(
-        help_text="IP address where password was reset"
+        help_text="IP address where password reset was attempted"
     )
     success = models.BooleanField(
         default=True,
         help_text="Whether password reset was successful"
+    )
+    failure_reason = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Internal categorization of failure (not exposed to users)",
+        choices=[
+            ('invalid_uid_format', 'Invalid UID Format'),
+            ('invalid_uid_or_user', 'Invalid UID or User Not Found'),
+            ('invalid_token', 'Invalid or Expired Token'),
+            ('weak_password', 'Weak Password'),
+            ('validation_error', 'Other Validation Error'),
+        ]
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -123,7 +142,11 @@ class PasswordResetConfirmation(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['ip_address', 'created_at']),
+            models.Index(fields=['success', 'created_at']),
         ]
 
     def __str__(self):
-        return f"Password reset for {self.user.username} at {self.created_at}"
+        status = "successful" if self.success else f"failed ({self.failure_reason})"
+        user_info = self.user.username if self.user else "unknown user"
+        return f"Password reset {status} for {user_info} at {self.created_at}"
