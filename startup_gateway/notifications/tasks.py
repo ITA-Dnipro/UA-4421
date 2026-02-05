@@ -1,7 +1,7 @@
 import logging
 
 from celery import shared_task
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
 
 from projects.models import Project
@@ -46,17 +46,23 @@ def handle_project_event(event_type, project_id, payload):
         event_key = f"{event_type}:{project.id}:{user.id}"
 
         try:
-            Notification.objects.create(
-                user=user,
-                project=project,
-                type=event_type,
-                payload={
-                    "project_id": str(project.id),
-                    **payload,
-                },
-                event_key=event_key,
-            )
+            # Use a savepoint so a duplicate event_key doesn't poison the surrounding transaction
+            # (e.g. pytest-django wraps each test in a transaction).
+            with transaction.atomic():
+                Notification.objects.get_or_create(
+                    event_key=event_key,
+                    defaults={
+                        "user": user,
+                        "project": project,
+                        "type": event_type,
+                        "payload": {
+                            "project_id": str(project.id),
+                            **payload,
+                        },
+                    },
+                )
         except IntegrityError:
+            # Race-condition fallback (e.g. concurrent workers): treat as already delivered.
             logger.info("Notification already exists (event_key=%s)", event_key)
         except Exception as exc:
             logger.error(

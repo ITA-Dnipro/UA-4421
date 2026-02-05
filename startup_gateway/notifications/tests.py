@@ -21,12 +21,13 @@ def test_project_status_change_creates_notification():
     a notification is created for investors who saved the startup.
     """
 
-   
     startup_user = User.objects.create_user(
+        username="startup",
         email="startup@test.com",
         password="pass123",
     )
     investor_user = User.objects.create_user(
+        username="investor",
         email="investor@test.com",
         password="pass123",
     )
@@ -67,7 +68,7 @@ def test_project_status_change_creates_notification():
         project_id=project.id,
         payload={
             "old_status": ProjectStatus.IDEA,
-            "new_status": ProjectStatus.ACTIVE,
+            "new_status": ProjectStatus.FUNDRAISING,
         },
     )
 
@@ -79,7 +80,7 @@ def test_project_status_change_creates_notification():
     assert notification.user == investor_user
     assert notification.project == project
     assert notification.type == "project_status_changed"
-    assert notification.payload["new_status"] == ProjectStatus.ACTIVE
+    assert notification.payload["new_status"] == ProjectStatus.FUNDRAISING
 
     
     assert notification.event_key == f"project_status_changed:{project.id}:{investor_user.id}"
@@ -91,11 +92,13 @@ def test_project_event_idempotency():
     """
 
     user = User.objects.create_user(
+        username="investor",
         email="investor@test.com",
         password="pass123",
     )
 
     startup_user = User.objects.create_user(
+        username="startup",
         email="startup@test.com",
         password="pass123",
     )
@@ -127,7 +130,7 @@ def test_project_event_idempotency():
 
     payload = {
         "old_status": ProjectStatus.IDEA,
-        "new_status": ProjectStatus.ACTIVE,
+        "new_status": ProjectStatus.FUNDRAISING,
     }
 
     # first call
@@ -150,6 +153,7 @@ def test_project_event_idempotency():
 @pytest.mark.django_db
 def test_notifications_api_list():
     user = User.objects.create_user(
+        username="user",
         email="user@test.com",
         password="pass123",
     )
@@ -172,6 +176,7 @@ def test_notifications_api_list():
 @pytest.mark.django_db
 def test_notifications_mark_read():
     user = User.objects.create_user(
+        username="user_mark_read",
         email="user@test.com",
         password="pass123",
     )
@@ -193,19 +198,60 @@ def test_notifications_mark_read():
     notification.refresh_from_db()
     assert notification.is_read is True
 
-def test_status_change_triggers_notification(db, create_project, create_savedstartup):
-    project = create_project(status="idea")
-    create_savedstartup(project.startup_profile)
+@pytest.mark.django_db
+def test_status_change_triggers_notification_task():
+    startup_user = User.objects.create_user(
+        username="startup_2",
+        email="startup2@test.com",
+        password="pass123",
+    )
+    investor_user = User.objects.create_user(
+        username="investor_2",
+        email="investor2@test.com",
+        password="pass123",
+    )
 
-    
-    with patch("notifications.tasks.handle_project_event.delay") as mock_task:
-        
-        project.status = "active"
-        project.save()
+    startup_profile = StartupProfile.objects.create(
+        user=startup_user,
+        company_name="Test Startup",
+    )
+    investor_profile = InvestorProfile.objects.create(
+        user=investor_user,
+        company_name="Test Investor",
+    )
 
-        
+    SavedStartup.objects.create(
+        investor_profile=investor_profile,
+        startup_profile=startup_profile,
+    )
+
+    project = Project.objects.create(
+        startup_profile=startup_profile,
+        title="Test Project",
+        slug="test-project-status",
+        short_description="short",
+        description="full",
+        target_amount=1000,
+        status=ProjectStatus.IDEA,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=startup_user)
+
+    with patch("projects.views.handle_project_event.delay") as mock_task:
+        response = client.patch(
+            f"/api/projects/{project.id}/",
+            data={"status": ProjectStatus.FUNDRAISING},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
         mock_task.assert_called_once_with(
             event_type="project_status_changed",
             project_id=str(project.id),
-            payload={"old_status": "idea", "new_status": "active"},
+            payload={
+                "old_status": ProjectStatus.IDEA,
+                "new_status": ProjectStatus.FUNDRAISING,
+            },
         )

@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
-
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -21,6 +21,10 @@ load_dotenv(BASE_DIR / ".env")
 
 AUTH_USER_MODEL = 'users.User'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=5)
+AXES_LOCKOUT_CALLABLE = "users.axes_lockout.axes_lockout_response"
+AXES_HTTP_RESPONSE_CODE = 429
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -29,9 +33,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 if not SECRET_KEY:
-    raise ImproperlyConfigured(
-        "The SECRET_KEY setting must not be empty. Set SECRET_KEY in the .env file."
-    )
+    if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
+        SECRET_KEY = "django-insecure-test-key-for-ci-only-not-for-production"
+    else:
+        raise ImproperlyConfigured(
+            "The SECRET_KEY setting must not be empty. Set SECRET_KEY in the .env file."
+        )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -57,6 +64,8 @@ INSTALLED_APPS = [
     'dashboard',
     'notifications',
     'startup_gateway.content',
+    'axes',
+    'drf_spectacular',
 ]
 
 
@@ -68,6 +77,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
 
 ROOT_URLCONF = 'startup_gateway.urls'
@@ -75,10 +85,11 @@ ROOT_URLCONF = 'startup_gateway.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -88,21 +99,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'startup_gateway.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-# DATABASES = {
-#         "default": {
-#             "ENGINE": "django.db.backends.postgresql",
-#             "NAME": os.getenv("DB_NAME"),
-#             "USER": os.getenv("DB_USER"),
-#             "PASSWORD": os.getenv("DB_PASSWORD"),
-#             "HOST": os.getenv("DB_HOST"),
-#             "PORT": os.getenv("DB_PORT", "5432"),
-#         }
-#     }
 
 DATABASES = {
     "default": {
@@ -127,8 +123,24 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'password_reset': '5/hour',
+        'anon': '100/m',
+        'user': '100/m',
+    },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'users.auth_backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -176,3 +188,6 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
+PASSWORD_RESET_TIMEOUT = 3600
+SITE_NAME = os.getenv("SITE_NAME", "Startup Gateway")
+FRONTEND_URL = "http://localhost:3000"
