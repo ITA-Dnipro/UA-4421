@@ -1,4 +1,5 @@
-import { useMemo, useState, type FormEventHandler } from 'react'
+import { type FormEvent, useState } from 'react'
+import styles from './RegisterInvestor.module.css'
 
 type InvestorType = 'individual' | 'fund'
 
@@ -13,9 +14,7 @@ const SECTORS = [
   'Marketplace',
 ]
 
-type UiState = 'idle' | 'submitting' | 'success' | 'error'
-
-type Field =
+type FieldKey =
   | 'email'
   | 'password'
   | 'confirmPassword'
@@ -24,10 +23,25 @@ type Field =
   | 'minimumInvestment'
   | 'contactName'
   | 'contactPhone'
-  | 'acceptTerms'
+  | 'termsAccepted'
 
-type Errors = Partial<Record<Field, string>>
-type Touched = Partial<Record<Field, boolean>>
+type FieldErrors = Partial<Record<FieldKey, string>>
+type FieldTouched = Partial<Record<FieldKey, boolean>>
+
+type Values = {
+  email: string
+  password: string
+  confirmPassword: string
+  investorName: string
+  investorType: InvestorType
+  sectors: string[]
+  minimumInvestment: string
+  contactName: string
+  contactPhone: string
+  termsAccepted: boolean
+}
+
+type UiState = 'idle' | 'submitting' | 'success'
 
 function isBlank(value: string) {
   return value.trim().length === 0
@@ -43,48 +57,71 @@ function isNonNegativeNumber(value: string) {
   return Number.isFinite(n) && n >= 0
 }
 
-function validate(values: {
-  email: string
-  password: string
-  confirmPassword: string
-  investorName: string
-  sectors: string[]
-  minimumInvestment: string
-  contactName: string
-  contactPhone: string
-  acceptTerms: boolean
-}): Errors {
-  const errors: Errors = {}
+function validateAll(values: Values): FieldErrors {
+  const next: FieldErrors = {}
 
-  if (isBlank(values.email)) errors.email = 'Email is required.'
-  else if (!isEmail(values.email)) errors.email = 'Enter a valid email.'
+  if (isBlank(values.email)) next.email = 'Email is required.'
+  else if (!isEmail(values.email)) next.email = 'Enter a valid email.'
 
-  if (isBlank(values.password)) errors.password = 'Password is required.'
-  else if (values.password.length < 8) errors.password = 'Password must be at least 8 characters.'
+  if (isBlank(values.password)) next.password = 'Password is required.'
+  else if (values.password.length < 8) next.password = 'Password must be at least 8 characters.'
 
-  if (isBlank(values.confirmPassword)) errors.confirmPassword = 'Confirm your password.'
-  else if (values.password !== values.confirmPassword) errors.confirmPassword = 'Passwords do not match.'
+  if (isBlank(values.confirmPassword)) next.confirmPassword = 'Confirm your password.'
+  else if (values.confirmPassword !== values.password) next.confirmPassword = 'Passwords do not match.'
 
-  if (isBlank(values.investorName)) errors.investorName = 'Investor name is required.'
+  if (isBlank(values.investorName)) next.investorName = 'Investor name is required.'
 
-  if (values.sectors.length === 0) errors.sectors = 'Select at least one sector of interest.'
+  if (values.sectors.length === 0) next.sectors = 'Select at least one sector of interest.'
 
   if (!isNonNegativeNumber(values.minimumInvestment)) {
-    errors.minimumInvestment = 'Minimum investment must be a number (0 or greater).'
+    next.minimumInvestment = 'Minimum investment must be a number (0 or greater).'
   }
 
-  if (isBlank(values.contactName)) errors.contactName = 'Contact name is required.'
-  if (isBlank(values.contactPhone)) errors.contactPhone = 'Contact phone is required.'
+  if (isBlank(values.contactName)) next.contactName = 'Contact name is required.'
+  if (isBlank(values.contactPhone)) next.contactPhone = 'Contact phone is required.'
 
-  if (!values.acceptTerms) errors.acceptTerms = 'You must accept Terms & Conditions.'
+  if (!values.termsAccepted) next.termsAccepted = 'You must accept Terms & Conditions.'
 
-  return errors
+  return next
+}
+
+function toMessage(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    const parts = value.map((v) => (typeof v === 'string' ? v : '')).filter(Boolean)
+    return parts.length ? parts.join(' ') : undefined
+  }
+  return undefined
+}
+
+function mapServerErrorsToFields(payload: unknown): { fieldErrors: FieldErrors; general?: string } {
+  const fieldErrors: FieldErrors = {}
+  let general: string | undefined
+
+  if (!payload || typeof payload !== 'object') return { fieldErrors }
+
+  const obj = payload as Record<string, unknown>
+
+  if (typeof obj.detail === 'string') general = obj.detail
+  if (typeof obj.non_field_errors === 'string') general = obj.non_field_errors
+  if (Array.isArray(obj.non_field_errors)) general = toMessage(obj.non_field_errors)
+
+  const emailMsg = toMessage(obj.email)
+  if (emailMsg) fieldErrors.email = emailMsg
+
+  const passwordMsg = toMessage(obj.password)
+  if (passwordMsg) fieldErrors.password = passwordMsg
+
+  const companyNameMsg = toMessage(obj.company_name)
+  if (companyNameMsg) fieldErrors.investorName = companyNameMsg
+
+  const contactPhoneMsg = toMessage(obj.contact_phone)
+  if (contactPhoneMsg) fieldErrors.contactPhone = contactPhoneMsg
+
+  return { fieldErrors, general }
 }
 
 export default function RegisterInvestor() {
-  const [uiState, setUiState] = useState<UiState>('idle')
-  const [message, setMessage] = useState('')
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -98,83 +135,62 @@ export default function RegisterInvestor() {
   const [contactName, setContactName] = useState('')
   const [contactPhone, setContactPhone] = useState('')
 
-  const [acceptTerms, setAcceptTerms] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
-  const [touched, setTouched] = useState<Touched>({})
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [touched, setTouched] = useState<FieldTouched>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
 
-  const values = useMemo(
-    () => ({
+  const [uiState, setUiState] = useState<UiState>('idle')
+  const [banner, setBanner] = useState<string>('')
+
+  function getValues(): Values {
+    return {
       email,
       password,
       confirmPassword,
       investorName,
+      investorType,
       sectors,
       minimumInvestment,
       contactName,
       contactPhone,
-      acceptTerms,
-    }),
-    [email, password, confirmPassword, investorName, sectors, minimumInvestment, contactName, contactPhone, acceptTerms]
-  )
-
-  const errors = useMemo(() => validate(values), [values])
-  const isFormValid = Object.keys(errors).length === 0
-
-  const disabled = uiState === 'submitting' || uiState === 'success'
-
-  const markTouched = (field: Field) => {
-    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }))
+      termsAccepted,
+    }
   }
 
-  const markAllTouched = () => {
-    setTouched({
-      email: true,
-      password: true,
-      confirmPassword: true,
-      investorName: true,
-      sectors: true,
-      minimumInvestment: true,
-      contactName: true,
-      contactPhone: true,
-      acceptTerms: true,
-    })
+  function markTouched(key: FieldKey) {
+    setTouched((prev) => ({ ...prev, [key]: true }))
   }
 
-  const showError = (field: Field) => Boolean(touched[field] && errors[field])
-  const fieldError = (field: Field) => (showError(field) ? errors[field] : '')
-
-  const inputStyle = (field: Field): React.CSSProperties => ({
-    display: 'block',
-    width: '100%',
-    padding: '10px 12px',
-    marginTop: 6,
-    borderRadius: 8,
-    border: showError(field) ? '1px solid #d33' : '1px solid #ccc',
-    outline: 'none',
-  })
-
-  const errorTextStyle: React.CSSProperties = {
-    marginTop: 6,
-    color: '#d33',
-    fontSize: 13,
+  function getVisibleError(key: FieldKey) {
+    const message = errors[key]
+    if (!message) return undefined
+    if (submitAttempted || touched[key]) return message
+    return undefined
   }
 
-  const toggleSector = (s: string) => {
+  function controlClass(key: FieldKey) {
+    return getVisibleError(key) ? `${styles.input} ${styles.inputError}` : styles.input
+  }
+
+  function revalidate() {
+    setErrors(validateAll(getValues()))
+  }
+
+  function toggleSector(s: string) {
     markTouched('sectors')
     setSectors((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
   }
 
-  const onSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setMessage('')
+    setSubmitAttempted(true)
+    setBanner('')
 
-    markAllTouched()
-
-    if (!isFormValid) {
-      setUiState('error')
-      setMessage('Please fix the highlighted fields.')
-      return
-    }
+    const combined = validateAll(getValues())
+    setErrors(combined)
+    if (Object.keys(combined).length > 0) return
 
     setUiState('submitting')
 
@@ -187,220 +203,289 @@ export default function RegisterInvestor() {
         contact_phone: contactPhone.trim(),
       }
 
-      const resp = await fetch('/api/auth/register/', {
+      const res = await fetch('/api/auth/register/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
-      const data = await resp.json().catch(() => null)
+      const data = await res.json().catch(() => undefined)
 
-      if (!resp.ok) {
-        const key = data && typeof data === 'object' ? Object.keys(data)[0] : ''
-        const val = key ? (data as any)[key] : null
-        const text = Array.isArray(val) ? val.join(', ') : val ? String(val) : 'Request failed.'
-        setUiState('error')
-        setMessage(text)
+      if (res.ok) {
+        setUiState('success')
+        setBanner(data && typeof data === 'object' && (data as any).detail ? String((data as any).detail) : 'Check your email to verify your account.')
         return
       }
 
-      setUiState('success')
-      setMessage(data?.detail || 'Check your email to verify your account.')
+      const parsed = mapServerErrorsToFields(data)
+      const nextErrors: FieldErrors = { ...combined, ...parsed.fieldErrors }
+      setErrors(nextErrors)
+
+      if (parsed.general) setBanner(parsed.general)
+      else if (Object.keys(parsed.fieldErrors).length > 0) setBanner('Please fix the highlighted fields and try again.')
+      else setBanner('Registration failed. Please try again.')
+
+      setUiState('idle')
     } catch {
-      setUiState('error')
-      setMessage('Network error. Please try again.')
+      setBanner('Network error. Please try again.')
+      setUiState('idle')
     }
   }
 
+  const isSubmitting = uiState === 'submitting'
+
+  if (uiState === 'success') {
+    return (
+      <div className={styles.page}>
+        <div className={styles.container}>
+          <div className={styles.card}>
+            <h1 className={styles.title}>Investor registration</h1>
+
+            <div aria-live="polite" className={styles.bannerSuccess}>
+              {banner}
+            </div>
+
+            <div className={styles.successHint}>
+              If you don&apos;t see the email, check your spam folder or try again later.
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
-      <h1>Investor Registration</h1>
+    <div className={styles.page}>
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>Investor registration</h1>
 
-      {message && (
-        <p style={{ marginTop: 12, padding: 10, background: uiState === 'success' ? '#e7ffe7' : '#fff3cd' }}>
-          {message}
-        </p>
-      )}
+          {banner && (
+            <div aria-live="polite" className={styles.banner}>
+              {banner}
+            </div>
+          )}
 
-      <form onSubmit={onSubmit} style={{ marginTop: 18 }}>
-        <h3>Account</h3>
+          <form className={styles.form} onSubmit={onSubmit}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="email">
+                Email
+              </label>
+              <input
+                id="email"
+                className={controlClass('email')}
+                type="email"
+                value={email}
+                disabled={isSubmitting}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => {
+                  markTouched('email')
+                  revalidate()
+                }}
+                placeholder="you@example.com"
+                required
+              />
+              {getVisibleError('email') && <div className={styles.errorText}>{getVisibleError('email')}</div>}
+            </div>
 
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Email
-          <input
-            type="email"
-            value={email}
-            disabled={disabled}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => markTouched('email')}
-            aria-invalid={showError('email')}
-            style={inputStyle('email')}
-            required
-          />
-          {fieldError('email') && <div style={errorTextStyle}>{fieldError('email')}</div>}
-        </label>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                className={controlClass('password')}
+                type="password"
+                value={password}
+                disabled={isSubmitting}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => {
+                  markTouched('password')
+                  revalidate()
+                }}
+                placeholder="At least 8 characters"
+                required
+              />
+              {getVisibleError('password') && <div className={styles.errorText}>{getVisibleError('password')}</div>}
+            </div>
 
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Password
-          <input
-            type="password"
-            value={password}
-            disabled={disabled}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => markTouched('password')}
-            aria-invalid={showError('password')}
-            style={inputStyle('password')}
-            required
-          />
-          {fieldError('password') && <div style={errorTextStyle}>{fieldError('password')}</div>}
-        </label>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="confirmPassword">
+                Confirm password
+              </label>
+              <input
+                id="confirmPassword"
+                className={controlClass('confirmPassword')}
+                type="password"
+                value={confirmPassword}
+                disabled={isSubmitting}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onBlur={() => {
+                  markTouched('confirmPassword')
+                  revalidate()
+                }}
+                required
+              />
+              {getVisibleError('confirmPassword') && (
+                <div className={styles.errorText}>{getVisibleError('confirmPassword')}</div>
+              )}
+            </div>
 
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Confirm password
-          <input
-            type="password"
-            value={confirmPassword}
-            disabled={disabled}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            onBlur={() => markTouched('confirmPassword')}
-            aria-invalid={showError('confirmPassword')}
-            style={inputStyle('confirmPassword')}
-            required
-          />
-          {fieldError('confirmPassword') && <div style={errorTextStyle}>{fieldError('confirmPassword')}</div>}
-        </label>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="investorName">
+                Investor name
+              </label>
+              <input
+                id="investorName"
+                className={controlClass('investorName')}
+                type="text"
+                value={investorName}
+                disabled={isSubmitting}
+                onChange={(e) => setInvestorName(e.target.value)}
+                onBlur={() => {
+                  markTouched('investorName')
+                  revalidate()
+                }}
+                placeholder="Example Investor"
+                required
+              />
+              {getVisibleError('investorName') && (
+                <div className={styles.errorText}>{getVisibleError('investorName')}</div>
+              )}
+            </div>
 
-        <h3 style={{ marginTop: 22 }}>Investor</h3>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="investorType">
+                Investor type
+              </label>
+              <select
+                id="investorType"
+                className={styles.input}
+                value={investorType}
+                disabled={isSubmitting}
+                onChange={(e) => setInvestorType(e.target.value as InvestorType)}
+              >
+                <option value="individual">Individual</option>
+                <option value="fund">Fund</option>
+              </select>
+            </div>
 
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Investor name
-          <input
-            type="text"
-            value={investorName}
-            disabled={disabled}
-            onChange={(e) => setInvestorName(e.target.value)}
-            onBlur={() => markTouched('investorName')}
-            aria-invalid={showError('investorName')}
-            style={inputStyle('investorName')}
-            required
-          />
-          {fieldError('investorName') && <div style={errorTextStyle}>{fieldError('investorName')}</div>}
-        </label>
+            <div className={styles.field}>
+              <div className={styles.label}>Sectors of interest</div>
 
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Investor type
-          <select
-            value={investorType}
-            disabled={disabled}
-            onChange={(e) => setInvestorType(e.target.value as InvestorType)}
-            style={{ ...inputStyle('investorName'), marginTop: 6 }}
-          >
-            <option value="individual">Individual</option>
-            <option value="fund">Fund</option>
-          </select>
-        </label>
+              <div className={getVisibleError('sectors') ? `${styles.box} ${styles.inputError}` : styles.box}>
+                <div className={styles.sectorsGrid}>
+                  {SECTORS.map((s) => (
+                    <label key={s} className={styles.sectorItem}>
+                      <input
+                        type="checkbox"
+                        checked={sectors.includes(s)}
+                        disabled={isSubmitting}
+                        onChange={() => {
+                          toggleSector(s)
+                          revalidate()
+                        }}
+                      />
+                      <span>{s}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-        <div style={{ marginTop: 14 }}>
-          <div style={{ marginBottom: 8 }}>Sectors of interest</div>
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 8,
-              border: showError('sectors') ? '1px solid #d33' : '1px solid #ccc',
-            }}
-          >
-            {SECTORS.map((s) => (
-              <label key={s} style={{ display: 'inline-flex', gap: 6, marginRight: 14, marginBottom: 8 }}>
+              {getVisibleError('sectors') && <div className={styles.errorText}>{getVisibleError('sectors')}</div>}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="minimumInvestment">
+                Minimum investment
+              </label>
+              <input
+                id="minimumInvestment"
+                className={controlClass('minimumInvestment')}
+                type="number"
+                min={0}
+                value={minimumInvestment}
+                disabled={isSubmitting}
+                onChange={(e) => setMinimumInvestment(e.target.value)}
+                onBlur={() => {
+                  markTouched('minimumInvestment')
+                  revalidate()
+                }}
+                required
+              />
+              {getVisibleError('minimumInvestment') && (
+                <div className={styles.errorText}>{getVisibleError('minimumInvestment')}</div>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="contactName">
+                Contact name
+              </label>
+              <input
+                id="contactName"
+                className={controlClass('contactName')}
+                type="text"
+                value={contactName}
+                disabled={isSubmitting}
+                onChange={(e) => setContactName(e.target.value)}
+                onBlur={() => {
+                  markTouched('contactName')
+                  revalidate()
+                }}
+                required
+              />
+              {getVisibleError('contactName') && <div className={styles.errorText}>{getVisibleError('contactName')}</div>}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="contactPhone">
+                Contact phone
+              </label>
+              <input
+                id="contactPhone"
+                className={controlClass('contactPhone')}
+                type="tel"
+                value={contactPhone}
+                disabled={isSubmitting}
+                onChange={(e) => setContactPhone(e.target.value)}
+                onBlur={() => {
+                  markTouched('contactPhone')
+                  revalidate()
+                }}
+                placeholder="+380123456789"
+                required
+              />
+              {getVisibleError('contactPhone') && (
+                <div className={styles.errorText}>{getVisibleError('contactPhone')}</div>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.checkboxRow}>
                 <input
                   type="checkbox"
-                  checked={sectors.includes(s)}
-                  disabled={disabled}
-                  onChange={() => toggleSector(s)}
+                  checked={termsAccepted}
+                  disabled={isSubmitting}
+                  onChange={(e) => {
+                    setTermsAccepted(e.target.checked)
+                    markTouched('termsAccepted')
+                    revalidate()
+                  }}
                 />
-                {s}
+                I accept Terms & Conditions
               </label>
-            ))}
-          </div>
-          {fieldError('sectors') && <div style={errorTextStyle}>{fieldError('sectors')}</div>}
+              {getVisibleError('termsAccepted') && (
+                <div className={styles.errorText}>{getVisibleError('termsAccepted')}</div>
+              )}
+            </div>
+
+            <button type="submit" className={styles.button} disabled={isSubmitting}>
+              {isSubmitting ? 'Registering...' : 'Register'}
+            </button>
+          </form>
         </div>
-
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Minimum investment
-          <input
-            type="number"
-            min={0}
-            value={minimumInvestment}
-            disabled={disabled}
-            onChange={(e) => setMinimumInvestment(e.target.value)}
-            onBlur={() => markTouched('minimumInvestment')}
-            aria-invalid={showError('minimumInvestment')}
-            style={inputStyle('minimumInvestment')}
-            required
-          />
-          {fieldError('minimumInvestment') && <div style={errorTextStyle}>{fieldError('minimumInvestment')}</div>}
-        </label>
-
-        <h3 style={{ marginTop: 22 }}>Contacts</h3>
-
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Contact name
-          <input
-            type="text"
-            value={contactName}
-            disabled={disabled}
-            onChange={(e) => setContactName(e.target.value)}
-            onBlur={() => markTouched('contactName')}
-            aria-invalid={showError('contactName')}
-            style={inputStyle('contactName')}
-            required
-          />
-          {fieldError('contactName') && <div style={errorTextStyle}>{fieldError('contactName')}</div>}
-        </label>
-
-        <label style={{ display: 'block', marginTop: 12 }}>
-          Contact phone
-          <input
-            type="tel"
-            value={contactPhone}
-            disabled={disabled}
-            onChange={(e) => setContactPhone(e.target.value)}
-            onBlur={() => markTouched('contactPhone')}
-            aria-invalid={showError('contactPhone')}
-            style={inputStyle('contactPhone')}
-            required
-          />
-          {fieldError('contactPhone') && <div style={errorTextStyle}>{fieldError('contactPhone')}</div>}
-        </label>
-
-        <label style={{ display: 'block', marginTop: 16 }}>
-          <input
-            type="checkbox"
-            checked={acceptTerms}
-            disabled={disabled}
-            onChange={(e) => {
-              setAcceptTerms(e.target.checked)
-              markTouched('acceptTerms')
-            }}
-          />{' '}
-          I accept Terms & Conditions
-        </label>
-        {fieldError('acceptTerms') && <div style={errorTextStyle}>{fieldError('acceptTerms')}</div>}
-
-        <button
-          type="submit"
-          disabled={disabled || !isFormValid}
-          style={{
-            marginTop: 18,
-            padding: '10px 14px',
-            borderRadius: 10,
-            border: '1px solid #000',
-            opacity: disabled || !isFormValid ? 0.6 : 1,
-            cursor: disabled || !isFormValid ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {uiState === 'submitting' ? 'Submitting…' : 'Register'}
-        </button>
-      </form>
+      </div>
     </div>
   )
 }
