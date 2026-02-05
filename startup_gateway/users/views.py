@@ -202,12 +202,10 @@ class PasswordResetConfirmView(APIView):
     throttle_scope = 'password_reset_confirm'
 
     def post(self, request):
-        from django.db import transaction
 
         serializer = PasswordResetConfirmSerializer(data=request.data)
         ip_address = get_client_ip(request)
 
-        # Try to extract user from uid for failed attempt logging (internal only)
         user_for_logging = None
         internal_error_type = None
 
@@ -220,16 +218,13 @@ class PasswordResetConfirmView(APIView):
             except Exception:
                 internal_error_type = 'invalid_uid_format'
 
-        # Validate the request
         if not serializer.is_valid():
-            # Determine internal error type for audit logging
             if internal_error_type is None:
                 internal_error_type = self._categorize_error_internal(
                     serializer.errors,
                     user_for_logging
                 )
 
-            # Log failed attempt with detailed internal categorization
             try:
                 PasswordResetConfirmation.objects.create(
                     user=user_for_logging,
@@ -244,22 +239,17 @@ class PasswordResetConfirmView(APIView):
             except Exception as e:
                 logger.error(f"Failed to log password reset failure: {e}")
 
-            # Return GENERIC error to client (security!)
-            # Exception: password validation errors are specific (user has valid link)
             if 'password' in serializer.errors:
-                # User has valid reset link, safe to show password errors
                 return Response(
                     serializer.errors,
                     status=status.HTTP_400_BAD_REQUEST
                 )
             else:
-                # Generic response for uid/token errors
                 return Response(
                     {"detail": "Invalid or expired password reset link."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        # Perform password reset and audit logging atomically
         try:
             user = serializer.save(ip_address=ip_address)
             logger.info(
@@ -279,18 +269,12 @@ class PasswordResetConfirmView(APIView):
         )
 
     def _categorize_error_internal(self, errors, user):
-        """
-        Categorize validation errors for INTERNAL audit logging only.
-        This detailed categorization is never exposed to the client.
-        """
         if 'password' in errors:
             return 'weak_password'
 
-        # For generic errors, try to determine what failed
         error_str = str(errors).lower()
 
         if 'invalid or expired' in error_str:
-            # Could be invalid uid, nonexistent user, or bad token
             if user is None:
                 return 'invalid_uid_or_user'
             else:
