@@ -1,7 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from projects.models import ProjectStatus, ProjectVisibility
-
+from search.services import ProjectSearchService
+from search.backends.postgres import PostgresSearchBackend
 
 ALLOWED_STATUS_TRANSITIONS = {
     ProjectStatus.IDEA: {ProjectStatus.MVP},
@@ -12,6 +13,11 @@ ALLOWED_STATUS_TRANSITIONS = {
 }
 
 class ProjectStateService:
+
+    def __init__(self, search_service: ProjectSearchService | None = None):
+        self.search_service = search_service or ProjectSearchService(
+            backend=PostgresSearchBackend()
+        )
     
     def update_project_state(self, project, data, user_is_staff=False):
 
@@ -58,12 +64,23 @@ class ProjectStateService:
     def change_visibility(self, project, new_visibility):
         old_visibility = project.visibility
         project.visibility = new_visibility
-        
-        if old_visibility != ProjectVisibility.PUBLIC and new_visibility == ProjectVisibility.PUBLIC:
+
+        if (
+            old_visibility != ProjectVisibility.PUBLIC
+            and new_visibility == ProjectVisibility.PUBLIC
+        ):
             self.index_project_in_search(project)
-    
+
+        if (
+            old_visibility == ProjectVisibility.PUBLIC
+            and new_visibility != ProjectVisibility.PUBLIC
+        ):
+            self.remove_project_from_search(project)
+
     def index_project_in_search(self, project):
-        #TODO
-        pass
+        self.search_service.index_project(project)
+
+    def remove_project_from_search(self, project):
+        self.search_service.remove_project(project)
 
         
