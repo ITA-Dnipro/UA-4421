@@ -1,4 +1,5 @@
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import SAFE_METHODS, BasePermission
+
 
 class IsOwnerOrReadOnly(BasePermission):
     message = "Access denied."
@@ -8,8 +9,12 @@ class IsOwnerOrReadOnly(BasePermission):
 
         if user and user.is_staff:
             return True
-    
-        is_owner = bool(user and user.is_authenticated and getattr(obj.startup_profile, "user", None) == user)
+
+        is_owner = bool(
+            user
+            and user.is_authenticated
+            and getattr(obj.startup_profile, "user", None) == user
+        )
 
         if request.method in SAFE_METHODS:
             if getattr(obj, "visibility", "public") == "public":
@@ -26,4 +31,3 @@ class IsOwnerOrReadOnly(BasePermission):
             self.message = "Only owner can modify project."
 
         return is_owner
-

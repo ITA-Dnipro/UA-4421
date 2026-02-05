@@ -6,23 +6,33 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('projects', '0003_project_is_deleted'),
+        ("projects", "0003_project_is_deleted"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='project',
-            name='allow_overfunding',
+            model_name="project",
+            name="allow_overfunding",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='project',
-            name='funded_at',
+            model_name="project",
+            name="funded_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='project',
-            name='status',
-            field=models.CharField(choices=[('idea', 'Idea'), ('mvp', 'MVP'), ('fundraising', 'Fundraising'), ('funded', 'Funded'), ('closed', 'Closed')], default='idea', max_length=20),
+            model_name="project",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("idea", "Idea"),
+                    ("mvp", "MVP"),
+                    ("fundraising", "Fundraising"),
+                    ("funded", "Funded"),
+                    ("closed", "Closed"),
+                ],
+                default="idea",
+                max_length=20,
+            ),
         ),
     ]

@@ -1,24 +1,23 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 from django.utils.text import slugify
 
-
 User = settings.AUTH_USER_MODEL
+
 
 class Region(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
     class Meta:
-        db_table = 'regions'
+        db_table = "regions"
 
     def __str__(self):
         return self.name
 
+
 class StartupProfile(models.Model):
     user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='startup_profile'
+        User, on_delete=models.CASCADE, related_name="startup_profile"
     )
     company_name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
@@ -30,17 +29,13 @@ class StartupProfile(models.Model):
     logo_url = models.URLField(blank=True)
     hero_image_url = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    region = models.ManyToManyField(
-        Region,
-        related_name='startups',
-        blank=True
-    )
+    region = models.ManyToManyField(Region, related_name="startups", blank=True)
 
     class Meta:
-        db_table = 'startup_profiles'
+        db_table = "startup_profiles"
         indexes = [
-            models.Index(fields=['company_name']),
-            models.Index(fields=['slug']),
+            models.Index(fields=["company_name"]),
+            models.Index(fields=["slug"]),
         ]
 
     def save(self, *args, **kwargs):

@@ -9,22 +9,44 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('investors', '0001_initial'),
-        ('startups', '0001_initial'),
+        ("investors", "0001_initial"),
+        ("startups", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SavedStartup',
+            name="SavedStartup",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('investor_profile', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_startups', to='investors.investorprofile')),
-                ('startup_profile', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_by_investors', to='startups.startupprofile')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "investor_profile",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="saved_startups",
+                        to="investors.investorprofile",
+                    ),
+                ),
+                (
+                    "startup_profile",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="saved_by_investors",
+                        to="startups.startupprofile",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'saved_startups',
-                'unique_together': {('investor_profile', 'startup_profile')},
+                "db_table": "saved_startups",
+                "unique_together": {("investor_profile", "startup_profile")},
             },
         ),
     ]

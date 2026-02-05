@@ -1,15 +1,16 @@
 import uuid
 from datetime import timedelta
+
 from django.conf import settings
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
+from users.models import Role
 
 from .services import register_user
-from users.models import Role
 
 User = get_user_model()
 
@@ -61,6 +62,7 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         return register_user(validated_data, user_model=User)
 
+
 class VerifyEmailSerializer(serializers.Serializer):
     token = serializers.CharField()
 
@@ -68,11 +70,12 @@ class VerifyEmailSerializer(serializers.Serializer):
 class ResendVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.CharField(
         required=True,
         max_length=255,
-        help_text="Email address (not validated for security reasons)"
+        help_text="Email address (not validated for security reasons)",
     )
 
     def validate_email(self, value):
@@ -96,7 +99,7 @@ class LoginSerializer(serializers.Serializer):
             raise AuthenticationFailed("Invalid credentials.")
 
         if not user.is_active:
-             raise AuthenticationFailed("User inactive or deleted.")
+            raise AuthenticationFailed("User inactive or deleted.")
 
         refresh = RefreshToken.for_user(user)
 

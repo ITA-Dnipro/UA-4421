@@ -6,23 +6,33 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('startups', '0002_startupprofile_about_html_and_more'),
+        ("startups", "0002_startupprofile_about_html_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Region',
+            name="Region",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, unique=True)),
             ],
             options={
-                'db_table': 'regions',
+                "db_table": "regions",
             },
         ),
         migrations.AddField(
-            model_name='startupprofile',
-            name='region',
-            field=models.ManyToManyField(blank=True, related_name='projects', to='startups.region'),
+            model_name="startupprofile",
+            name="region",
+            field=models.ManyToManyField(
+                blank=True, related_name="projects", to="startups.region"
+            ),
         ),
     ]
