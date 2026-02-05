@@ -43,5 +43,13 @@ services:
     ports:
       - "6379:6379"
 
+  meilisearch:
+  image: getmeili/meilisearch:v1.5
+  ports:
+    - "7700:7700"
+  environment:
+    MEILI_NO_ANALYTICS: "true"
+    MEILI_MASTER_KEY: "masterKey"
+
 volumes:
   postgres_data:

@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from projects.models import ProjectStatus, ProjectVisibility
 from search.services import ProjectSearchService
-from search.backends.postgres import PostgresSearchBackend
+from search.backends.meilisearch import MeiliSearchBackend
 
 ALLOWED_STATUS_TRANSITIONS = {
     ProjectStatus.IDEA: {ProjectStatus.MVP},
@@ -16,7 +16,7 @@ class ProjectStateService:
 
     def __init__(self, search_service: ProjectSearchService | None = None):
         self.search_service = search_service or ProjectSearchService(
-            backend=PostgresSearchBackend()
+            backend=MeiliSearchBackend()
         )
     
     def update_project_state(self, project, data, user_is_staff=False):
