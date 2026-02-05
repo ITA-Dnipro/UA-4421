@@ -23,13 +23,10 @@ class ModerationStatus(models.TextChoices):
     REJECTED = 'rejected', 'Rejected'
     FLAGGED = 'flagged', 'Flagged'
 
-
 class ModerationAction(models.TextChoices):
     APPROVE = 'approve', 'Approve'
     REJECT = 'reject', 'Reject'
     FLAG = 'flag', 'Flag'
-    RESTORE = 'restore', 'Restore'
-    DELETE = 'delete', 'Soft Delete'
 
 class AttachmentType(models.TextChoices):
     THUMBNAIL = "thumbnail", "Thumbnail image"
@@ -75,26 +72,18 @@ class Project(models.Model):
         max_length=20,
         choices=ModerationStatus.choices,
         default=ModerationStatus.PENDING,
-        db_index=True,
-        help_text="Current moderation status"
+        db_index=True
     )
-    moderation_notes = models.TextField(
-        blank=True,
-        help_text="Internal notes for moderators"
-    )
-    moderated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When project was last moderated"
-    )
+    moderation_notes = models.TextField(blank=True)
+    moderated_at = models.DateTimeField(null=True, blank=True)
     moderated_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='moderated_projects',
-        help_text="Admin who performed last moderation"
+        related_name='moderated_projects'
     )
+    rejection_reason = models.TextField(blank=True)
 
     currency = models.CharField(max_length=3, default="UAH")
 
@@ -115,27 +104,14 @@ class Project(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_deleted = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Soft delete flag"
-    )
-    deleted_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When project was soft-deleted"
-    )
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     deleted_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='deleted_projects',
-        help_text="Admin who deleted the project"
-    )
-    rejection_reason = models.TextField(
-        blank=True,
-        help_text="Reason for rejection (sent to startup owner)"
+        related_name='deleted_projects'
     )
 
     class Meta:
@@ -241,21 +217,3 @@ class ProjectModerationLog(models.Model):
 
     def __str__(self):
         return f"{self.action} on {self.project.title} by {self.moderator}"
-
-
-class ProjectModerationStats(models.Model):
-    date = models.DateField(unique=True, db_index=True)
-    pending_count = models.IntegerField(default=0)
-    approved_count = models.IntegerField(default=0)
-    rejected_count = models.IntegerField(default=0)
-    flagged_count = models.IntegerField(default=0)
-    deleted_count = models.IntegerField(default=0)
-    restored_count = models.IntegerField(default=0)
-
-    class Meta:
-        db_table = 'project_moderation_stats'
-        ordering = ['-date']
-        verbose_name_plural = 'Project moderation statistics'
-
-    def __str__(self):
-        return f"Moderation stats for {self.date}"

@@ -41,10 +41,13 @@ class IsAdminOrModerator(BasePermission):
             return True
 
         try:
-            user_roles = user.roles.values_list('name', flat=True)
-            return 'admin' in user_roles or 'moderator' in user_roles
+            if hasattr(user, 'roles'):
+                user_roles = user.roles.values_list('name', flat=True)
+                return 'admin' in user_roles or 'moderator' in user_roles
         except Exception:
-            return False
+            pass
+
+        return False
 
 
 class IsAdmin(BasePermission):
