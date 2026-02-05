@@ -879,3 +879,85 @@ class TestLoginApi(APITestCase):
 
         self._assert_ttl_close(access_ttl, expected_access)
         self._assert_ttl_close(refresh_ttl, expected_refresh)
+
+@override_settings(
+    SIMPLE_JWT={
+        "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+        "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+        "ROTATE_REFRESH_TOKENS": True,
+        "BLACKLIST_AFTER_ROTATION": True,
+    },
+)
+class TestRefreshAndLogout(APITestCase):
+    def setUp(self):
+        super().setUp()
+        self.password = "P@ssw0rd!123"
+        self.user = User.objects.create_user(
+            username="alice",
+            email="alice@example.com",
+            password=self.password,
+            is_active=True,
+            verified=True,
+        )
+
+        self.login_url = "/api/auth/login/"
+        self.refresh_url = "/api/auth/refresh/"
+        self.logout_url = "/api/auth/logout/"
+        self.ip = "10.0.0.1"
+
+    def _login(self):
+        resp = self.client.post(
+            self.login_url,
+            {"email": self.user.email, "password": self.password},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+        self.assertEqual(resp.status_code, 200)
+        return resp.data["access"], resp.data["refresh"]
+
+    def test_refresh_success(self):
+        _, refresh = self._login()
+
+        resp = self.client.post(
+            self.refresh_url,
+            {"refresh": refresh},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertTrue(resp.data["access"])
+
+    def test_refresh_failure_invalid_token(self):
+        resp = self.client.post(
+            self.refresh_url,
+            {"refresh": "not-a-token"},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+
+        self.assertIn(resp.status_code, (400, 401))
+        self.assertIn("detail", resp.data)
+
+    def test_logout_revokes_refresh(self):
+        access, refresh = self._login()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        logout_resp = self.client.post(
+            self.logout_url,
+            {"refresh": refresh},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+        self.assertIn(logout_resp.status_code, (200, 204))
+
+        refresh_resp = self.client.post(
+            self.refresh_url,
+            {"refresh": refresh},
+            format="json",
+            REMOTE_ADDR=self.ip,
+        )
+        self.assertIn(refresh_resp.status_code, (400, 401))
+        self.assertIn("detail", refresh_resp.data)

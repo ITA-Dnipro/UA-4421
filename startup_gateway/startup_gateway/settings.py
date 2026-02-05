@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'startup_gateway.content',
     'axes',
     'drf_spectacular',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 
@@ -114,6 +115,7 @@ DATABASES = {
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',

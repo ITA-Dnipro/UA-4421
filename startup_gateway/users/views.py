@@ -3,11 +3,11 @@ from django.contrib.auth import get_user_model
 from rest_framework import status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle
 import logging
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
-from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer
+from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer, LogoutSerializer
 from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
 from .tokens import password_reset_token_generator
 from .email_service import PasswordResetEmailService
@@ -193,3 +193,14 @@ class LoginView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+class LogoutView(APIView):
+    serializer_class = LogoutSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializers = self.serializer_class(data=request.data)
+        serializers.is_valid(raise_exception=True)
+        serializers.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
