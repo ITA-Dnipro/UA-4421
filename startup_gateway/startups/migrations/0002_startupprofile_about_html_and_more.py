@@ -8,50 +8,52 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('startups', '0001_initial'),
+        ("startups", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='startupprofile',
-            name='about_html',
+            model_name="startupprofile",
+            name="about_html",
             field=models.TextField(blank=True),
         ),
         migrations.AddField(
-            model_name='startupprofile',
-            name='contact_email',
+            model_name="startupprofile",
+            name="contact_email",
             field=models.EmailField(blank=True, max_length=254),
         ),
         migrations.AddField(
-            model_name='startupprofile',
-            name='contact_phone',
+            model_name="startupprofile",
+            name="contact_phone",
             field=models.CharField(blank=True, max_length=50),
         ),
         migrations.AddField(
-            model_name='startupprofile',
-            name='created_at',
-            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
+            model_name="startupprofile",
+            name="created_at",
+            field=models.DateTimeField(
+                auto_now_add=True, default=django.utils.timezone.now
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='startupprofile',
-            name='hero_image_url',
+            model_name="startupprofile",
+            name="hero_image_url",
             field=models.URLField(blank=True),
         ),
         migrations.AddField(
-            model_name='startupprofile',
-            name='logo_url',
+            model_name="startupprofile",
+            name="logo_url",
             field=models.URLField(blank=True),
         ),
         migrations.AddField(
-            model_name='startupprofile',
-            name='slug',
-            field=models.SlugField(default='test', unique=True),
+            model_name="startupprofile",
+            name="slug",
+            field=models.SlugField(default="test", unique=True),
             preserve_default=False,
         ),
         migrations.AddIndex(
-            model_name='startupprofile',
-            index=models.Index(fields=['slug'], name='startup_pro_slug_4ded69_idx'),
+            model_name="startupprofile",
+            index=models.Index(fields=["slug"], name="startup_pro_slug_4ded69_idx"),
         ),
     ]

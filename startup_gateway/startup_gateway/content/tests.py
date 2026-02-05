@@ -12,7 +12,12 @@ class TestLandingContentApi(APITestCase):
 
     def test_returns_db_content_when_exists(self):
         LandingContent.objects.create(
-            hero={"title": "DB title", "subtitle": "DB subtitle", "cta_text": "Join", "hero_images": []},
+            hero={
+                "title": "DB title",
+                "subtitle": "DB subtitle",
+                "cta_text": "Join",
+                "hero_images": [],
+            },
             for_whom=[],
             why_worth=[],
             footer_links={"left": [], "right": []},

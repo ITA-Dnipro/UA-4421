@@ -1,21 +1,23 @@
-from django.db import transaction
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
-from django.db import transaction
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.reverse import reverse
-from rest_framework.response import Response
-from rest_framework import status
 from django.core.exceptions import ValidationError
-from rest_framework.views import APIView
-
+from django.db import transaction
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from projects.models import Project, ProjectStatus
+from projects.serializers import (
+    ProjectDetailsSerializer,
+    ProjectSerializer,
+    ProjectStateSerializer,
+)
 from projects.services.project_state_service import ProjectStateService
-from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer
-
+from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
+from rest_framework.views import APIView
 from startups.models import StartupProfile
+
 from .permissions import IsOwnerOrReadOnly
 
 
@@ -50,13 +52,16 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         project_id = serializer.instance.pk
 
-        location = reverse("projects:project-rud", kwargs={"pk": project_id}, request=request)
+        location = reverse(
+            "projects:project-rud", kwargs={"pk": project_id}, request=request
+        )
 
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED,
             headers={"Location": location},
         )
+
 
 class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
     serializer_class = ProjectDetailsSerializer
@@ -75,7 +80,7 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
         instance.is_deleted = True
         instance.save(update_fields=["is_deleted"])
 
-    
+
 class ProjectStateServiceView(APIView):
     permission_classes = [IsOwnerOrReadOnly]
 
@@ -90,11 +95,11 @@ class ProjectStateServiceView(APIView):
                 serializer.is_valid(raise_exception=True)
 
                 state_service = ProjectStateService()
-                
+
                 project = state_service.update_project_state(
                     project=project,
                     data=serializer.validated_data,
-                    user_is_staff=request.user.is_staff
+                    user_is_staff=request.user.is_staff,
                 )
 
         except ValidationError as e:

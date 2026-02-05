@@ -1,21 +1,22 @@
 import json
+from datetime import timedelta
+from importlib import reload
+from unittest.mock import patch
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
 from django.core.signing import SignatureExpired, TimestampSigner
-from django.conf import settings
-from unittest.mock import patch
 from django.test import override_settings
+from investors.models import InvestorProfile
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-from importlib import reload
-from datetime import timedelta
 from startups.models import StartupProfile
-from investors.models import InvestorProfile
+from users import tokens
+from users.email_service import PasswordResetEmailService
 from users.models import PasswordResetAttempt, Role
 from users.tokens import password_reset_token_generator
-from users.email_service import PasswordResetEmailService
-from users import tokens
 
 User = get_user_model()
 
@@ -78,7 +79,6 @@ class TestRegisterApi(APITestCase):
         self.assertNotEqual(user.email_verification_nonce, raw_nonce)
         self.assertTrue(user.email_verification_nonce)
 
-    
     def test_happy_path_investor(self):
         payload = {
             "email": "investor@example.com",
@@ -221,7 +221,7 @@ class TestVerifyEmailApi(APITestCase):
     def test_verify_email_invalid_token(self):
         resp = self.client.get("/api/auth/verify-email/?token=bad")
         self.assertEqual(resp.status_code, 400)
-    
+
     def test_verify_email_rejects_legacy_token_without_nonce(self):
         payload = {
             "email": "alice@example.com",
@@ -242,7 +242,9 @@ class TestVerifyEmailApi(APITestCase):
         signer = TimestampSigner(salt="users.email.verify")
         legacy_token = signer.sign(f"{user.pk}:{user.email.strip().lower()}")
 
-        verify_resp = self.client.post("/api/auth/verify-email/", {"token": legacy_token}, format="json")
+        verify_resp = self.client.post(
+            "/api/auth/verify-email/", {"token": legacy_token}, format="json"
+        )
         self.assertEqual(verify_resp.status_code, 400)
 
         user.refresh_from_db()
@@ -266,13 +268,14 @@ class TestVerifyEmailApi(APITestCase):
         body = mail.outbox[0].body
         token = body.split("token=", 1)[1].strip()
 
-        verify_resp = self.client.post("/api/auth/verify-email/", {"token": token}, format="json")
+        verify_resp = self.client.post(
+            "/api/auth/verify-email/", {"token": token}, format="json"
+        )
         self.assertEqual(verify_resp.status_code, 200)
 
         user = User.objects.get(email="alice@example.com")
         self.assertTrue(user.is_active)
         self.assertTrue(user.verified)
-
 
     def test_verify_email_post_single_use(self):
         payload = {
@@ -291,21 +294,30 @@ class TestVerifyEmailApi(APITestCase):
         body = mail.outbox[0].body
         token = body.split("token=", 1)[1].strip()
 
-        first = self.client.post("/api/auth/verify-email/", {"token": token}, format="json")
+        first = self.client.post(
+            "/api/auth/verify-email/", {"token": token}, format="json"
+        )
         self.assertEqual(first.status_code, 200)
 
-        second = self.client.post("/api/auth/verify-email/", {"token": token}, format="json")
+        second = self.client.post(
+            "/api/auth/verify-email/", {"token": token}, format="json"
+        )
         self.assertEqual(second.status_code, 400)
 
         user = User.objects.get(email="alice@example.com")
         self.assertTrue(user.is_active)
         self.assertTrue(user.verified)
 
-
     def test_verify_email_post_expired_token(self):
-        with patch("users.services.TimestampSigner.unsign", side_effect=SignatureExpired("expired")):
-            resp = self.client.post("/api/auth/verify-email/", {"token": "any"}, format="json")
+        with patch(
+            "users.services.TimestampSigner.unsign",
+            side_effect=SignatureExpired("expired"),
+        ):
+            resp = self.client.post(
+                "/api/auth/verify-email/", {"token": "any"}, format="json"
+            )
         self.assertEqual(resp.status_code, 400)
+
 
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
@@ -327,7 +339,6 @@ class TestResendVerificationApi(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(mail.outbox), 0)
 
-
     def test_resend_non_existing_email_does_not_set_email_cache_key(self):
         self.client.post(
             "/api/auth/resend-verification/",
@@ -335,8 +346,9 @@ class TestResendVerificationApi(APITestCase):
             format="json",
             REMOTE_ADDR="10.0.0.1",
         )
-        self.assertIsNone(cache.get("auth:resend-verification:email:missing@example.com"))
-
+        self.assertIsNone(
+            cache.get("auth:resend-verification:email:missing@example.com")
+        )
 
     def test_resend_non_existing_email_sets_ip_cache_key(self):
         self.client.post(
@@ -346,7 +358,6 @@ class TestResendVerificationApi(APITestCase):
             REMOTE_ADDR="10.0.0.1",
         )
         self.assertTrue(cache.get("auth:resend-verification:ip:10.0.0.1"))
-
 
     def test_resend_throttles_multiple_calls(self):
         user = User.objects.create_user(
@@ -389,12 +400,12 @@ class TestPasswordResetApi(APITestCase):
         cache.clear()
         mail.outbox = []
 
-        self.startup_role, _ = Role.objects.get_or_create(name='startup')
+        self.startup_role, _ = Role.objects.get_or_create(name="startup")
 
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='TestPass123!',
+            username="testuser",
+            email="test@example.com",
+            password="TestPass123!",
             is_active=True,
             verified=True,
         )
@@ -412,15 +423,15 @@ class TestPasswordResetApi(APITestCase):
         self.assertIn("detail", resp.data)
         self.assertEqual(
             resp.data["detail"],
-            "If the email exists, you will receive reset instructions."
+            "If the email exists, you will receive reset instructions.",
         )
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ['test@example.com'])
-        self.assertIn('Password Reset', mail.outbox[0].subject)
-        self.assertIn('reset-password', mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ["test@example.com"])
+        self.assertIn("Password Reset", mail.outbox[0].subject)
+        self.assertIn("reset-password", mail.outbox[0].body)
 
-        attempt = PasswordResetAttempt.objects.get(email='test@example.com')
+        attempt = PasswordResetAttempt.objects.get(email="test@example.com")
         self.assertEqual(attempt.user, self.user)
         self.assertTrue(attempt.token_sent)
 
@@ -434,7 +445,7 @@ class TestPasswordResetApi(APITestCase):
 
         self.assertEqual(len(mail.outbox), 0)
 
-        attempt = PasswordResetAttempt.objects.get(email='unknown@example.com')
+        attempt = PasswordResetAttempt.objects.get(email="unknown@example.com")
         self.assertIsNone(attempt.user)
         self.assertFalse(attempt.token_sent)
 
@@ -471,8 +482,8 @@ class TestPasswordResetApi(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(mail.outbox), 1)
 
-        attempt = PasswordResetAttempt.objects.get(email='test@example.com')
-        self.assertEqual(attempt.email, 'test@example.com')
+        attempt = PasswordResetAttempt.objects.get(email="test@example.com")
+        self.assertEqual(attempt.email, "test@example.com")
 
     def test_rate_limiting_by_ip(self):
         payload = {"email": "test@example.com"}
@@ -486,32 +497,28 @@ class TestPasswordResetApi(APITestCase):
             "/api/auth/password-reset/",
             payload,
             format="json",
-            REMOTE_ADDR='192.168.1.1'
+            REMOTE_ADDR="192.168.1.1",
         )
 
         self.assertEqual(resp.status_code, 200)
 
-        attempt = PasswordResetAttempt.objects.get(email='test@example.com')
-        self.assertEqual(attempt.ip_address, '192.168.1.1')
+        attempt = PasswordResetAttempt.objects.get(email="test@example.com")
+        self.assertEqual(attempt.ip_address, "192.168.1.1")
 
     def test_multiple_users_same_ip(self):
         user2 = User.objects.create_user(
-            username='testuser2',
-            email='test2@example.com',
-            password='TestPass123!',
+            username="testuser2",
+            email="test2@example.com",
+            password="TestPass123!",
             is_active=True,
         )
 
         resp1 = self.client.post(
-            "/api/auth/password-reset/",
-            {"email": "test@example.com"},
-            format="json"
+            "/api/auth/password-reset/", {"email": "test@example.com"}, format="json"
         )
 
         resp2 = self.client.post(
-            "/api/auth/password-reset/",
-            {"email": "test2@example.com"},
-            format="json"
+            "/api/auth/password-reset/", {"email": "test2@example.com"}, format="json"
         )
 
         self.assertEqual(resp1.status_code, 200)
@@ -526,9 +533,9 @@ class TestPasswordResetToken(APITestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='TestPass123!',
+            username="testuser",
+            email="test@example.com",
+            password="TestPass123!",
             is_active=True,
         )
 
@@ -537,7 +544,7 @@ class TestPasswordResetToken(APITestCase):
 
         self.assertIsNotNone(token)
         self.assertIsInstance(token, str)
-        self.assertIn(':', token)
+        self.assertIn(":", token)
 
     def test_token_validation(self):
         token = password_reset_token_generator.make_token(self.user)
@@ -547,9 +554,9 @@ class TestPasswordResetToken(APITestCase):
 
     def test_token_invalid_for_different_user(self):
         user2 = User.objects.create_user(
-            username='testuser2',
-            email='test2@example.com',
-            password='TestPass123!',
+            username="testuser2",
+            email="test2@example.com",
+            password="TestPass123!",
         )
 
         token = password_reset_token_generator.make_token(self.user)
@@ -558,7 +565,9 @@ class TestPasswordResetToken(APITestCase):
         self.assertFalse(is_valid)
 
     def test_token_invalid_format(self):
-        is_valid = password_reset_token_generator.check_token(self.user, "invalid-token")
+        is_valid = password_reset_token_generator.check_token(
+            self.user, "invalid-token"
+        )
 
         self.assertFalse(is_valid)
 
@@ -586,22 +595,20 @@ class TestPasswordResetEmailErrors(APITestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='TestPass123!',
+            username="testuser",
+            email="test@example.com",
+            password="TestPass123!",
             is_active=True,
         )
 
-    @patch('users.email_service.send_mail')
+    @patch("users.email_service.send_mail")
     def test_email_service_handles_send_failure(self, mock_send):
 
         mock_send.side_effect = Exception("SMTP server error")
 
         token = password_reset_token_generator.make_token(self.user)
         result = PasswordResetEmailService.send_reset_email(
-            user=self.user,
-            token=token,
-            request=None
+            user=self.user, token=token, request=None
         )
 
         self.assertFalse(result)
@@ -612,13 +619,13 @@ class TestPasswordResetAuditErrors(APITestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='TestPass123!',
+            username="testuser",
+            email="test@example.com",
+            password="TestPass123!",
             is_active=True,
         )
 
-    @patch('users.models.PasswordResetAttempt.objects.create')
+    @patch("users.models.PasswordResetAttempt.objects.create")
     def test_continues_when_audit_log_fails(self, mock_create):
         mock_create.side_effect = Exception("Database error")
 
@@ -633,21 +640,21 @@ class TestPasswordResetAttemptModel(APITestCase):
 
     def test_str_representation(self):
         user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='TestPass123!',
+            username="testuser",
+            email="test@example.com",
+            password="TestPass123!",
         )
 
         attempt = PasswordResetAttempt.objects.create(
             user=user,
-            email='test@example.com',
-            ip_address='192.168.1.1',
+            email="test@example.com",
+            ip_address="192.168.1.1",
             token_sent=True,
         )
 
         str_repr = str(attempt)
-        self.assertIn('test@example.com', str_repr)
-        self.assertIn('Reset attempt', str_repr)
+        self.assertIn("test@example.com", str_repr)
+        self.assertIn("Reset attempt", str_repr)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -655,9 +662,9 @@ class TestPasswordResetEmailContent(APITestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='TestPass123!',
+            username="testuser",
+            email="test@example.com",
+            password="TestPass123!",
             is_active=True,
         )
 
@@ -669,9 +676,9 @@ class TestPasswordResetEmailContent(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         email_body = mail.outbox[0].body
 
-        self.assertIn('reset-password', email_body)
-        self.assertIn('uid=', email_body)
-        self.assertIn('token=', email_body)
+        self.assertIn("reset-password", email_body)
+        self.assertIn("uid=", email_body)
+        self.assertIn("token=", email_body)
 
     def test_email_has_correct_subject(self):
         payload = {"email": "test@example.com"}
@@ -679,7 +686,7 @@ class TestPasswordResetEmailContent(APITestCase):
         resp = self.client.post("/api/auth/password-reset/", payload, format="json")
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn('Password Reset', mail.outbox[0].subject)
+        self.assertIn("Password Reset", mail.outbox[0].subject)
 
     def test_email_mentions_expiry(self):
         payload = {"email": "test@example.com"}
@@ -690,17 +697,16 @@ class TestPasswordResetEmailContent(APITestCase):
         email_body = mail.outbox[0].body
 
         self.assertTrue(
-            '1 hour' in email_body.lower() or
-            'expire' in email_body.lower()
+            "1 hour" in email_body.lower() or "expire" in email_body.lower()
         )
 
 
 class TestPasswordResetTokenTimeout(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='TestPass123!',
+            username="testuser",
+            email="test@example.com",
+            password="TestPass123!",
         )
 
     def test_token_uses_custom_timeout(self):
@@ -719,6 +725,7 @@ class TestPasswordResetTokenTimeout(APITestCase):
         is_valid = password_reset_token_generator.check_token(self.user, token)
 
         self.assertTrue(is_valid)
+
 
 @override_settings(
     AXES_ENABLED=True,
@@ -756,7 +763,9 @@ class TestLoginApi(APITestCase):
         iat = int(token["iat"])
         return exp - iat
 
-    def _assert_ttl_close(self, actual_seconds: int, expected: timedelta, tolerance_seconds: int = 5):
+    def _assert_ttl_close(
+        self, actual_seconds: int, expected: timedelta, tolerance_seconds: int = 5
+    ):
         expected_seconds = int(expected.total_seconds())
         self.assertTrue(
             abs(actual_seconds - expected_seconds) <= tolerance_seconds,
@@ -840,7 +849,11 @@ class TestLoginApi(APITestCase):
         self.assertIn("detail", data)
 
     def test_remember_true_changes_access_and_refresh_ttl(self):
-        payload = {"email": self.user.email, "password": self.user_password, "remember": True}
+        payload = {
+            "email": self.user.email,
+            "password": self.user_password,
+            "remember": True,
+        }
         resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
         self.assertEqual(resp.status_code, 200)
 
@@ -866,7 +879,11 @@ class TestLoginApi(APITestCase):
         self._assert_ttl_close(refresh_ttl, expected_refresh)
 
     def test_default_ttl_not_violated_even_if_remember_false(self):
-        payload = {"email": self.user.email, "password": self.user_password, "remember": False}
+        payload = {
+            "email": self.user.email,
+            "password": self.user_password,
+            "remember": False,
+        }
         resp = self.client.post(self.url, payload, format="json", REMOTE_ADDR=self.ip)
         self.assertEqual(resp.status_code, 200)
 

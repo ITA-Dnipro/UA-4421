@@ -1,18 +1,16 @@
 import logging
 import uuid
-from django.core.cache import cache
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.core.mail import send_mail
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.db import transaction
+from django.utils.crypto import salted_hmac
 from investors.models import InvestorProfile
 from startups.models import StartupProfile
 from users.models import Role
-
-from django.db import transaction
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
-from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
-from django.utils.crypto import salted_hmac
-
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +113,6 @@ def verify_email_token(token):
         user.save(update_fields=update_fields)
 
     return user
-
 
 
 @transaction.atomic

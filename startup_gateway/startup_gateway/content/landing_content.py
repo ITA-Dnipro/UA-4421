@@ -9,14 +9,35 @@ LANDING_CONTENT = {
         ],
     },
     "for_whom": [
-        {"icon": "designer", "title": "Designers", "desc": "Sharpen skills and ship real work."},
-        {"icon": "developer", "title": "Developers", "desc": "Build UI projects and get feedback."},
-        {"icon": "student", "title": "Students", "desc": "Learn by doing with guided tasks."},
+        {
+            "icon": "designer",
+            "title": "Designers",
+            "desc": "Sharpen skills and ship real work.",
+        },
+        {
+            "icon": "developer",
+            "title": "Developers",
+            "desc": "Build UI projects and get feedback.",
+        },
+        {
+            "icon": "student",
+            "title": "Students",
+            "desc": "Learn by doing with guided tasks.",
+        },
     ],
     "why_worth": [
-        {"title": "No hardcoding on frontend", "desc": "All static landing content comes from the API."},
-        {"title": "Easy to extend", "desc": "Add new cards and blocks without changing frontend code."},
-        {"title": "Single source of truth", "desc": "Frontend renders the same data everywhere."},
+        {
+            "title": "No hardcoding on frontend",
+            "desc": "All static landing content comes from the API.",
+        },
+        {
+            "title": "Easy to extend",
+            "desc": "Add new cards and blocks without changing frontend code.",
+        },
+        {
+            "title": "Single source of truth",
+            "desc": "Frontend renders the same data everywhere.",
+        },
     ],
     "footer_links": {
         "left": [

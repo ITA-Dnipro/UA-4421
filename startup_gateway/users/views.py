@@ -1,32 +1,46 @@
-from django.db import transaction
-from django.contrib.auth import get_user_model
-from rest_framework import status, serializers
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework.throttling import AnonRateThrottle
 import logging
-from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
-from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer
-from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
-from .tokens import password_reset_token_generator
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers, status
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
+from rest_framework.views import APIView
+
 from .email_service import PasswordResetEmailService
 from .models import PasswordResetAttempt, User
+from .serializers import (
+    LoginSerializer,
+    PasswordResetRequestSerializer,
+    RegisterSerializer,
+    ResendVerificationSerializer,
+    VerifyEmailSerializer,
+)
+from .services import (
+    is_resend_verification_throttled,
+    send_verification_email,
+    verify_email_token,
+)
+from .tokens import password_reset_token_generator
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+
 def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0].strip()
+        ip = x_forwarded_for.split(",")[0].strip()
     else:
-        ip = request.META.get('REMOTE_ADDR')
+        ip = request.META.get("REMOTE_ADDR")
     return ip
 
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -36,14 +50,16 @@ class RegisterView(APIView):
             transaction.on_commit(lambda: send_verification_email(user))
 
         return Response(
-            {"detail": "If the email address is valid, a verification email has been sent."},
+            {
+                "detail": "If the email address is valid, a verification email has been sent."
+            },
             status=status.HTTP_201_CREATED,
         )
 
 
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -51,14 +67,20 @@ class VerifyEmailView(APIView):
         token = serializer.validated_data.get("token", "")
         user = verify_email_token(token)
         if not user:
-            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response({"detail": "Email verified."}, status=status.HTTP_200_OK)
 
     def get(self, request):
         token = request.query_params.get("token", "")
         user = verify_email_token(token)
         if not user:
-            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response({"detail": "Email verified."}, status=status.HTTP_200_OK)
 
 
@@ -74,44 +96,52 @@ class ResendVerificationView(APIView):
 
         if is_resend_verification_throttled(email="", ip=ip):
             return Response(
-                {"detail": "If the email address is valid, a verification email has been sent."},
+                {
+                    "detail": "If the email address is valid, a verification email has been sent."
+                },
                 status=status.HTTP_200_OK,
             )
 
         user = User.objects.filter(email__iexact=email).first()
         if not user or getattr(user, "verified", False):
             return Response(
-                {"detail": "If the email address is valid, a verification email has been sent."},
+                {
+                    "detail": "If the email address is valid, a verification email has been sent."
+                },
                 status=status.HTTP_200_OK,
             )
 
         if is_resend_verification_throttled(email=email, ip=""):
             return Response(
-                {"detail": "If the email address is valid, a verification email has been sent."},
+                {
+                    "detail": "If the email address is valid, a verification email has been sent."
+                },
                 status=status.HTTP_200_OK,
             )
 
         send_verification_email(user)
 
         return Response(
-            {"detail": "If the email address is valid, a verification email has been sent."},
+            {
+                "detail": "If the email address is valid, a verification email has been sent."
+            },
             status=status.HTTP_200_OK,
         )
 
 
 class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
-    throttle_scope = 'password_reset'
+    throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
                 {"detail": "If the email exists, you will receive reset instructions."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
-        email = serializer.validated_data['email']
+        email = serializer.validated_data["email"]
         ip_address = get_client_ip(request)
 
         user = User.objects.filter(email=email, is_active=True).first()
@@ -120,9 +150,7 @@ class PasswordResetRequestView(APIView):
         if user:
             token = password_reset_token_generator.make_token(user)
             token_sent = PasswordResetEmailService.send_reset_email(
-                user=user,
-                token=token,
-                request=request
+                user=user, token=token, request=request
             )
 
             if token_sent:
@@ -140,8 +168,9 @@ class PasswordResetRequestView(APIView):
 
         return Response(
             {"detail": "If the email exists, you will receive reset instructions."},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
+
 
 @extend_schema(
     request=LoginSerializer,
@@ -179,7 +208,6 @@ class PasswordResetRequestView(APIView):
     tags=["Auth"],
     summary="Login",
 )
-
 class LoginView(APIView):
     throttle_classes = [AnonRateThrottle]
     permission_classes = [AllowAny]

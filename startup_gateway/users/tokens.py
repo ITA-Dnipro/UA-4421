@@ -1,5 +1,5 @@
-from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from django.conf import settings
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 
 
 class PasswordResetTokenGenerator:
@@ -32,5 +32,5 @@ class PasswordResetTokenGenerator:
 
 
 password_reset_token_generator = PasswordResetTokenGenerator(
-    timeout=getattr(settings, 'PASSWORD_RESET_TIMEOUT', 3600)
+    timeout=getattr(settings, "PASSWORD_RESET_TIMEOUT", 3600)
 )
