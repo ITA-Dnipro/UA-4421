@@ -6,7 +6,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.reverse import reverse
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import generics, permissions, status
+from notifications.tasks import handle_project_event
 
 
 from startups.models import StartupProfile
@@ -44,9 +45,18 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         self.perform_create(serializer)
 
-        project_id = serializer.instance.pk
+        project = serializer.instance
 
-        location = reverse("projects:project-rud", kwargs={"pk": project_id}, request=request)
+        handle_project_event.delay(
+            event_type="project_created",
+            project_id=str(project.id),
+            payload={
+                "title": project.title,
+                "status": project.status,
+            },
+        )
+
+        location = reverse("projects:project-rud", kwargs={"pk": project.id}, request=request)
 
         return Response(
             serializer.data,
@@ -66,6 +76,24 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
             return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
 
         return qs.filter(visibility="public")
+
+    def perform_update(self, serializer):
+        project = self.get_object()
+        old_status = project.status
+        updated_project = serializer.save()
+
+        if (
+            "status" in serializer.validated_data
+            and old_status != updated_project.status
+        ):
+            handle_project_event.delay(
+            event_type="project_status_changed",
+            project_id=str(updated_project.id),
+            payload={
+                "old_status": old_status,
+                "new_status": updated_project.status,
+            },
+        )
 
     def perform_destroy(self, instance):
         instance.is_deleted = True
