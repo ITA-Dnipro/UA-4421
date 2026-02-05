@@ -146,7 +146,7 @@ class ProjectCustomActionsAPITests(TestCase):
             target_amount="100.00",
             raised_amount="0.00",
             currency="UAH",
-            visibility="public",
+            visibility=ProjectVisibility.PRIVATE,
             allow_overfunding=False
         )
 
@@ -163,6 +163,9 @@ class ProjectCustomActionsAPITests(TestCase):
     # ----------------- Status update tests -----------------
     def test_status_update_success(self):
         self.auth_as(self.owner_user)
+        self.project.raised_amount = 100
+        self.project.save(update_fields=["raised_amount"])
+
         resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.FUNDED}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.project.refresh_from_db()
@@ -171,9 +174,9 @@ class ProjectCustomActionsAPITests(TestCase):
 
     def test_status_update_invalid_transition(self):
         self.auth_as(self.owner_user)
-        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.IDEA}, format="json")
+        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.FUNDED}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Invalid status transition", resp.data["detail"])
+        self.assertIn("Target amount not reached yet.", resp.data["detail"])
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, ProjectStatus.FUNDRAISING)
 
@@ -185,7 +188,7 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(self.project.status, ProjectStatus.MVP)
 
     # ----------------- Raised amount tests -----------------
-    def test_update_raised_amount_success(self):
+    def test_set_raised_amount_success(self):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"raised_amount": "50.00"}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -193,7 +196,7 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(float(self.project.raised_amount), 50.0)
         self.assertEqual(self.project.status, ProjectStatus.FUNDRAISING)
 
-    def test_update_raised_amount_to_target(self):
+    def test_set_raised_amount_to_target(self):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"raised_amount": "100.00"}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -202,20 +205,28 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(self.project.status, ProjectStatus.FUNDED)
         self.assertIsNotNone(self.project.funded_at)
 
-    def test_update_raised_amount_over_target_not_allowed(self):
+    def test_set_raised_amount_over_target_not_allowed(self):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"raised_amount": "150.00"}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Raised amount cannot exceed target amount", resp.data["detail"])
+        self.assertIn("Overfunding is not allowed.", resp.data["detail"])
         self.project.refresh_from_db()
         self.assertEqual(float(self.project.raised_amount), 0.0)
+
+    # ----------------- Visibility tests -----------------
+    def test_change_visibility_to_public_triggers_indexing(self):
+        self.auth_as(self.owner_user)
+        resp = self.client.patch(self._status_url(), data={"visibility": ProjectVisibility.PUBLIC}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)
 
     # ----------------- Combined update test -----------------
     def test_partial_update_status_and_amount(self):
         self.auth_as(self.owner_user)
         resp = self.client.patch(
             self._status_url(),
-            data={"status": ProjectStatus.FUNDED, "raised_amount": "100.00"},
+            data={"raised_amount": "100.00", "status": ProjectStatus.FUNDED, "visibility": ProjectVisibility.PUBLIC},
             format="json"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -223,6 +234,7 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(self.project.status, ProjectStatus.FUNDED)
         self.assertEqual(float(self.project.raised_amount), 100.0)
         self.assertIsNotNone(self.project.funded_at)
+        self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)
 
 
 class AdminProjectAPITest(APITestCase):
