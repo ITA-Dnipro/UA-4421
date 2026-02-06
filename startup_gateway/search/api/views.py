@@ -16,6 +16,6 @@ class ProjectSearchAPIView(APIView):
             return Response({"results": []})
 
         search_service = ProjectSearchService(backend=MeiliSearchBackend())
-        results = search_service.search_projects(query=query)
+        results = search_service.search(query=query)
 
         return Response({"results": results}, status=status.HTTP_200_OK)
