@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.db import transaction
 from projects.models import ProjectStatus, ProjectVisibility
 from search.services import ProjectSearchService
 from search.backends.meilisearch import MeiliSearchBackend
@@ -25,12 +26,16 @@ class ProjectStateService:
             self.set_raised_amount(project, data["raised_amount"])
 
         if "status" in data:
-            self.change_status(project, data["status"], admin_override=user_is_staff)
+            if project.status != data["status"]:
+                self.change_status(project, data["status"], admin_override=user_is_staff)
 
         if "visibility" in data:
             self.change_visibility(project, data["visibility"])
 
         project.save()
+        
+        transaction.on_commit(lambda: self._sync_search_index(project.pk))
+        
         return project
 
     def set_raised_amount(self, project, new_amount):
@@ -62,25 +67,18 @@ class ProjectStateService:
             project.funded_at = timezone.now()
 
     def change_visibility(self, project, new_visibility):
-        old_visibility = project.visibility
         project.visibility = new_visibility
 
-        if (
-            old_visibility != ProjectVisibility.PUBLIC
-            and new_visibility == ProjectVisibility.PUBLIC
-        ):
-            self.index_project_in_search(project)
-
-        if (
-            old_visibility == ProjectVisibility.PUBLIC
-            and new_visibility != ProjectVisibility.PUBLIC
-        ):
-            self.remove_project_from_search(project)
-
-    def index_project_in_search(self, project):
-        self.search_service.index_project(project)
-
-    def remove_project_from_search(self, project):
-        self.search_service.remove_project(project)
+    def _sync_search_index(self, project_id):
+        try:
+            from projects.models import Project
+            project = Project.objects.get(pk=project_id)
+            
+            if project.visibility == ProjectVisibility.PUBLIC:
+                self.search_service.index_project(project)
+            else:
+                self.search_service.remove_project(project)
+        except Project.DoesNotExist:
+            pass 
 
         
