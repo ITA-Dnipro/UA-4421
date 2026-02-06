@@ -34,71 +34,26 @@ class Command(BaseCommand):
             messages.drop_indexes()
             self.stdout.write(self.style.SUCCESS('✓ Indexes dropped'))
 
-        # Create indexes for conversations
-        self.stdout.write('\nCreating indexes for conversations...')
+        self.stdout.write('\nCreating required indexes (task-compliant)...')
         
-        # Index on participants (simple array now)
         conversations.create_index('participants')
         self.stdout.write('  ✓ idx_participants')
         
-        # Index on last_message_at for sorting
         conversations.create_index([('last_message_at', -1)])
-        self.stdout.write('  ✓ idx_last_message_at')
-        
-        # Compound index for user conversations with sorting
-        conversations.create_index([
-            ('participants', 1),
-            ('last_message_at', -1)
-        ])
-        self.stdout.write('  ✓ idx_user_conversations')
-        
-        # Unique index on conversation_id (UUID)
-        conversations.create_index('conversation_id', unique=True)
-        self.stdout.write('  ✓ idx_conversation_id (unique)')
-        
-        # Optional indexes for future use
-        conversations.create_index('project_id', sparse=True)
-        self.stdout.write('  ✓ idx_project_id (sparse)')
-        
-        conversations.create_index('startup_id', sparse=True)
-        self.stdout.write('  ✓ idx_startup_id (sparse)')
+        self.stdout.write('  ✓ idx_last_message_at_desc')
 
-        # Create indexes for messages
-        self.stdout.write('\nCreating indexes for messages...')
-        
-        # Compound index for conversation messages with sorting
         messages.create_index([
             ('conversation_id', 1),
             ('created_at', -1)
         ])
-        self.stdout.write('  ✓ idx_conversation_messages')
-        
-        # Index for pagination (conversation + _id for cursor-based)
-        messages.create_index([
-            ('conversation_id', 1),
-            ('_id', -1)
-        ])
-        self.stdout.write('  ✓ idx_conversation_pagination')
-        
-        # Index on sender_id
-        messages.create_index('sender_id')
-        self.stdout.write('  ✓ idx_sender_id')
-        
-        # Index for unread messages (conversation + status)
-        messages.create_index([
-            ('conversation_id', 1),
-            ('status', 1)
-        ])
-        self.stdout.write('  ✓ idx_unread_messages')
+        self.stdout.write('  ✓ idx_conversation_created_at_desc')
 
-        self.stdout.write(self.style.SUCCESS('\n✅ All indexes created successfully!'))
+        self.stdout.write(self.style.SUCCESS('\n✅ Task-compliant indexes created successfully!'))
         
-        # Show current indexes
         self.stdout.write('\nCurrent Indexes:')
         self.list_indexes(conversations, messages)
 
     def list_indexes(self, conversations, messages):
-        """List all indexes for both collections."""
         self.stdout.write('\nCollection: conversations')
         for idx in conversations.list_indexes():
             self.stdout.write(f"  - {idx['name']}: {idx['key']}")
