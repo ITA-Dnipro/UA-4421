@@ -266,7 +266,7 @@ export default function RegisterInvestor() {
             </div>
           )}
 
-          <form className={styles.form} onSubmit={onSubmit}>
+          <form className={styles.form} onSubmit={onSubmit} noValidate aria-busy={isSubmitting}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="email">
                 Email

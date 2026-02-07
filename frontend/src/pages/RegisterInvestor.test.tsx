@@ -73,6 +73,25 @@ describe('RegisterInvestor', () => {
     expect(screen.getByText(/Passwords do not match\./i)).toBeInTheDocument()
   })
 
+  it('shows minimum investment error when negative', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock as any)
+
+    render(<RegisterInvestor />)
+
+    await fillValidForm(user)
+
+    const min = screen.getByLabelText(/Minimum investment/i)
+    await user.clear(min)
+    await user.type(min, '-5')
+
+    await user.click(screen.getByRole('button', { name: /Register/i }))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByText(/Minimum investment must be a number/i)).toBeInTheDocument()
+  })
+
   it('submits valid form and shows success message', async () => {
     const user = userEvent.setup()
     const fetchMock = mockFetchOnce(true, { detail: 'Check your email to verify your account.' }, 201)
