@@ -1,6 +1,29 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 import uuid 
+from django.contrib.auth.models import UserManager
+from django.utils.text import slugify
+
+class CustomUserManager(UserManager):
+    def create_user(self, username, email=None, password=None, **extra_fields):
+        if not username:
+            username = uuid.uuid4().hex
+
+        if "slug" not in extra_fields or not extra_fields.get("slug"):
+            base = slugify(username)
+            if not base:
+                base = f"user-{uuid.uuid4().hex[:8]}"
+
+            slug = base
+            counter = 1
+            while self.model.objects.filter(slug=slug).exists():
+                slug = f"{base}-{counter}"
+                counter += 1
+
+            extra_fields["slug"] = slug
+
+        return super().create_user(username, email, password, **extra_fields)
+    
 class Role(models.Model):
     """
     Roles: 'startup', 'investor'.
@@ -25,6 +48,8 @@ class User(AbstractUser):
     - password
     """
 
+    objects = CustomUserManager()
+    
     # --- core ---
     phone = models.CharField(max_length=20, blank=True)
     verified = models.BooleanField(default=False)
@@ -38,8 +63,7 @@ class User(AbstractUser):
     # --- profile ---
     slug = models.SlugField(
         max_length=160,
-        default=uuid.uuid4,
-        unique=True
+        unique=True,
     )
     about_html = models.TextField(blank=True)
     short_description = models.CharField(max_length=300, blank=True)

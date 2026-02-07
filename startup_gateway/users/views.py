@@ -196,8 +196,8 @@ class ProfileDetailUpdateView(APIView):
 
     def get(self, request, id):
         user = self.get_object(id)
-
-        if not user.visibility:
+        
+        if not user.visibility and request.user != user:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         serializer = PublicProfileSerializer(user)

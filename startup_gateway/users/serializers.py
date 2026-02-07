@@ -8,6 +8,8 @@ from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db import IntegrityError
+from django.utils.text import slugify
 
 from rest_framework import serializers
 
@@ -136,7 +138,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
     def validate_slug(self, value: str):
         value = value.strip().lower()
-
+        
         if not value:
             raise serializers.ValidationError("Slug cannot be empty.")
 
@@ -153,6 +155,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
         return value
 
+
     # ---------------- MEDIA / CONTACT ----------------
 
     def validate_media_urls(self, value):
@@ -160,7 +163,16 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("media_urls must be a list.")
 
         for url in value:
+            if not isinstance(url, str):
+                raise serializers.ValidationError("All URLs must be strings.")
+            
             parsed = urlparse(url)
+            
+            if parsed.scheme not in {"http","https"}:
+                raise serializers.ValidationError(
+                    f"Only http/https URLs are allowed. Invalid URL: {url}"
+                )
+
             if not parsed.scheme or not parsed.netloc:
                 raise serializers.ValidationError(
                     f"Invalid URL in media_urls: {url}"
@@ -181,9 +193,11 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
         return value
 
-    # ---------------- PUT / PATCH ----------------
-
+# ---------------- PUT / PATCH ----------------
     def validate(self, attrs):
+        """
+        For PUT (partial=False), ensure required fields are present
+        """
         if not self.partial:
             required_fields = {
                 "slug",
@@ -195,23 +209,29 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {field: "This field is required." for field in missing}
                 )
+
         return attrs
 
     # ---------------- UPDATE ----------------
-
     def update(self, instance, validated_data):
         tags = validated_data.pop("tags", None)
 
-        with transaction.atomic():
-            for attr, value in validated_data.items():
-                setattr(instance, attr, value)
+        try:
+            with transaction.atomic():
+                for attr, value in validated_data.items():
+                    setattr(instance, attr, value)
+                instance.save()
 
-            instance.save()
+                if tags is not None:
+                    instance.tags.set(tags)
 
-            if tags is not None:
-                instance.tags.set(tags)
+        except IntegrityError:
+            raise serializers.ValidationError(
+                {"slug": "This slug is already in use."}
+            )
 
         return instance
+
 
 
 # =========================================================

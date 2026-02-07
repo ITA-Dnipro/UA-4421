@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.utils.crypto import salted_hmac
+from django.utils.text import slugify
 
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,44 @@ def verify_email_token(token):
     return user
 
 
+def generate_unique_slug(username, user_id=None):
+    """
+    Generate a unique slug from a username.
+
+    Args:
+        username (str): The username to base the slug on.
+        user_id (int, optional): The ID of the current user (to exclude from uniqueness check).
+
+    Returns:
+        str: A unique slug string.
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    # Base slug from username
+    base_slug = slugify(username)
+    if not base_slug:
+        # Fallback if username is empty or cannot be slugified
+        base_slug = f"user-{uuid.uuid4().hex[:8]}"
+    
+    # Ensure uniqueness
+    slug = base_slug
+    counter = 1
+    
+    query = User.objects.filter(slug=slug)
+    if user_id:
+        query = query.exclude(id=user_id)
+    
+    # Append a counter until a unique slug is found
+    while query.exists():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+        query = User.objects.filter(slug=slug)
+        if user_id:
+            query = query.exclude(id=user_id)
+    
+    return slug
+
 
 @transaction.atomic
 def register_user(validated_data, user_model):
@@ -132,12 +171,16 @@ def register_user(validated_data, user_model):
         should_send_email = not getattr(existing, "verified", False)
         return existing, False, should_send_email
 
+    username = email.split('@')[0]
+    slug = generate_unique_slug(username)  
+
     user = user_model(
-        username=uuid.uuid4().hex,
+        username=username,
         email=email,
         phone=phone,
         verified=False,
         is_active=False,
+        slug=slug,  
     )
     user.set_password(validated_data["password"])
     user.save()
