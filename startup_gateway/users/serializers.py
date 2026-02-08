@@ -199,11 +199,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         For PUT (partial=False), ensure required fields are present
         """
         if not self.partial:
-            required_fields = {
-                "slug",
-                "short_description",
-                "visibility",
-            }
+            required_fields = {"slug"}
             missing = required_fields - set(attrs.keys())
             if missing:
                 raise serializers.ValidationError(
