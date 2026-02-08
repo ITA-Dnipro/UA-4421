@@ -119,26 +119,14 @@ def verify_email_token(token):
 
 
 def generate_unique_slug(username, user_id=None):
-    """
-    Generate a unique slug from a username.
 
-    Args:
-        username (str): The username to base the slug on.
-        user_id (int, optional): The ID of the current user (to exclude from uniqueness check).
-
-    Returns:
-        str: A unique slug string.
-    """
     from django.contrib.auth import get_user_model
     User = get_user_model()
     
-    # Base slug from username
     base_slug = slugify(username)
-    if not base_slug:
-        # Fallback if username is empty or cannot be slugified
+    if not base_slug:        
         base_slug = f"user-{uuid.uuid4().hex[:8]}"
-    
-    # Ensure uniqueness
+   
     slug = base_slug
     counter = 1
     
@@ -146,7 +134,6 @@ def generate_unique_slug(username, user_id=None):
     if user_id:
         query = query.exclude(id=user_id)
     
-    # Append a counter until a unique slug is found
     while query.exists():
         slug = f"{base_slug}-{counter}"
         counter += 1

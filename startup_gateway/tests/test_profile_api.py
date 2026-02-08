@@ -42,7 +42,6 @@ def other_user(db):
 
 @pytest.fixture
 def tags(db):
-    """Create test tags"""
     from projects.models import Tag
     return [
         Tag.objects.create(name="python"),
@@ -51,7 +50,7 @@ def tags(db):
 
 
 # ========================================
-# 1️⃣ GET PROFILE TESTS
+# GET PROFILE TESTS
 # ========================================
 @pytest.mark.django_db
 class TestGetProfile:
@@ -86,7 +85,7 @@ class TestGetProfile:
 
 
 # ========================================
-# 2️⃣ PATCH PROFILE TESTS
+# PATCH PROFILE TESTS
 # ========================================
 @pytest.mark.django_db
 class TestPatchProfile:
@@ -138,7 +137,7 @@ class TestPatchProfile:
 
 
 # ========================================
-# 3️⃣ PUT PROFILE TESTS
+# PUT PROFILE TESTS
 # ========================================
 @pytest.mark.django_db
 class TestPutProfile:
@@ -161,7 +160,7 @@ class TestPutProfile:
 
 
 # ========================================
-# 4️⃣ MEDIA URLS TESTS
+# MEDIA URLS TESTS
 # ========================================
 @pytest.mark.django_db
 class TestProfileMediaUrls:
@@ -194,7 +193,7 @@ class TestProfileMediaUrls:
 
 
 # ========================================
-# 5️⃣ CONTACTS TESTS
+# CONTACTS TESTS
 # ========================================
 @pytest.mark.django_db
 class TestProfileContacts:
@@ -220,7 +219,7 @@ class TestProfileContacts:
 
 
 # ========================================
-# 6️⃣ PATCH REQUIRED FIELDS TESTS
+# PATCH REQUIRED FIELDS TESTS
 # ========================================
 @pytest.mark.django_db
 class TestProfilePatchRequiredFields:
@@ -233,7 +232,7 @@ class TestProfilePatchRequiredFields:
 
 
 # ========================================
-# 7️⃣ SLUG SERVICE TESTS
+# SLUG SERVICE TESTS
 # ========================================
 @pytest.mark.django_db
 class TestSlugService:
@@ -252,13 +251,12 @@ class TestSlugService:
 
 
 # ========================================
-# 8️⃣ TAGS TESTS
+# TAGS TESTS
 # ========================================
 @pytest.mark.django_db
 class TestProfileTags:
 
-    def test_add_valid_tags(self, api_client, owner_user, tags):
-        """Can add valid tags to profile"""
+    def test_add_valid_tags(self, api_client, owner_user, tags):        
         api_client.force_authenticate(user=owner_user)
         url = reverse("profile-detail", args=[owner_user.id])
         
@@ -271,8 +269,7 @@ class TestProfileTags:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["tags"]) == 2
 
-    def test_invalid_tag_id_returns_400(self, api_client, owner_user):
-        """Non-existent tag ID returns 400"""
+    def test_invalid_tag_id_returns_400(self, api_client, owner_user):        
         api_client.force_authenticate(user=owner_user)
         url = reverse("profile-detail", args=[owner_user.id])
         
@@ -285,8 +282,7 @@ class TestProfileTags:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "tags" in response.data
 
-    def test_tags_not_list_returns_400(self, api_client, owner_user):
-        """Tags must be a list"""
+    def test_tags_not_list_returns_400(self, api_client, owner_user):        
         api_client.force_authenticate(user=owner_user)
         url = reverse("profile-detail", args=[owner_user.id])
         
@@ -297,6 +293,3 @@ class TestProfileTags:
         )
         
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-        
-# ---------- END OF FILE ----------
