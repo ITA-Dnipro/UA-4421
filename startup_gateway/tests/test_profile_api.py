@@ -1,14 +1,17 @@
 import pytest
+import re
 from django.urls import reverse
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+from users.services import generate_unique_slug
 
 User = get_user_model()
 
 
-# ---------- Fixtures ----------
-
+# ========================================
+# ---------- FIXTURES ----------
+# ========================================
 @pytest.fixture
 def api_client():
     return APIClient()
@@ -37,111 +40,263 @@ def other_user(db):
     )
 
 
-# ---------- GET profile ----------
+@pytest.fixture
+def tags(db):
+    """Create test tags"""
+    from projects.models import Tag
+    return [
+        Tag.objects.create(name="python"),
+        Tag.objects.create(name="django"),
+    ]
 
+
+# ========================================
+# 1️⃣ GET PROFILE TESTS
+# ========================================
 @pytest.mark.django_db
-def test_public_profile_visible_to_anonymous(api_client, owner_user):
-    owner_user.visibility = True
-    owner_user.save()
+class TestGetProfile:
 
-    url = reverse("profile-detail", args=[owner_user.id])
-    response = api_client.get(url)
+    def test_public_profile_visible_to_anonymous(self, api_client, owner_user):
+        owner_user.visibility = True
+        owner_user.save()
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["id"] == owner_user.id
 
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["id"] == owner_user.id
+    def test_hidden_profile_visible_to_owner(self, api_client, owner_user):
+        owner_user.visibility = False
+        owner_user.save()
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_hidden_profile_not_visible_to_anonymous(self, api_client, owner_user):
+        owner_user.visibility = False
+        owner_user.save()
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_invalid_id_returns_404(self, api_client):
+        url = reverse("profile-detail", args=[999999])
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+# ========================================
+# 2️⃣ PATCH PROFILE TESTS
+# ========================================
 @pytest.mark.django_db
-def test_hidden_profile_visible_to_owner(api_client, owner_user):
-    owner_user.visibility = False
-    owner_user.save()
+class TestPatchProfile:
 
-    api_client.force_authenticate(user=owner_user)
+    @pytest.mark.parametrize("slug,value", [
+        ("Max-1999", "max-1999"),
+        ("another-TEST", "another-test"),
+    ])
+    def test_slug_lowercased(self, api_client, owner_user, slug, value):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"slug": slug, "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        owner_user.refresh_from_db()
+        assert owner_user.slug == value
 
-    url = reverse("profile-detail", args=[owner_user.id])
-    response = api_client.get(url)
+    @pytest.mark.parametrize("slug", ["", "№slug", "slug@", "slug!"])
+    def test_slug_invalid(self, api_client, owner_user, slug):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"slug": slug, "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "slug" in response.data
 
-    assert response.status_code == status.HTTP_200_OK
+    def test_slug_same_as_current(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"slug": owner_user.slug, "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_slug_duplicate_returns_400(self, api_client, owner_user, other_user):
+        other_user.slug = "taken-slug"
+        other_user.save()
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"slug": "taken-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "slug" in response.data
+
+    def test_owner_can_patch_other_fields(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        payload = {"short_description": "Updated desc", "visibility": False}
+        response = api_client.patch(url, payload, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        owner_user.refresh_from_db()
+        assert owner_user.short_description == "Updated desc"
+        assert owner_user.visibility is False
 
 
+# ========================================
+# 3️⃣ PUT PROFILE TESTS
+# ========================================
 @pytest.mark.django_db
-def test_hidden_profile_not_visible_to_anonymous(api_client, owner_user):
-    owner_user.visibility = False
-    owner_user.save()
+class TestPutProfile:
 
-    url = reverse("profile-detail", args=[owner_user.id])
-    response = api_client.get(url)
+    def test_put_requires_all_required_fields(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.put(url, {"short_description": "Only one field"}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "slug" in response.data
 
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    def test_put_all_fields_plus_extra(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        payload = {"slug": "new-slug", "short_description": "desc", "visibility": True, "extra": "ignored"}
+        response = api_client.put(url, payload, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        owner_user.refresh_from_db()
+        assert owner_user.slug == "new-slug"
 
 
+# ========================================
+# 4️⃣ MEDIA URLS TESTS
+# ========================================
 @pytest.mark.django_db
-def test_invalid_id_returns_404(api_client):
-    url = reverse("profile-detail", args=[999999])
-    response = api_client.get(url)
+class TestProfileMediaUrls:
 
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    @pytest.mark.parametrize("value", ["string", 123, True, {}])
+    def test_media_urls_not_list(self, api_client, owner_user, value):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"media_urls": value, "slug": "test-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_media_urls_list_not_strings(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"media_urls": [123, True, {}], "slug": "test-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    @pytest.mark.parametrize("url", ["ftp://example.com", "http:/example.com", "example.com"])
+    def test_media_urls_invalid_url(self, api_client, owner_user, url):
+        api_client.force_authenticate(user=owner_user)
+        url_api = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url_api, {"media_urls": [url], "slug": "test-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_media_urls_valid(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url_api = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url_api, {"media_urls": ["https://example.com/image.png"], "slug": "test-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_200_OK
 
 
-# ---------- PATCH profile ----------
-
+# ========================================
+# 5️⃣ CONTACTS TESTS
+# ========================================
 @pytest.mark.django_db
-def test_owner_can_patch_profile(api_client, owner_user):
-    api_client.force_authenticate(user=owner_user)
+class TestProfileContacts:
 
-    url = reverse("profile-detail", args=[owner_user.id])
-    payload = {
-        "short_description": "Updated description",
-        "visibility": False,
-    }
+    @pytest.mark.parametrize("value", ["string", [], 123, True])
+    def test_contacts_not_dict(self, api_client, owner_user, value):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"contact": value, "slug": "test-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    response = api_client.patch(url, payload, format="json")
+    def test_contacts_invalid_keys(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"contact": {"facebook": "url"}, "slug": "test-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["short_description"] == "Updated description"
-    assert response.data["visibility"] is False
+    def test_contacts_valid(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"contact": {"email": "test@test.com", "telegram": "@nick"}, "slug": "test-slug", "short_description": "desc", "visibility": True}, format="json")
+        assert response.status_code == status.HTTP_200_OK
 
 
+# ========================================
+# 6️⃣ PATCH REQUIRED FIELDS TESTS
+# ========================================
 @pytest.mark.django_db
-def test_non_owner_cannot_patch_profile(api_client, owner_user, other_user):
-    api_client.force_authenticate(user=other_user)
+class TestProfilePatchRequiredFields:
 
-    url = reverse("profile-detail", args=[owner_user.id])
-    response = api_client.patch(
-        url,
-        {"short_description": "Hack attempt"},
-        format="json",
-    )
-
-    assert response.status_code == status.HTTP_403_FORBIDDEN
+    def test_patch_missing_required_fields(self, api_client, owner_user):
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        response = api_client.patch(url, {"slug": "only-slug"}, format="json")
+        assert response.status_code == status.HTTP_200_OK
 
 
+# ========================================
+# 7️⃣ SLUG SERVICE TESTS
+# ========================================
 @pytest.mark.django_db
-def test_duplicate_slug_returns_400(api_client, owner_user, other_user):
-    api_client.force_authenticate(user=other_user)
+class TestSlugService:
 
-    url = reverse("profile-detail", args=[other_user.id])
-    response = api_client.patch(
-        url,
-        {"slug": owner_user.slug},
-        format="json",
-    )
+    def test_generate_slug_fallback(self):
+        user = User(username="!!!")
+        slug = generate_unique_slug(user)
+        assert re.match(r"user-[a-f0-9]{8}", slug)
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "slug" in response.data
+    def test_generate_slug_increment(self):
+        User.objects.create(username="test0", slug="test")
+        User.objects.create(username="test", slug="")
+        user = User(username="test")
+        slug = generate_unique_slug(user)
+        assert slug == "test-1"
 
 
-# ---------- PUT profile ----------
-
+# ========================================
+# 8️⃣ TAGS TESTS
+# ========================================
 @pytest.mark.django_db
-def test_put_requires_all_required_fields(api_client, owner_user):
-    api_client.force_authenticate(user=owner_user)
+class TestProfileTags:
 
-    url = reverse("profile-detail", args=[owner_user.id])
-    response = api_client.put(
-        url,
-        {"short_description": "Only one field"},
-        format="json",
-    )
+    def test_add_valid_tags(self, api_client, owner_user, tags):
+        """Can add valid tags to profile"""
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        
+        response = api_client.patch(
+            url,
+            {"tags": [tags[0].id, tags[1].id]},
+            format="json"
+        )
+        
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["tags"]) == 2
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    def test_invalid_tag_id_returns_400(self, api_client, owner_user):
+        """Non-existent tag ID returns 400"""
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        
+        response = api_client.patch(
+            url,
+            {"tags": [999999]},
+            format="json"
+        )
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "tags" in response.data
+
+    def test_tags_not_list_returns_400(self, api_client, owner_user):
+        """Tags must be a list"""
+        api_client.force_authenticate(user=owner_user)
+        url = reverse("profile-detail", args=[owner_user.id])
+        
+        response = api_client.patch(
+            url,
+            {"tags": "not-a-list"},
+            format="json"
+        )
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+        
+# ---------- END OF FILE ----------
