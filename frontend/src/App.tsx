@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import RegisterStartup from './pages/RegisterStartup'
 import StartupView from './pages/StartupView'
 import InvestorDashboard from './pages/InvestorDashboard'
 import Inbox from './pages/Inbox'
@@ -17,11 +18,12 @@ export default function App() {
       <Navbar />
 
       <Routes>
-        {/* Публічні */}
+        {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/register/startup" element={<RegisterStartup />} />
 
-        {/* Захищені */}
+        {/* Protected routes */}
         <Route
           path="/"
           element={
