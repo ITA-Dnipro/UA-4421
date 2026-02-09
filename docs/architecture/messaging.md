@@ -36,11 +36,11 @@ send → persist → publish to channel → create notification via background w
 
 ## Security
 
-Security is achieved by these restrictions
+Security is achieved by these restrictions.
 
-### auth checks
+### Auth checks
 
-### sanitize message content
+### Message content sanitization
 
 ### Limiting attachments
 
@@ -50,11 +50,20 @@ Types and sizes of the attachment are validated server-side; if the attachment d
 
 Attachment URLs are served via signed URLs or public S3 links.
 
-### Admin escalation
+### Reporting and admin escalation
+
+To flag conversation or message POST /api/conversations/{id}/report/. The report is stored and the admin gets notified.
+
+The admin has an endpoint to read reports and take actions, such as removing the message or banning the user from messaging.
 
 // TODO(Sofiia or Andrii): Document escalation path for admin. [#3]
-// Future task: don't overextend scope.
+// Future task.
 
 ## Backpressure & rate limiting approach.
+
+Each user has a message send throttle. By default it is 30 messages/min. For first N minutes express-interest/send-message endpoints have a stricter limit. Excessive sending results with the offender getting a 429 code.
+
+// TODO(Sofiia or Andrii): Define N and message send throttle [#2]
+// Future task.
 
 // Diagrams (sequence for send/receive, flow for offline notifications).
