@@ -8,14 +8,12 @@ For storing messages we use MongoDB. It has these features:
 - The **BSON** format has the human-readable qualities of JSON, while also builds and scans quickly.
 - **Flexible metadata** //TODO
 
-Postgres for relational data
+Meanwhile, for relational data we use Postgres for reasons such as:
 
-- users
-- notifications
+- Compatibility with the **users** database.
+- **Notification** handling.
 
-## Channel layer
-
-Redis
+For the channel layer we use Redis.
 
 - requirements
 - config
@@ -36,8 +34,8 @@ Acknowledgement protocol should be lightweight (client emits ack with message id
 
 ## Scaling & retention strategy
 
-- sharding
-- TTL indexes in Mongo
+MongoDB 
+It is a non-relational database, that is designed to be self-contained collections instead. As such, it supports **sharding,** a way to horizontally partition the database without breaking it. To remove bloating, MongoDB also supports **TTL indexes** (Time-to-live indexes), meaning temporary data can be automatically removed by MongoDB.
 - archiving
 
 ## Security
