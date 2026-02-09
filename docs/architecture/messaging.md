@@ -28,6 +28,12 @@ JWT, because I'm pretty sure we use JWT. Session cookie otherwise.
 
 send → persist → publish to channel → create notification via background worker.
 
+When a message is broadcast, mark status='delivered' for recipients whose sockets acknowledged the message (consumer should send ack).
+When user marks messages read (via mark_read or automatically when viewing), update message docs and emit read_receipt via Channels to other participants.
+Ensure state changes persisted and visible via REST APIs (message status fields).
+
+Acknowledgement protocol should be lightweight (client emits ack with message id upon receipt).
+
 ## Scaling & retention strategy
 
 - sharding
@@ -41,6 +47,9 @@ Security is achieved by these restrictions.
 ### Auth checks
 
 ### Message content sanitization
+
+POST /api/conversations/{id}/report/ to flag conversation or message (store report, notify admin).
+Admin endpoint to read reports and take action (remove message, ban user from messaging).
 
 ### Limiting attachments
 
