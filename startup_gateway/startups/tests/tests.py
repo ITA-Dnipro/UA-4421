@@ -1,7 +1,8 @@
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from startups.models import StartupProfile
-from dashboard.models import SavedStartup
+from dashboard.models import SavedItem
 from investors.models import InvestorProfile
 
 User = get_user_model()
@@ -54,10 +55,15 @@ class StartupApiTests(APITestCase):
             user=self.investor_user,
             company_name="Test Investor Corp"
         )
-        SavedStartup.objects.create(
-            startup_profile=self.startup,
-            investor_profile=investor_profile
+
+        content_type = ContentType.objects.get_for_model(StartupProfile)
+
+        SavedItem.objects.create(
+            investor_profile=investor_profile,
+            content_type=content_type,
+            object_id=self.startup.id,
         )
+
         response = self.client.get('/api/startups/test-startup/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['followers_count'], 1)
