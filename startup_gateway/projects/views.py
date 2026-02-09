@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.db import transaction
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -79,35 +80,26 @@ class ProjectStateServiceView(APIView):
     permission_classes = [IsOwnerOrReadOnly]
 
     def patch(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
-        
-        self.check_object_permissions(request, project)
-
-        serializer = ProjectStateSerializer(
-            data=request.data,
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-
-        state_service = ProjectStateService()
-
         try:
-            if "raised_amount" in serializer.validated_data:
-                state_service.update_raised_amount(
-                    project,
-                    serializer.validated_data["raised_amount"]
+            with transaction.atomic():
+
+                project = Project.objects.select_for_update().get(pk=pk)
+                self.check_object_permissions(request, project)
+
+                serializer = ProjectStateSerializer(data=request.data, partial=True)
+                serializer.is_valid(raise_exception=True)
+
+                state_service = ProjectStateService()
+                
+                project = state_service.update_project_state(
+                    project=project,
+                    data=serializer.validated_data,
+                    user_is_staff=request.user.is_staff
                 )
-            if "status" in serializer.validated_data:
-                new_status = serializer.validated_data["status"]
-                if not (new_status == ProjectStatus.FUNDED and project.status == ProjectStatus.FUNDED):
-                    state_service.change_status(
-                        project,
-                        new_status,
-                        admin_override=request.user.is_staff
-                    )
+
         except ValidationError as e:
-            return Response(
-                {"detail": e.message},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        except Project.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
         return Response(ProjectDetailsSerializer(project).data)
