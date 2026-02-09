@@ -36,11 +36,24 @@ send → persist → publish to channel → create notification via background w
 
 ## Security
 
+Security is achieved by these restrictions
+
 ### auth checks
 
 ### sanitize message content
 
-### limit attachments
+### Limiting attachments
+
+Attachments are pre-uploaded to an existing POST (/api/uploads/) with the upload_id included in message payload. The server resolves the upload_id and stores the reference in the message document attachments.
+
+Types and sizes of the attachment are validated server-side; if the attachment does not fit the criteria or is invalid, it gets rejected.
+
+Attachment URLs are served via signed URLs or public S3 links.
+
+### Admin escalation
+
+// TODO(Sofiia or Andrii): Document escalation path for admin. [#3]
+// Future task: don't overextend scope.
 
 ## Backpressure & rate limiting approach.
 
