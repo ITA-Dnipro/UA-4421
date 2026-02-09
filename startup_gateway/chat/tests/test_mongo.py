@@ -66,8 +66,11 @@ class MongoDBChatTest(TestCase):
         self.assertTrue(len(conversation_id) > 0)  # UUID string
         
         # Verify in database
-        conversation = self.chat_service.get_conversation(conversation_id)
-        self.assertIsNotNone(conversation)
+        result = self.chat_service.get_conversation(conversation_id)
+        self.assertIsNotNone(result)
+        
+        # Task 9: get_conversation now returns {conversation, messages, ...}
+        conversation = result['conversation']
         
         # Verify participants
         self.assertEqual(set(conversation['participants']), {self.user1.id, self.user2.id})
@@ -93,23 +96,21 @@ class MongoDBChatTest(TestCase):
             participants=[self.user1.id, self.user2.id]
         )
         
-        # Send message
-        message_id = self.chat_service.send_message(
+        # Task 9: Renamed send_message → create_message
+        # Now returns full message document instead of just ID
+        message = self.chat_service.create_message(
             conversation_id=conversation_id,
             sender_id=self.user1.id,
             body="Test message"
         )
         
         # Verify message was created
+        self.assertIsNotNone(message)
+        self.assertIn('_id', message)
+        message_id = message['_id']
         self.assertIsNotNone(message_id)
         
-        # Retrieve and verify message
-        messages = self.chat_service.get_messages(conversation_id)
-        self.assertEqual(len(messages), 1)
-        
-        message = messages[0]
-        
-        # Verify schema fields
+        # Verify message fields directly from returned document
         self.assertEqual(message['conversation_id'], conversation_id)
         self.assertEqual(message['sender_id'], self.user1.id)
         self.assertEqual(message['body'], "Test message")
