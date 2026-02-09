@@ -12,9 +12,11 @@ export default function Register() {
           </button>
         </Link>
 
-        <button type="button" disabled style={{ width: '100%' }}>
-          I'm an investor
-        </button>
+        <Link to="/register/investor" style={{ textDecoration: 'none' }}>
+          <button type="button" style={{ width: '100%' }}>
+            I'm a investor
+          </button>
+        </Link>
       </div>
     </div>
   )
