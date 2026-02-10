@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'startup_gateway.content',
     'axes',
     'drf_spectacular',
+    'uploads',
 ]
 
 
@@ -202,8 +203,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-MEDIA_ROOT = BASE_DIR / "media"
-MEDIA_URL = "/media/"
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")

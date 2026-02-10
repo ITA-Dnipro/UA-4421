@@ -1,6 +1,25 @@
 from rest_framework import serializers
-from projects.models import Project, ProjectStatus, ProjectVisibility, ModerationStatus, ModerationAction
-from startups.models import StartupProfile
+from projects.models import ModerationAction, Project, ProjectStatus, ProjectVisibility, ProjectAttachment
+from uploads.models import Upload
+
+class ProjectAttachmentSerializer(serializers.ModelSerializer):
+    upload = serializers.PrimaryKeyRelatedField(
+    queryset=Upload.objects.all()
+    )
+    
+    class Meta:
+        model = ProjectAttachment
+        fields = '__all__'
+
+class ProjectAttachmentURLSerializer(serializers.ModelSerializer):
+    upload_url = serializers.CharField(
+        source="upload.file.url",
+        read_only=True
+    )
+    
+    class Meta:
+        model = ProjectAttachment
+        fields = ["upload_url"]
 
 class ProjectSerializer(serializers.ModelSerializer):
     tags = serializers.SlugRelatedField(
@@ -17,6 +36,8 @@ class ProjectSerializer(serializers.ModelSerializer):
         }
 
 class ProjectDetailsSerializer(serializers.ModelSerializer):
+    attachments = ProjectAttachmentURLSerializer(many=True, read_only=True)
+
     tags = serializers.SlugRelatedField(
         many=True,
         read_only=True,
@@ -24,7 +45,7 @@ class ProjectDetailsSerializer(serializers.ModelSerializer):
     )
     class Meta:
         model = Project
-        fields = ["id", "slug", "title", "short_description", "description", "thumbnail_url", "status", "raised_amount", "target_amount", "currency", "visibility", "created_at", "updated_at", "startup_profile_id", "tags"]
+        fields = ["id", "slug", "title", "short_description", "description", "thumbnail_url", "status", "raised_amount", "target_amount", "currency", "visibility", "created_at", "updated_at", "startup_profile_id", "tags", "attachments"]
         read_only_fields = ["id", "created_at", "updated_at", "startup_profile_id", "raised_amount"]
         extra_kwargs = {
             "status": {"required": False},
