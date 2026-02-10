@@ -19,3 +19,6 @@ sqlparse==0.5.5
 typing_extensions==4.15.0
 tzdata==2025.3
 uritemplate==4.2.0
+pymongo==4.6.0
+redis==5.0.1
+celery==5.3.6
