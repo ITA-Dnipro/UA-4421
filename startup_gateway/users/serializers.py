@@ -64,7 +64,7 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError({"password": list(e.messages)})
 
         return attrs
-    
+
     def create(self, validated_data):
         return register_user(validated_data, user_model=User)
 

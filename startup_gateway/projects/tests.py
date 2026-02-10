@@ -7,7 +7,9 @@ from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth import get_user_model
 
 from startups.models import StartupProfile
-from projects.models import Project, ProjectStatus, ProjectVisibility
+from projects.models import Project, ProjectStatus, ProjectVisibility, ModerationStatus, ModerationAction
+
+User = get_user_model()
 
 
 class ProjectsAPITests(TestCase):
@@ -231,3 +233,82 @@ class ProjectCustomActionsAPITests(TestCase):
         self.assertEqual(float(self.project.raised_amount), 100.0)
         self.assertIsNotNone(self.project.funded_at)
         self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)
+
+
+class AdminModerationAPITest(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="admin", email="admin@test.com", password="admin123"
+        )
+        self.startup_user = User.objects.create_user(
+            username="startup", email="startup@test.com", password="pass123"
+        )
+
+        self.startup = StartupProfile.objects.create(
+            user=self.startup_user, company_name="Tech Inc"
+        )
+
+        self.project = Project.objects.create(
+            startup_profile=self.startup,
+            title="Test Project",
+            slug="test-project",
+            short_description="desc",
+            description="desc",
+            moderation_status=ModerationStatus.PENDING,
+            target_amount=10000.00
+        )
+
+        self.client = APIClient()
+
+    def test_non_admin_forbidden_list(self):
+        self.client.force_authenticate(user=self.startup_user)
+        response = self.client.get(reverse('projects:admin-project-list'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_list_projects(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get(reverse('projects:admin-project-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+
+    def test_approve_project(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
+            {'action': ModerationAction.APPROVE},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.moderation_status, ModerationStatus.APPROVED)
+
+    def test_reject_project(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
+            {'action': ModerationAction.REJECT, 'reason': 'Violates guidelines'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.moderation_status, ModerationStatus.REJECTED)
+
+    def test_flag_project(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
+            {'action': ModerationAction.FLAG, 'reason': 'Suspicious content'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.moderation_status, ModerationStatus.FLAGGED)
+
+    def test_reject_without_reason_fails(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(
+            reverse('projects:admin-project-moderate', kwargs={'id': self.project.id}),
+            {'action': ModerationAction.REJECT},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
