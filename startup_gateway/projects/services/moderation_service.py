@@ -41,6 +41,12 @@ class ProjectModerationService:
                 'rejection_reason', 'moderation_notes'
             ])
 
+            try:
+                ProjectModerationEmailService.send_rejection_email(project, reason)
+                logger.info(f"Rejection email sent for project {project.id}")
+            except Exception as e:
+                logger.error(f"Failed to send rejection email for project {project.id}: {str(e)}")
+
             message = "Project rejected"
 
         elif action == ModerationAction.FLAG:
