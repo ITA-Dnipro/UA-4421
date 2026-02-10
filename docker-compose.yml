@@ -15,6 +15,7 @@ services:
     depends_on:
       - db
       - redis
+      - meilisearch
   frontend:
     build:
       context: ./frontend
@@ -49,7 +50,7 @@ services:
       - "7700:7700"
     environment:
       MEILI_NO_ANALYTICS: "true"
-      MEILI_MASTER_KEY: "masterKey"
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
 
 volumes:
   postgres_data:

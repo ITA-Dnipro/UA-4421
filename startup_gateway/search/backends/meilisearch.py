@@ -1,3 +1,4 @@
+import os
 from meilisearch import Client
 from search.backends.base import SearchBackend
 
@@ -5,8 +6,8 @@ from search.backends.base import SearchBackend
 class MeiliSearchBackend(SearchBackend):
     def __init__(self):
         self.client = Client(
-            "http://meilisearch:7700", 
-            "masterKey"
+            os.environ["MEILI_HOST"],
+            os.environ["MEILI_MASTER_KEY"],
         )
 
     def index(self, index_name: str, document: dict) -> None:
