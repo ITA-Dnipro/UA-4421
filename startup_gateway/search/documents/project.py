@@ -8,12 +8,14 @@ class ProjectDocument:
     def from_instance(project: Project) -> dict:
         return {
             "id": str(project.id),
-            "title": project.title,
-            "short_description": project.short_description,
-            "description": project.description,
-            "startup_id": str(project.startup_profile.id),
-            "startup_name": project.startup_profile.company_name,
+            "title": project.title or "",
+            "short_description": project.short_description or "",
+            "description": project.description or "",
+            "location": project.location or "",
+            "startup_id": str(project.startup_profile.id) if project.startup_profile else "",
+            "startup_name": project.startup_profile.company_name if project.startup_profile else "",
+            "visibility": project.visibility or "public",
             "tags": [tag.name for tag in project.tags.all()],
-            "status": project.status,
-            "thumbnail_url": project.thumbnail_url,
+            "status": project.status or "",
+            "thumbnail_url": project.thumbnail_url or "",
         }

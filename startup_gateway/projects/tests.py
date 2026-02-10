@@ -212,7 +212,7 @@ class ProjectCustomActionsAPITests(TransactionTestCase):
         self.assertEqual(float(self.project.raised_amount), 0.0)
 
     # ----------------- Visibility tests -----------------
-    def test_change_visibility_to_public_triggers_indexing(self, mock_remove, mock_index, *args):
+    def test_change_visibility_to_public(self, mock_remove, mock_index, *args):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"visibility": ProjectVisibility.PUBLIC}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
