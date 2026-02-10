@@ -43,7 +43,12 @@ if not SECRET_KEY:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if h.strip()
+]
+
 
 
 # Application definition
@@ -63,6 +68,7 @@ INSTALLED_APPS = [
     'messages',
     'dashboard',
     'notifications',
+    'chat',
     'startup_gateway.content',
     'axes',
     'drf_spectacular',
@@ -111,12 +117,18 @@ DATABASES = {
     }
 }
 
+MONGODB_SETTINGS = {
+    'host': os.environ.get('MONGO_HOST', 'localhost'),
+    'port': int(os.environ.get('MONGO_PORT', 27017)),
+    'database': os.environ.get('MONGO_DB_NAME', 'startup_gateway'),
+}
+
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'users.authentication.VersionedJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
 
@@ -130,6 +142,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'password_reset': '5/hour',
+        'password_reset_confirm': '10/hour',
         'anon': '100/m',
         'user': '100/m',
     },
@@ -160,6 +173,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN': True,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
