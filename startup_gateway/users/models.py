@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 import uuid
 
 class Role(models.Model):
@@ -164,3 +165,58 @@ class PasswordResetConfirmation(models.Model):
         status = "successful" if self.success else f"failed ({self.failure_reason})"
         user_info = self.user.username if self.user else "unknown user"
         return f"Password reset {status} for {user_info} at {self.created_at}"
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+        db_index=True,
+    )
+
+    token_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="(hex) of the raw reset token",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="When the reset token was issued",
+    )
+
+    expires_at = models.DateTimeField(
+        db_index=True,
+        help_text="When the reset token expires",
+    )
+
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="When the reset token was used (one-time)",
+    )
+
+    revoked = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether the reset token was revoked",
+    )
+
+    class Meta:
+        db_table = "users_password_reset_tokens"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["expires_at"]),
+            models.Index(fields=["user", "revoked", "used_at", "expires_at"]),
+        ]
+
+    def is_active(self) -> bool:
+        return (not self.revoked) and (self.used_at is None) and (self.expires_at > timezone.now())
+
+    def __str__(self):
+        return f"PasswordResetToken(user_id={self.user_id}, created_at={self.created_at}, revoked={self.revoked})"
