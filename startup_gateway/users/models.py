@@ -42,6 +42,28 @@ class User(AbstractUser):
         help_text="Incremented on password change to invalidate existing JWT tokens"
     )
 
+    slug = models.SlugField(
+        max_length=160,
+        unique=True,
+        blank=False,
+    )
+
+    about_html = models.TextField(blank=True)
+    short_description = models.CharField(max_length=300, blank=True)
+    contact = models.JSONField(default=dict, blank=True)
+    website = models.URLField(max_length=200, blank=True)
+    media_urls = models.JSONField(default=list, blank=True)
+    visibility = models.BooleanField(default=True)
+
+    #  Relations
+
+    tags = models.ManyToManyField(
+        "projects.Tag",
+        through="UserTag",
+        related_name="users",
+        blank=True
+    )
+
     roles = models.ManyToManyField(
         Role,
         through='UserRole',
@@ -80,6 +102,32 @@ class UserRole(models.Model):
     def __str__(self):
         return f"{self.user.username} → {self.role.name}"
 
+
+class UserTag(models.Model):
+    """
+    Intermediate table for linking User ↔ Tag (many-to-many).
+    """
+
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE
+    )
+    tag = models.ForeignKey(
+        "projects.Tag",
+        on_delete=models.CASCADE
+    )
+
+    class Meta:
+        db_table = "users_tags"
+        unique_together = ("user", "tag")
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["tag"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} ↔ {self.tag.name}"
+    
 
 class PasswordResetAttempt(models.Model):
     user = models.ForeignKey(
