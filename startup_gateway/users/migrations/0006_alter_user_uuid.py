@@ -4,13 +4,29 @@ import uuid
 from django.db import migrations, models
 
 
-class Migration(migrations.Migration):
+def remove_duplicate_uuids(apps, schema_editor):
+    User = apps.get_model('users', 'User')
+    seen_uuids = set()
+    users_to_delete = []
 
+    for user in User.objects.all().order_by('id'):
+        if user.uuid:
+            if user.uuid in seen_uuids:
+                users_to_delete.append(user.id)
+            else:
+                seen_uuids.add(user.uuid)
+
+    if users_to_delete:
+        User.objects.filter(id__in=users_to_delete).delete()
+
+
+class Migration(migrations.Migration):
     dependencies = [
         ("users", "0005_user_uuid"),
     ]
 
     operations = [
+        migrations.RunPython(remove_duplicate_uuids),
         migrations.AlterField(
             model_name="user",
             name="uuid",

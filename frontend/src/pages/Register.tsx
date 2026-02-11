@@ -14,7 +14,7 @@ export default function Register() {
 
         <Link to="/register/investor" style={{ textDecoration: 'none' }}>
           <button type="button" style={{ width: '100%' }}>
-            I'm a investor
+            I'm an investor
           </button>
         </Link>
       </div>

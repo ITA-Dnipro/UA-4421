@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from projects.models import Project, ProjectStatus, ProjectVisibility
+from projects.models import Project, ProjectStatus, ProjectVisibility, ModerationStatus, ModerationAction
+from startups.models import StartupProfile
 
 class ProjectSerializer(serializers.ModelSerializer):
     tags = serializers.SlugRelatedField(
@@ -50,3 +51,47 @@ class ProjectStateSerializer(serializers.Serializer):
                 "At least one field (status or raised_amount) must be provided."
             )
         return attrs
+
+
+class AdminProjectListSerializer(serializers.ModelSerializer):
+    startup = serializers.SerializerMethodField()
+    owner_email = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Project
+        fields = [
+            'id', 'title', 'slug', 'startup', 'owner_email',
+            'moderation_status', 'is_deleted', 'created_at',
+            'moderated_at', 'tags', 'target_amount', 'raised_amount'
+        ]
+
+    def get_startup(self, obj):
+        return {
+            'id': obj.startup_profile.id,
+            'company_name': obj.startup_profile.company_name
+        }
+
+    def get_owner_email(self, obj):
+        return obj.startup_profile.user.email
+
+    def get_tags(self, obj):
+        return list(obj.tags.values_list('name', flat=True))
+
+class ModerationActionSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(
+        choices=[ModerationAction.APPROVE, ModerationAction.REJECT, ModerationAction.FLAG],
+        required=True
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+    def validate(self, data):
+        action = data.get('action')
+        reason = data.get('reason', '').strip()
+
+        if action == ModerationAction.REJECT and not reason:
+            raise serializers.ValidationError({
+                'reason': 'Reason is required when rejecting a project'
+            })
+        return data
