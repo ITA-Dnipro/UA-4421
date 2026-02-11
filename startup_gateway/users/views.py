@@ -1,14 +1,16 @@
+from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from rest_framework import status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle
 import logging
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
-from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer, PasswordResetConfirmSerializer
+from .permissions import IsOwnerOrReadOnly
+from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer, PasswordResetConfirmSerializer, PublicProfileSerializer, ProfileUpdateSerializer
 from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
 from .tokens import password_reset_token_generator
 from .email_service import PasswordResetEmailService
@@ -281,3 +283,68 @@ class PasswordResetConfirmView(APIView):
                 return 'invalid_token'
 
         return 'validation_error'
+    
+
+# PROFILE
+class ProfileDetailUpdateView(APIView):
+    """
+    GET    /api/profiles/{id}/
+    PATCH  /api/profiles/{id}/
+    PUT    /api/profiles/{id}/
+    """
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return [
+            IsAuthenticated(),
+            IsOwnerOrReadOnly(),
+        ]
+
+    def get_object(self, id):
+        return get_object_or_404(User, id=id)
+
+    def get(self, request, id):
+        user = self.get_object(id)
+        
+        if not user.visibility and request.user != user:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PublicProfileSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, id):
+        user = self.get_object(id)
+        self.check_object_permissions(request, user)
+
+        serializer = ProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return Response(
+            PublicProfileSerializer(user).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+    def put(self, request, id):
+        user = self.get_object(id)
+        self.check_object_permissions(request, user)
+
+        serializer = ProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=False,
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return Response(
+            PublicProfileSerializer(user).data,
+            status=status.HTTP_200_OK,
+        )
+    
