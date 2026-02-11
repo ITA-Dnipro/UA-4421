@@ -28,9 +28,6 @@ class Notification(models.Model):
     event_key = models.CharField(
         max_length=128,
         unique=True,
-        null=True,
-        blank=True,
-        help_text="Unique key for idempotency to prevent duplicate notifications"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

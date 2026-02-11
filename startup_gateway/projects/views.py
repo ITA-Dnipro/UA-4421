@@ -11,6 +11,7 @@ from rest_framework import generics, permissions, status
 from notifications.tasks import handle_project_event
 from django.core.exceptions import ValidationError
 from rest_framework.views import APIView
+from django.utils.timezone import now
 
 from projects.models import Project, ProjectStatus
 from projects.services.project_state_service import ProjectStateService
@@ -96,6 +97,7 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
             payload={
                 "old_status": old_status,
                 "new_status": updated_project.status,
+                "timestamp": now().isoformat(),
             },
         )
 

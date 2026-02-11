@@ -8,7 +8,7 @@ from startups.models import StartupProfile
 from investors.models import InvestorProfile
 from dashboard.models import SavedStartup
 from notifications.models import Notification
-from notifications.tasks import handle_project_event
+from notifications.tasks import handle_project_event, send_project_email
 from rest_framework.test import APIClient
 
 User = get_user_model()
@@ -255,3 +255,37 @@ def test_status_change_triggers_notification_task():
                 "new_status": ProjectStatus.FUNDRAISING,
             },
         )
+def test_email_throttling(db, celery_worker, user, project):
+    # Створюємо перший Notification
+    Notification.objects.create(user=user, project=project, message="Test 1")
+    
+    # Перший виклик email таску → повинен відправити
+    result1 = send_project_email(user.id, project.id)
+    assert "Email sent" in result1
+    
+    # Другий виклик через короткий час → повинен пропустити
+    Notification.objects.create(user=user, project=project, message="Test 2")
+    result2 = send_project_email(user.id, project.id)
+    assert "already sent" in result2
+
+
+def test_email_batching(db, celery_worker, user, project):
+    # Створюємо декілька unread notifications
+    for i in range(3):
+        Notification.objects.create(user=user, project=project, message=f"Notif {i}")
+    
+    result = send_project_email(user.id, project.id)
+    
+    # Має обробити всі 3
+    assert "3 notifications" in result
+
+def test_email_idempotence(db, celery_worker, user, project):
+    Notification.objects.create(user=user, project=project, message="Test")
+    
+    send_project_email(user.id, project.id)
+    count_before = Notification.objects.filter(user=user, project=project).count()
+    
+    send_project_email(user.id, project.id)
+    count_after = Notification.objects.filter(user=user, project=project).count()
+    
+    assert count_before == count_after
