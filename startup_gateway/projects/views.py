@@ -35,15 +35,14 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         user = self.request.user
         if user.is_authenticated:
+            if user.is_staff:
+                return qs
             return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
 
         return qs.filter(visibility="public")
 
     def perform_create(self, serializer):
         startup = get_object_or_404(StartupProfile, id=self.kwargs["startup_id"])
-
-        # if startup.user != self.request.user:
-        #     raise PermissionDenied("Only owner can create projects for this startup.")
 
         serializer.save(startup_profile=startup)
 
@@ -77,6 +76,8 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
         user = self.request.user
 
         if user.is_authenticated:
+            if user.is_staff:
+                return qs
             return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
 
         return qs.filter(visibility="public")

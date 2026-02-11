@@ -93,7 +93,10 @@ class CanCreateProject(BasePermission):
         startup_id = view.kwargs.get("startup_id")
         if not startup_id:
             return False
-
+        
+        if user.is_staff:
+            return True 
+        
         return hasattr(user, "startup_profile") and \
                str(user.startup_profile.id) == str(startup_id)
     
