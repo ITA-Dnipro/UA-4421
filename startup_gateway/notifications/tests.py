@@ -119,8 +119,8 @@ def test_project_status_change_creates_notification():
     assert notification.type == "project_status_changed"
     assert notification.payload["new_status"] == ProjectStatus.FUNDRAISING
 
-    
-    assert notification.event_key == f"project_status_changed:{project.id}:{investor_user.id}"
+    # Event key should include the event type, project id, user id, and a timestamp
+    assert notification.event_key.startswith(f"project_status_changed:{project.id}:{investor_user.id}:")
 @pytest.mark.django_db
 def test_project_event_idempotency():
     """

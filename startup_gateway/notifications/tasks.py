@@ -106,9 +106,15 @@ def handle_project_event(event_type, project_id, payload):
         return
 
     recipients = get_recipients(project)
+    
+    # Ensure we always have a timestamp for the event_key
+    # If no timestamp in payload, add one for idempotency
+    if 'timestamp' not in payload:
+        payload['timestamp'] = now().isoformat()
+    timestamp = payload['timestamp']
 
     for user in recipients:
-        event_key = f"{event_type}:{project.id}:{user.id}"
+        event_key = f"{event_type}:{project.id}:{user.id}:{timestamp}"
 
         try:
 
