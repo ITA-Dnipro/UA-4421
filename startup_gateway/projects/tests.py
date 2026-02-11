@@ -7,15 +7,10 @@ from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth import get_user_model
 
 from startups.models import StartupProfile
-<<<<<<< HEAD
-from projects.models import Project, ProjectStatus, ProjectVisibility
 from unittest.mock import patch
-=======
 from projects.models import Project, ProjectStatus, ProjectVisibility, ModerationStatus, ModerationAction
 
 User = get_user_model()
-
->>>>>>> ae20edd8dc021f56341ef599acc42dbd7bc44920
 
 class ProjectsAPITests(TestCase):
     def setUp(self):
