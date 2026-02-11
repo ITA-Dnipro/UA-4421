@@ -504,6 +504,7 @@ class TestPasswordResetApi(APITestCase):
             email='test2@example.com',
             password='TestPass123!',
             is_active=True,
+            slug='test2-example.com'
         )
 
         resp1 = self.client.post(
@@ -554,6 +555,7 @@ class TestPasswordResetToken(APITestCase):
             username='testuser2',
             email='test2@example.com',
             password='TestPass123!',
+            slug = 'test2@example.com'
         )
 
         token = password_reset_token_generator.make_token(self.user)
@@ -895,6 +897,7 @@ class TestPasswordResetConfirm(APITestCase):
             username='testuser',
             email='test@example.com',
             password='OldPass123!',
+            slug="unique-slug",
             is_active=True,
         )
         self.url = '/api/auth/password-reset/confirm/'
@@ -1002,6 +1005,7 @@ class TestPasswordResetConfirm(APITestCase):
             username='testuser2',
             email='test2@example.com',
             password='OldPass123!',
+            slug='test2-example.com'
         )
 
         token = password_reset_token_generator.make_token(self.user)
