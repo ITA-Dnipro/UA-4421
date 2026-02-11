@@ -1,3 +1,5 @@
+import re
+from urllib.parse import urlparse
 import uuid
 
 from datetime import timedelta
@@ -12,9 +14,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .services import register_user
 from users.models import Role
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import F
 from .models import PasswordResetConfirmation
+from projects.models import Tag
 import logging
 
 User = get_user_model()
@@ -212,3 +215,157 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['jwt_version'] = user.jwt_version
 
         return token
+
+
+# Profiles Serializators
+
+class UserStatsMixin(serializers.Serializer):
+    stats = serializers.SerializerMethodField()
+
+    def get_stats(self, obj):
+        return {
+            "projects_count": getattr(obj, "projects_count", 0),
+            "followers": getattr(obj, "followers_count", 0),
+            "views": getattr(obj, "views_count", 0),
+        }
+    
+
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ("id", "name")
+
+
+class PublicProfileSerializer(UserStatsMixin, serializers.ModelSerializer):
+    tags = TagSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "slug",
+            "about_html",
+            "short_description",
+            "contact",
+            "website",
+            "tags",
+            "stats",
+            "media_urls",
+            "visibility",
+        )
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    tags = serializers.PrimaryKeyRelatedField(
+        queryset=Tag.objects.all(),
+        many=True,
+        required=False,
+    )
+
+    class Meta:
+        model = User
+        fields = (
+            "slug",
+            "about_html",
+            "short_description",
+            "contact",
+            "website",
+            "tags",
+            "media_urls",
+            "visibility",
+        )
+
+    # ---------------- SLUG ----------------
+
+    def validate_slug(self, value: str):
+        value = value.strip().lower()
+        
+        if not value:
+            raise serializers.ValidationError("Slug cannot be empty.")
+
+        if not re.match(r"^[a-z0-9-]+$", value):
+            raise serializers.ValidationError(
+                "Slug may contain only lowercase letters, numbers and hyphens."
+            )
+
+        if self.instance and self.instance.slug == value:
+            return value
+
+        if User.objects.filter(slug=value).exists():
+            raise serializers.ValidationError("This slug is already in use.")
+
+        return value
+
+
+    # ---------------- MEDIA / CONTACT ----------------
+
+    def validate_media_urls(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("media_urls must be a list.")
+
+        for url in value:
+            if not isinstance(url, str):
+                raise serializers.ValidationError("All URLs must be strings.")
+            
+            parsed = urlparse(url)
+            
+            if parsed.scheme not in {"http","https"}:
+                raise serializers.ValidationError(
+                    f"Only http/https URLs are allowed. Invalid URL: {url}"
+                )
+
+            if not parsed.scheme or not parsed.netloc:
+                raise serializers.ValidationError(
+                    f"Invalid URL in media_urls: {url}"
+                )
+        return value
+
+    def validate_contact(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("contact must be an object.")
+
+        allowed_keys = {"email", "phone", "telegram", "linkedin"}
+        unknown_keys = set(value.keys()) - allowed_keys
+
+        if unknown_keys:
+            raise serializers.ValidationError(
+                f"Unsupported contact fields: {', '.join(unknown_keys)}"
+            )
+
+        return value
+
+# ---------------- PUT / PATCH ----------------
+    def validate(self, attrs):
+        """
+        For PUT (partial=False), ensure required fields are present
+        """
+        if not self.partial:
+            required_fields = {"slug"}
+            missing = required_fields - set(attrs.keys())
+            if missing:
+                raise serializers.ValidationError(
+                    {field: "This field is required." for field in missing}
+                )
+
+        return attrs
+
+    # ---------------- UPDATE ----------------
+    def update(self, instance, validated_data):
+        tags = validated_data.pop("tags", None)
+
+        try:
+            with transaction.atomic():
+                for attr, value in validated_data.items():
+                    setattr(instance, attr, value)
+                instance.save()
+
+                if tags is not None:
+                    instance.tags.set(tags)
+
+        except IntegrityError:
+            raise serializers.ValidationError(
+                {"slug": "This slug is already in use."}
+            )
+
+        return instance
