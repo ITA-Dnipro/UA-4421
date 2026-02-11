@@ -26,6 +26,11 @@ User = get_user_model()
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class TestRegisterApi(APITestCase):
+    def setUp(self):
+        super().setUp()
+        # створюємо ролі для тестової бази
+        Role.objects.get_or_create(name="startup")
+        Role.objects.get_or_create(name="investor")
     def test_happy_path_startup(self):
         payload = {
             "email": "alice@example.com",
@@ -198,6 +203,10 @@ class TestRegisterApi(APITestCase):
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class TestVerifyEmailApi(APITestCase):
+    def setUp(self):
+        super().setUp()
+        Role.objects.get_or_create(name="startup")
+        Role.objects.get_or_create(name="investor")
     def test_verify_email_happy_path(self):
         payload = {
             "email": "alice@example.com",
