@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.utils.crypto import salted_hmac
-
+from django.utils.text import slugify
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +116,24 @@ def verify_email_token(token):
 
     return user
 
+def generate_unique_slug(base: str | None = None, instance_id: int | None = None):
+    base_slug = slugify(base)
+
+    if not base_slug:
+        base_slug = f"{uuid.uuid4().hex[:8]}"
+
+    slug = base_slug
+    counter = 1 
+
+    queryset = User.objects.all()
+    if instance_id:
+        queryset= queryset.exclude(pk=instance_id)
+
+    while queryset.filter(slug=slug).exists():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    return slug
 
 
 @transaction.atomic
@@ -132,12 +150,16 @@ def register_user(validated_data, user_model):
         should_send_email = not getattr(existing, "verified", False)
         return existing, False, should_send_email
 
+    email_for_slag = f"{email.split('@')[0]}-{email.split('@')[1]}"
+    slug=generate_unique_slug(email_for_slag)
+
     user = user_model(
         username=uuid.uuid4().hex,
         email=email,
         phone=phone,
         verified=False,
         is_active=False,
+        slug=slug,
     )
     user.set_password(validated_data["password"])
     user.save()
