@@ -137,7 +137,7 @@ class ProjectAttachment(models.Model):
         on_delete=models.CASCADE,
         related_name="attachments"
     )
-    upload = models.ForeignKey("uploads.Upload", on_delete=models.CASCADE, default=None)   
+    upload = models.ForeignKey("uploads.Upload", on_delete=models.CASCADE, null=True, blank=True)   
     type = models.CharField(max_length=10, choices=AttachmentType.choices)
     order = models.PositiveIntegerField(default=0)
     caption = models.CharField(max_length=255, blank=True)
