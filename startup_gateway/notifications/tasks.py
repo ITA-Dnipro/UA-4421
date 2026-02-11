@@ -2,11 +2,12 @@ import logging
 from celery import shared_task
 from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.utils.timezone import now, timedelta
 
 from projects.models import Project, ProjectStatus
 from notifications.models import Notification
-from dashboard.models import SavedStartup
+from dashboard.models import SavedItem
 
 
 logger = logging.getLogger(__name__)
@@ -31,39 +32,64 @@ def build_project_funded_email(project, user):
 # --- Email batching / throttling task ---
 @shared_task
 def send_project_email(user_id, project_id):
+    """Send (stub) aggregated email about unread notifications for a project.
+
+    This task is intentionally simple and stores a throttle marker as a
+    Notification record with type='project_email_sent'.
+    """
     try:
         user = User.objects.get(id=user_id)
         project = Project.objects.get(id=project_id)
     except (User.DoesNotExist, Project.DoesNotExist):
         return f"User or Project not found: {user_id}, {project_id}"
 
-    # перевірка throttling (1 email / 24h)
+    # throttling (1 email / 24h) — check only the email marker notifications
     recent_email = Notification.objects.filter(
         user=user,
         project=project,
-        created_at__gte=now() - timedelta(hours=24)
+        type="project_email_sent",
+        created_at__gte=now() - timedelta(hours=24),
     ).exists()
 
     if recent_email:
         return f"Email already sent for project {project_id} in last 24h"
 
-    # агрегуємо unread notifications
-    unread = Notification.objects.filter(user=user, project=project, read=False)
+    # aggregate unread notifications (excluding any email marker)
+    unread = Notification.objects.filter(
+        user=user,
+        project=project,
+        is_read=False,
+    ).exclude(type="project_email_sent")
 
     if not unread.exists():
         return f"No unread notifications for project {project_id}"
 
-    # TODO: тут виклик реальної функції відправки email
-    print(f"Sending email to {user.email} for project {project_id} ({unread.count()} notifications)")
+    unread_count = unread.count()
 
-    # створюємо запис Notification або EmailLog
-    Notification.objects.create(
-        user=user,
-        project=project,
-        message=f"Aggregated {unread.count()} notifications",
+    # TODO: replace with a real email sender
+    logger.info(
+        "EMAIL STUB | to=%s | project_id=%s | notifications=%s",
+        user.email,
+        project_id,
+        unread_count,
     )
 
-    return f"Email sent for project {project_id}"
+    # Mark aggregated notifications as read (so we don't email them again).
+    unread.update(is_read=True)
+
+    # Create a throttle marker notification.
+    Notification.objects.get_or_create(
+        event_key=f"project_email_sent:{project.id}:{user.id}:{now().date().isoformat()}",
+        defaults={
+            "user": user,
+            "project": project,
+            "type": "project_email_sent",
+            "payload": {"count": unread_count},
+            "is_read": True,
+        },
+    )
+
+    return f"Email sent for project {project_id} ({unread_count} notifications)"
 
 
 # Main task
@@ -82,7 +108,7 @@ def handle_project_event(event_type, project_id, payload):
     recipients = get_recipients(project)
 
     for user in recipients:
-        event_key = f"{event_type}:{project.id}:{user.id}:{payload.get('timestamp')}"
+        event_key = f"{event_type}:{project.id}:{user.id}"
 
         try:
 
@@ -137,13 +163,19 @@ def handle_project_event(event_type, project_id, payload):
 def get_recipients(project):
     """
     Resolve users who should receive notifications for project events.
-    Path: Project -> StartupProfile -> SavedStartup -> InvestorProfile -> User
+
+    SavedItem stores targets via (content_type, object_id), where object_id is a UUID.
+    For startups we save StartupProfile.uuid (not the integer PK).
+
+    Path: Project -> StartupProfile.uuid -> SavedItem -> InvestorProfile -> User
     """
+    startup_ct = ContentType.objects.get_for_model(project.startup_profile)
+
     user_ids = (
-        SavedStartup.objects
-        .filter(startup_profile=project.startup_profile)
-        .select_related("investor_profile__user")
+        SavedItem.objects
+        .filter(content_type=startup_ct, object_id=project.startup_profile.uuid)
         .values_list("investor_profile__user_id", flat=True)
+        .distinct()
     )
 
     return User.objects.filter(id__in=user_ids)

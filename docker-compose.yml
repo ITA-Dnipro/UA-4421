@@ -15,6 +15,8 @@ services:
     depends_on:
       - db
       - redis
+      - mongodb
+      - meilisearch
   frontend:
     build:
       context: ./frontend
@@ -26,6 +28,7 @@ services:
       - "3000:3000"
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - VITE_API_URL=http://backend:8000
 
   db:
     image: postgres:15
@@ -42,6 +45,46 @@ services:
     image: redis:7
     ports:
       - "6379:6379"
+    
+  mongodb:
+    image: mongo:7.0
+    container_name: startup_gateway_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: startup_gateway
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    
+  mongo-express:
+    image: mongo-express:latest
+    container_name: startup_gateway_mongo_express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: pass
+    depends_on:
+      - mongodb
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.5
+    ports:
+      - "7700:7700"
+    env_file:
+      - ./startup_gateway/.env.docker
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+      
 volumes:
   postgres_data:
+  mongodb_data:

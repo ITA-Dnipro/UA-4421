@@ -1,17 +1,52 @@
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.utils.timezone import make_aware
 
 from projects.models import Project, ProjectStatus
 from startups.models import StartupProfile
 from investors.models import InvestorProfile
-from dashboard.models import SavedStartup
+from dashboard.models import SavedItem
 from notifications.models import Notification
 from notifications.tasks import handle_project_event, send_project_email
 from rest_framework.test import APIClient
 
 User = get_user_model()
+
+
+@pytest.fixture
+def user(db):
+    return User.objects.create_user(
+        username="investor_email",
+        email="investor_email@test.com",
+        password="pass123",
+    )
+
+
+@pytest.fixture
+def project(db):
+    startup_user = User.objects.create_user(
+        username="startup_email",
+        email="startup_email@test.com",
+        password="pass123",
+    )
+    startup_profile = StartupProfile.objects.create(
+        user=startup_user,
+        company_name="Test Startup",
+    )
+
+    return Project.objects.create(
+        startup_profile=startup_profile,
+        title="Email Project",
+        slug="email-project",
+        short_description="short",
+        description="full",
+        target_amount=1000,
+        status=ProjectStatus.IDEA,
+    )
 
 
 @pytest.mark.django_db
@@ -44,9 +79,11 @@ def test_project_status_change_creates_notification():
     )
 
     
-    SavedStartup.objects.create(
+    startup_ct = ContentType.objects.get_for_model(startup_profile)
+    SavedItem.objects.create(
         investor_profile=investor_profile,
-        startup_profile=startup_profile,
+        content_type=startup_ct,
+        object_id=startup_profile.uuid,
     )
 
     
@@ -113,9 +150,11 @@ def test_project_event_idempotency():
         company_name="Investor",
     )
 
-    SavedStartup.objects.create(
+    startup_ct = ContentType.objects.get_for_model(startup)
+    SavedItem.objects.create(
         investor_profile=investor,
-        startup_profile=startup,
+        content_type=startup_ct,
+        object_id=startup.uuid,
     )
 
     project = Project.objects.create(
@@ -162,6 +201,7 @@ def test_notifications_api_list():
         user=user,
         type="project_created",
         payload={"foo": "bar"},
+        event_key=f"project_created:test:{user.id}",
     )
 
     client = APIClient()
@@ -186,6 +226,7 @@ def test_notifications_mark_read():
         type="project_created",
         payload={},
         is_read=False,
+        event_key=f"project_created:mark_read:{user.id}",
     )
 
     client = APIClient()
@@ -220,9 +261,11 @@ def test_status_change_triggers_notification_task():
         company_name="Test Investor",
     )
 
-    SavedStartup.objects.create(
+    startup_ct = ContentType.objects.get_for_model(startup_profile)
+    SavedItem.objects.create(
         investor_profile=investor_profile,
-        startup_profile=startup_profile,
+        content_type=startup_ct,
+        object_id=startup_profile.uuid,
     )
 
     project = Project.objects.create(
@@ -238,7 +281,12 @@ def test_status_change_triggers_notification_task():
     client = APIClient()
     client.force_authenticate(user=startup_user)
 
-    with patch("projects.views.handle_project_event.delay") as mock_task:
+    fixed_now = make_aware(datetime(2026, 2, 11, 12, 0, 0))
+
+    with (
+        patch("projects.views.now", return_value=fixed_now),
+        patch("projects.views.handle_project_event.delay") as mock_task,
+    ):
         response = client.patch(
             f"/api/projects/{project.id}/",
             data={"status": ProjectStatus.FUNDRAISING},
@@ -246,46 +294,77 @@ def test_status_change_triggers_notification_task():
         )
 
         assert response.status_code == 200
+        mock_task.assert_called_once()
 
-        mock_task.assert_called_once_with(
-            event_type="project_status_changed",
-            project_id=str(project.id),
-            payload={
-                "old_status": ProjectStatus.IDEA,
-                "new_status": ProjectStatus.FUNDRAISING,
-            },
-        )
-def test_email_throttling(db, celery_worker, user, project):
-    # Створюємо перший Notification
-    Notification.objects.create(user=user, project=project, message="Test 1")
-    
-    # Перший виклик email таску → повинен відправити
+        kwargs = mock_task.call_args.kwargs
+        assert kwargs["event_type"] == "project_status_changed"
+        assert kwargs["project_id"] == str(project.id)
+        assert kwargs["payload"]["old_status"] == ProjectStatus.IDEA
+        assert kwargs["payload"]["new_status"] == ProjectStatus.FUNDRAISING
+        assert kwargs["payload"]["timestamp"] == fixed_now.isoformat()
+
+
+def test_email_throttling(db, user, project):
+    Notification.objects.create(
+        user=user,
+        project=project,
+        type="project_status_changed",
+        payload={"n": 1},
+        event_key=f"project_status_changed:{project.id}:{user.id}:1",
+    )
+
     result1 = send_project_email(user.id, project.id)
     assert "Email sent" in result1
-    
-    # Другий виклик через короткий час → повинен пропустити
-    Notification.objects.create(user=user, project=project, message="Test 2")
+
+    Notification.objects.create(
+        user=user,
+        project=project,
+        type="project_status_changed",
+        payload={"n": 2},
+        event_key=f"project_status_changed:{project.id}:{user.id}:2",
+    )
+
     result2 = send_project_email(user.id, project.id)
-    assert "already sent" in result2
+    assert "Email already sent" in result2
 
 
-def test_email_batching(db, celery_worker, user, project):
-    # Створюємо декілька unread notifications
+def test_email_batching(db, user, project):
     for i in range(3):
-        Notification.objects.create(user=user, project=project, message=f"Notif {i}")
-    
-    result = send_project_email(user.id, project.id)
-    
-    # Має обробити всі 3
-    assert "3 notifications" in result
+        Notification.objects.create(
+            user=user,
+            project=project,
+            type="project_status_changed",
+            payload={"n": i},
+            event_key=f"project_status_changed:{project.id}:{user.id}:batch:{i}",
+        )
 
-def test_email_idempotence(db, celery_worker, user, project):
-    Notification.objects.create(user=user, project=project, message="Test")
-    
+    result = send_project_email(user.id, project.id)
+    assert "(3 notifications)" in result
+
+    assert (
+        Notification.objects.filter(
+            user=user,
+            project=project,
+            type="project_status_changed",
+            is_read=False,
+        ).count()
+        == 0
+    )
+
+
+def test_email_idempotence(db, user, project):
+    Notification.objects.create(
+        user=user,
+        project=project,
+        type="project_status_changed",
+        payload={"n": 1},
+        event_key=f"project_status_changed:{project.id}:{user.id}:idem:1",
+    )
+
     send_project_email(user.id, project.id)
     count_before = Notification.objects.filter(user=user, project=project).count()
-    
+
     send_project_email(user.id, project.id)
     count_after = Notification.objects.filter(user=user, project=project).count()
-    
+
     assert count_before == count_after
