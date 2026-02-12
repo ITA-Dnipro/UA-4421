@@ -54,6 +54,7 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
     'users',
     'startups',
     'investors',
@@ -105,6 +107,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'startup_gateway.wsgi.application'
+ASGI_APPLICATION = 'startup_gateway.asgi.application'
+
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {'hosts': [('redis', 6379)]},
+    },
+}
+
 
 DATABASES = {
     "default": {
