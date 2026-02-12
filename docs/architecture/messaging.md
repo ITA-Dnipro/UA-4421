@@ -6,7 +6,7 @@ For storing messages we use MongoDB. It has these features:
 
 - **Fast append speed,** which is important for users when messaging.
 - The **BSON** format has the human-readable qualities of JSON, while also builds and scans quickly.
-- **Flexible metadata** //TODO
+- **Flexibility** //TODO
 
 Meanwhile, for relational data we use Postgres for reasons such as:
 
@@ -24,11 +24,22 @@ JWT, because I'm pretty sure we use JWT. Session cookie otherwise.
 
 ## Message lifecycle
 
-send → persist → publish to channel → create notification via background worker.
+1. send
 
-When a message is broadcast, mark status='delivered' for recipients whose sockets acknowledged the message (consumer should send ack).
-When user marks messages read (via mark_read or automatically when viewing), update message docs and emit read_receipt via Channels to other participants.
-Ensure state changes persisted and visible via REST APIs (message status fields).
+    When a message is broadcast, mark status='delivered' for recipients whose sockets acknowledged the message (consumer should send ack).
+
+2. persist
+
+    When user marks messages read (via mark_read or automatically when viewing), 
+
+3. publish to channel
+
+    update message docs and emit read_receipt via Channels to other participants.
+
+4. create notification via background worker.
+    
+    Ensure state changes persisted and visible via REST APIs (message status fields).
+
 
 Acknowledgement protocol should be lightweight (client emits ack with message id upon receipt).
 
@@ -42,12 +53,11 @@ It is a non-relational database, that is designed to be self-contained collectio
 
 Security is achieved by these restrictions.
 
-### Auth checks
+### Authentication checks
 
 ### Message content sanitization
 
-POST /api/conversations/{id}/report/ to flag conversation or message (store report, notify admin).
-Admin endpoint to read reports and take action (remove message, ban user from messaging).
+For v1, there is a keyword blocklist for the profanity filter.
 
 ### Limiting attachments
 
