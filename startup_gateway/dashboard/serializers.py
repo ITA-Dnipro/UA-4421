@@ -62,86 +62,13 @@ class SavedItemCreateSerializer(serializers.Serializer):
     
 
 class SavedItemListSerializer(serializers.Serializer):
-    id = serializers.UUIDField(source="object_id", read_only=True)
-    saved_id = serializers.IntegerField(source="id")
-    type = serializers.SerializerMethodField()
-    title = serializers.SerializerMethodField()
-    slug = serializers.SerializerMethodField()
-    thumbnail_url = serializers.SerializerMethodField()
-    short_description = serializers.SerializerMethodField()
-    location = serializers.SerializerMethodField()
-    tags = serializers.SerializerMethodField()
-    saved_at = serializers.DateTimeField(source="created_at")
-
-
-    def get_type(self, obj):
-        model = obj.content_type.model
-        if model == "startupprofile":
-            return "startup"
-        if model == "project":
-            return "project"
-        if model == "user":
-            return "company"
-        return model
-
-    def _target(self, obj):
-        return obj.target
-
-    def get_title(self, obj):
-        t = self._target(obj)
-        if hasattr(t, "title"):
-            return t.title
-        if hasattr(t, "company_name"):
-            return t.company_name
-        if hasattr(t, "username"):
-            return t.username
-        return ""
-
-    def get_slug(self, obj):
-        t = self._target(obj)
-        return getattr(t, "slug", "")
-
-    def get_thumbnail_url(self, obj):
-        t = self._target(obj)
-        return getattr(t, "thumbnail_url", "") or getattr(t, "logo_url", "")
-
-    def get_short_description(self, obj):
-        t = self._target(obj)
-        return getattr(t, "short_description", "") or getattr(t, "short_pitch", "")
-
-    def get_location(self, obj):
-        t = self._target(obj)
-        if hasattr(t, "region"):
-            regions = t.region.values_list("name", flat=True)
-            return ", ".join(regions)
-        return ""
-
-    def get_tags(self, obj):
-        content_type = obj.content_type.model
-        object_id = obj.object_id
-
-        if content_type == "project":
-            project = Project.objects.filter(id=object_id).first()
-            return list(
-                project.tags
-                .values_list("name", flat=True)
-                .distinct()
-            )
-
-        if content_type == "startupprofile":
-            startup = StartupProfile.objects.filter(uuid=object_id).first()
-            return list(
-                startup.projects
-                .values_list("tags__name", flat=True)
-                .distinct()
-            )
-
-        if content_type == "user":
-            user = User.objects.filter(uuid=object_id).first()
-            return list(
-                user.startup_profile.projects
-                .values_list("tags__name", flat=True)
-                .distinct()
-            )
-
-        return []
+    id = serializers.UUIDField()
+    saved_id = serializers.IntegerField()
+    type = serializers.CharField()
+    title = serializers.CharField(allow_blank=True)
+    slug = serializers.CharField(allow_blank=True)
+    thumbnail_url = serializers.CharField(allow_blank=True)
+    short_description = serializers.CharField(allow_blank=True)
+    location = serializers.CharField(allow_blank=True)
+    tags = serializers.ListField(child=serializers.CharField())
+    saved_at = serializers.DateTimeField()
