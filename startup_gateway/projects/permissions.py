@@ -109,4 +109,5 @@ class CanModifyProject(BasePermission):
             return False
 
         return obj.startup_profile.user == user
+    
 
