@@ -14,7 +14,7 @@ from rest_framework.pagination import PageNumberPagination
 from projects.models import Project, ModerationStatus
 from projects.services.project_state_service import ProjectStateService
 from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
-    AdminProjectListSerializer, ModerationActionSerializer
+    AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer
 from projects.services.moderation_service import ProjectModerationService
 from startups.models import StartupProfile
 from .permissions import  IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
@@ -188,3 +188,14 @@ class ProjectModerateView(APIView):
             'message': message,
             'project': AdminProjectListSerializer(project).data
         }, status=status.HTTP_200_OK)
+
+class ProjectAttachmentCreateAPIView(APIView):
+    serializer_class = ProjectAttachmentSerializer
+    permission_classes = [IsOwnerOrReadOnly]
+
+    def post(self, request):
+        serializer = ProjectAttachmentSerializer(data=request.data)
+        if serializer.is_valid():
+            attachment = serializer.save()
+            return Response(ProjectAttachmentSerializer(attachment).data, status=201)
+        return Response(serializer.errors, status=400)

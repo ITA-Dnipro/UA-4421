@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (ProjectRUDAPIView, StartUpProjectsListCreateAPIView, ProjectStateServiceView, AdminProjectListView, ProjectModerateView)
+from .views import (ProjectRUDAPIView, StartUpProjectsListCreateAPIView, ProjectStateServiceView, AdminProjectListView, ProjectModerateView, ProjectAttachmentCreateAPIView)
 
 app_name = "projects"
 
@@ -9,4 +9,5 @@ urlpatterns = [
     path("projects/<uuid:pk>/status/", ProjectStateServiceView.as_view(), name="project-state-service"),
     path('admin/projects/', AdminProjectListView.as_view(), name='admin-project-list'),
     path('admin/projects/<uuid:id>/moderate/', ProjectModerateView.as_view(), name='admin-project-moderate'),
+    path("projects/attachments/create/", ProjectAttachmentCreateAPIView.as_view(), name="project-attachment-create"),
 ]
