@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'startup_gateway.content',
     'axes',
     'drf_spectacular',
+    'uploads',
 ]
 
 
