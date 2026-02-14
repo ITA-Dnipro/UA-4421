@@ -191,7 +191,7 @@ class ProjectModerateView(APIView):
 
 class ProjectAttachmentCreateAPIView(APIView):
     serializer_class = ProjectAttachmentSerializer
-    permission_classes = [IsOwnerOrReadOnly]
+    permission_classes = [CanModifyProject]
 
     def post(self, request):
         serializer = ProjectAttachmentSerializer(data=request.data)
