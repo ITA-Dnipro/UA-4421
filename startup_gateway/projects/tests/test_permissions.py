@@ -6,7 +6,6 @@ from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth import get_user_model
 from startups.models import StartupProfile
 from projects.models import Project, ProjectStatus, ProjectVisibility
-from unittest.mock import patch
 
 User = get_user_model()
 
@@ -55,7 +54,6 @@ class ProjectPermissionTests(TestCase):
             "visibility": "public",
         }
 
-    # ----------------- Create tests -----------------
     def test_staff_can_create_project_for_any_startup(self):
         self.auth_as(self.staff_user)
         resp = self.client.post(self.startup_projects_url, data=self.project_payload(slug="staff-project"), format="json")
@@ -68,7 +66,6 @@ class ProjectPermissionTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         self.assertFalse(Project.objects.filter(slug="blocked-project").exists())
 
-    # ----------------- Modify tests -----------------
     def test_staff_can_modify_any_project(self):
         self.auth_as(self.staff_user)
         url = reverse("projects:project-rud", kwargs={"pk": self.project.pk})

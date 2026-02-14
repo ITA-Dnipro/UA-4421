@@ -97,8 +97,10 @@ class CanCreateProject(BasePermission):
         if user.is_staff:
             return True 
         
-        return hasattr(user, "startup_profile") and \
-               str(user.startup_profile.id) == str(startup_id)
+        return (
+            hasattr(user, "startup_profile") and
+            user.startup_profile_id == int(startup_id)
+            )
     
 class CanModifyProject(BasePermission):
     message = "Only owner or admin can modify this project."

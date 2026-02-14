@@ -160,7 +160,6 @@ class ProjectCustomActionsAPITests(TransactionTestCase):
     def _status_url(self):
         return reverse("projects:project-state-service", kwargs={"pk": self.project.pk})
 
-    # ----------------- Status update tests -----------------
     def test_status_update_success(self, mock_remove, mock_index, *args):
         self.auth_as(self.owner_user)
         self.project.raised_amount = 100
@@ -187,7 +186,6 @@ class ProjectCustomActionsAPITests(TransactionTestCase):
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, ProjectStatus.MVP)
 
-    # ----------------- Raised amount tests -----------------
     def test_set_raised_amount_success(self, mock_remove, mock_index, *args):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"raised_amount": "50.00"}, format="json")
@@ -213,7 +211,6 @@ class ProjectCustomActionsAPITests(TransactionTestCase):
         self.project.refresh_from_db()
         self.assertEqual(float(self.project.raised_amount), 0.0)
 
-    # ----------------- Visibility tests -----------------
     def test_change_visibility_to_public(self, mock_remove, mock_index, *args):
         self.auth_as(self.owner_user)
         resp = self.client.patch(self._status_url(), data={"visibility": ProjectVisibility.PUBLIC}, format="json")
@@ -221,7 +218,6 @@ class ProjectCustomActionsAPITests(TransactionTestCase):
         self.project.refresh_from_db()
         self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)
 
-    # ----------------- Combined update test -----------------
     def test_partial_update_status_and_amount(self, mock_remove, mock_index, *args):
         self.auth_as(self.owner_user)
         resp = self.client.patch(
@@ -236,7 +232,6 @@ class ProjectCustomActionsAPITests(TransactionTestCase):
         self.assertIsNotNone(self.project.funded_at)
         self.assertEqual(self.project.visibility, ProjectVisibility.PUBLIC)
 
-    # ----------------- Indexing test -----------------
     def test_change_visibility_to_public_triggers_indexing(self, mock_remove, mock_index, *args):
         self.auth_as(self.owner_user)
         

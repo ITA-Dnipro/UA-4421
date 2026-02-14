@@ -11,13 +11,13 @@ from rest_framework.views import APIView
 import logging
 from django_filters import rest_framework as filters
 from rest_framework.pagination import PageNumberPagination
-from projects.models import Project, ProjectStatus, ModerationStatus, ModerationAction
+from projects.models import Project, ModerationStatus
 from projects.services.project_state_service import ProjectStateService
 from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
     AdminProjectListSerializer, ModerationActionSerializer
 from projects.services.moderation_service import ProjectModerationService
 from startups.models import StartupProfile
-from .permissions import IsOwnerOrReadOnly, IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
+from .permissions import  IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
 
 logger = logging.getLogger(__name__)
 
