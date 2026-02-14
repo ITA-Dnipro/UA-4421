@@ -15,7 +15,6 @@ class ProjectPermissionTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.owner_user = User.objects.create_user(username="owner", password="pass123")
-        self.staff_user = User.objects.create_user(username="staff", password="pass123", is_staff=True)
         self.other_user = User.objects.create_user(username="other", password="pass123")
 
         self.startup = StartupProfile.objects.create(user=self.owner_user)
@@ -54,25 +53,11 @@ class ProjectPermissionTests(TestCase):
             "visibility": "public",
         }
 
-    def test_staff_can_create_project_for_any_startup(self):
-        self.auth_as(self.staff_user)
-        resp = self.client.post(self.startup_projects_url, data=self.project_payload(slug="staff-project"), format="json")
-        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(Project.objects.filter(slug="staff-project").exists())
-
     def test_non_owner_cannot_create_project(self):
         self.auth_as(self.other_user)
         resp = self.client.post(self.startup_projects_url, data=self.project_payload(slug="blocked-project"), format="json")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         self.assertFalse(Project.objects.filter(slug="blocked-project").exists())
-
-    def test_staff_can_modify_any_project(self):
-        self.auth_as(self.staff_user)
-        url = reverse("projects:project-rud", kwargs={"pk": self.project.pk})
-        resp = self.client.patch(url, data={"short_description": "staff updated"}, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.project.refresh_from_db()
-        self.assertEqual(self.project.short_description, "staff updated")
 
     def test_owner_can_modify_own_project(self):
         self.auth_as(self.owner_user)

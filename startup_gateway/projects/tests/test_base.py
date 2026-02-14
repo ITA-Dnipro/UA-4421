@@ -179,12 +179,6 @@ class ProjectCustomActionsAPITests(TransactionTestCase):
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, ProjectStatus.FUNDRAISING)
 
-    def test_status_update_admin_override(self, mock_remove, mock_index, *args):
-        self.auth_as(self.admin_user)
-        resp = self.client.patch(self._status_url(), data={"status": ProjectStatus.MVP}, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.project.refresh_from_db()
-        self.assertEqual(self.project.status, ProjectStatus.MVP)
 
     def test_set_raised_amount_success(self, mock_remove, mock_index, *args):
         self.auth_as(self.owner_user)

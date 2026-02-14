@@ -96,7 +96,7 @@ class CanCreateProject(BasePermission):
         
         return (
             hasattr(user, "startup_profile") and
-            user.startup_profile_id == int(startup_id)
+            user.startup_profile.id == int(startup_id)
             )
     
 class CanModifyProject(BasePermission):
