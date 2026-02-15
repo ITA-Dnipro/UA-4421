@@ -73,12 +73,12 @@ class ProjectStateService:
         try:
             from projects.models import Project
             project = Project.objects.get(pk=project_id)
-            
+
             if project.visibility == ProjectVisibility.PUBLIC:
                 self.search_service.index_project(project)
             else:
                 self.search_service.remove_project(project)
         except Project.DoesNotExist:
-            pass 
-
-        
+            return
+        except Exception:
+            return

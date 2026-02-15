@@ -49,16 +49,17 @@ def send_project_email(user_id, project_id):
         project=project,
         type="project_email_sent",
         created_at__gte=now() - timedelta(hours=24),
+        emailed_at__isnull=False
     ).exists()
 
     if recent_email:
         return f"Email already sent for project {project_id} in last 24h"
 
-    # aggregate unread notifications (excluding any email marker)
+    
     unread = Notification.objects.filter(
         user=user,
         project=project,
-        is_read=False,
+        emailed_at__isnull=True,
     ).exclude(type="project_email_sent")
 
     if not unread.exists():
@@ -74,10 +75,8 @@ def send_project_email(user_id, project_id):
         unread_count,
     )
 
-    # Mark aggregated notifications as read (so we don't email them again).
-    unread.update(is_read=True)
+    unread.update(emailed_at=now())
 
-    # Create a throttle marker notification.
     Notification.objects.get_or_create(
         event_key=f"project_email_sent:{project.id}:{user.id}:{now().date().isoformat()}",
         defaults={

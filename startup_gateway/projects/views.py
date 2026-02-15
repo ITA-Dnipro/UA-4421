@@ -121,17 +121,32 @@ class ProjectStateServiceView(APIView):
 
                 project = Project.objects.select_for_update().get(pk=pk)
                 self.check_object_permissions(request, project)
+                old_status = project.status
 
                 serializer = ProjectStateSerializer(data=request.data, partial=True)
                 serializer.is_valid(raise_exception=True)
 
                 state_service = ProjectStateService()
-                
+
                 project = state_service.update_project_state(
                     project=project,
                     data=serializer.validated_data,
                     user_is_staff=request.user.is_staff
                 )
+
+                # Keep notifications consistent with PATCH /api/projects/{id}/
+                if old_status != project.status:
+                    transaction.on_commit(
+                        lambda: handle_project_event.delay(
+                            event_type="project_status_changed",
+                            project_id=str(project.id),
+                            payload={
+                                "old_status": old_status,
+                                "new_status": project.status,
+                                "timestamp": now().isoformat(),
+                            },
+                        )
+                    )
 
         except ValidationError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)

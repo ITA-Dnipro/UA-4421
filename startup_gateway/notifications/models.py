@@ -25,6 +25,7 @@ class Notification(models.Model):
     type = models.CharField(max_length=50)
     payload = models.JSONField()
     is_read = models.BooleanField(default=False)
+    emailed_at = models.DateTimeField(null=True, blank=True)
     event_key = models.CharField(
         max_length=128,
         unique=True,
