@@ -211,3 +211,6 @@ EMAIL_VERIFICATION_TOKEN_MAX_AGE = int(os.getenv("EMAIL_VERIFICATION_TOKEN_MAX_A
 PASSWORD_RESET_TIMEOUT = 3600
 SITE_NAME = os.getenv("SITE_NAME", "Startup Gateway")
 FRONTEND_URL = "http://localhost:3000"
+
+MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", BASE_DIR / "media"))
