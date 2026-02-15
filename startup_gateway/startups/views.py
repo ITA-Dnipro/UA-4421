@@ -1,7 +1,10 @@
 from django.shortcuts import render
-from rest_framework.generics import RetrieveAPIView, ListAPIView
+from rest_framework.generics import RetrieveAPIView, ListAPIView, RetrieveUpdateAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import NotFound
+
 from .models import StartupProfile
-from .serializers import StartupPublicSerializer, StartupListSerializer
+from .serializers import StartupPublicSerializer, StartupListSerializer, StartupProfileMeSerializer
 from .pagination import StartupListPagination
 
 
@@ -30,3 +33,15 @@ class StartupListView(ListAPIView):
             queryset = queryset.filter(company_name__icontains=search)
 
         return queryset
+    
+class StartupProfileMeAPIView(RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = StartupProfileMeSerializer
+
+    def get_object(self):
+        user = self.request.user
+        
+        try:
+            return StartupProfile.objects.get(user=user)
+        except StartupProfile.DoesNotExist:
+            raise NotFound("Startup profile not found.")
