@@ -7,6 +7,10 @@ import uuid
 
 User = settings.AUTH_USER_MODEL
 
+logo_url = models.URLField(blank=True)
+pitch_deck_url = models.URLField(blank=True)
+hero_image_url = models.URLField(blank=True)
+
 class Region(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
