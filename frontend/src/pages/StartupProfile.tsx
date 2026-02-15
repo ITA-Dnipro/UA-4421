@@ -2,33 +2,49 @@ import { useEffect, useState } from 'react'
 import styles from './StartupProfile.module.css'
 
 type StartupMe = {
-  company_name?: string
+  company_name: string
   slug?: string
   short_pitch?: string
+  about_html?: string
   website?: string
   contact_email?: string
   contact_phone?: string
+  hero_image_url?: string
   logo_url?: string | null
   pitch_deck_url?: string | null
 }
 
-const LOGO_MAX_BYTES = 10 * 1024 * 1024
-const PITCH_DECK_MAX_BYTES = 10 * 1024 * 1024
+const LOGO_ALLOWED_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/svg+xml',
+] as const
 
-const LOGO_ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
-const PITCH_DECK_ALLOWED_TYPES = new Set([
+const PITCH_DECK_ALLOWED_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-])
+] as const
+
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
+const PITCH_DECK_MAX_BYTES = 10 * 1024 * 1024
 
 function validateOptionalFile(
   file: File | null,
-  opts: { label: string; allowedTypes: Set<string>; maxBytes: number },
-): string | undefined {
-  if (!file) return undefined
-  if (!opts.allowedTypes.has(file.type)) return `${opts.label} has an unsupported file type.`
-  if (file.size > opts.maxBytes) return `${opts.label} is too large.`
-  return undefined
+  rules: { label: string; allowedTypes: readonly string[]; maxBytes: number },
+) {
+  if (!file) return ''
+
+  if (!rules.allowedTypes.includes(file.type)) {
+    return `${rules.label}: invalid file type.`
+  }
+
+  if (file.size > rules.maxBytes) {
+    const mb = Math.round((rules.maxBytes / (1024 * 1024)) * 10) / 10
+    return `${rules.label}: file is too large (max ${mb} MB).`
+  }
+
+  return ''
 }
 
 function uploadWithProgress(params: {
@@ -101,16 +117,53 @@ async function patchMe(
   return data as StartupMe
 }
 
-function toMessage(value: unknown): string | undefined {
+function toMessage(value: unknown, preferKeys?: string[]): string | undefined {
   if (typeof value === 'string') return value
+
   if (Array.isArray(value)) {
-    const parts = value.map((v) => (typeof v === 'string' ? v : '')).filter(Boolean)
+    const parts = value
+      .map((v) => toMessage(v))
+      .filter(Boolean) as string[]
     return parts.length ? parts.join(' ') : undefined
   }
+
   if (value && typeof value === 'object') {
-    const obj = value as any
-    if (typeof obj.detail === 'string') return obj.detail
+    const obj = value as Record<string, unknown>
+
+    if (preferKeys?.length) {
+      for (const k of preferKeys) {
+        if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) {
+          const msg = toMessage(obj[k])
+          if (msg) return msg
+        }
+      }
+    }
+
+    const detail = (obj as any).detail
+    if (typeof detail === 'string') return detail
+
+    const fallbackKeys = [
+      'file',
+      'non_field_errors',
+      'logo_upload_id',
+      'pitch_deck_upload_id',
+      'logo',
+      'pitch_deck',
+    ]
+
+    for (const k of fallbackKeys) {
+      if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) {
+        const msg = toMessage(obj[k])
+        if (msg) return msg
+      }
+    }
+
+    for (const k of Object.keys(obj)) {
+      const msg = toMessage(obj[k])
+      if (msg) return msg
+    }
   }
+
   return undefined
 }
 
@@ -159,6 +212,7 @@ export default function StartupProfile() {
 
   async function handleUploadLogo() {
     setBanner('')
+    setLogoError('')
     const msg = validateOptionalFile(logoFile, {
       label: 'Logo',
       allowedTypes: LOGO_ALLOWED_TYPES,
@@ -187,7 +241,9 @@ export default function StartupProfile() {
       await refresh()
       setBanner('Logo updated.')
     } catch (e) {
-      setBanner(toMessage(e) || 'Logo upload failed.')
+      const msg = toMessage(e, ['file', 'logo_upload_id', 'logo'])
+      setLogoError(msg || 'Logo upload failed.')
+      setBanner(msg ? '' : 'Logo upload failed.')
     } finally {
       setLogoBusy(false)
     }
@@ -195,6 +251,7 @@ export default function StartupProfile() {
 
   async function handleUploadDeck() {
     setBanner('')
+    setDeckError('')
     const msg = validateOptionalFile(deckFile, {
       label: 'Pitch deck',
       allowedTypes: PITCH_DECK_ALLOWED_TYPES,
@@ -223,7 +280,9 @@ export default function StartupProfile() {
       await refresh()
       setBanner('Pitch deck updated.')
     } catch (e) {
-      setBanner(toMessage(e) || 'Pitch deck upload failed.')
+      const msg = toMessage(e, ['file', 'pitch_deck_upload_id', 'pitch_deck'])
+      setDeckError(msg || 'Pitch deck upload failed.')
+      setBanner(msg ? '' : 'Pitch deck upload failed.')
     } finally {
       setDeckBusy(false)
     }
@@ -245,18 +304,25 @@ export default function StartupProfile() {
                 <span className={styles.label}>Company:</span>
                 <span>{profile?.company_name || '—'}</span>
               </div>
+
               <div className={styles.row}>
-                <span className={styles.label}>Logo URL:</span>
+                <span className={styles.label}>Logo:</span>
                 {profile?.logo_url ? (
-                  <a className={styles.link} href={profile.logo_url} target="_blank" rel="noreferrer">
+                  <a
+                    className={styles.link}
+                    href={profile.logo_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     open
                   </a>
                 ) : (
                   <span>—</span>
                 )}
               </div>
+
               <div className={styles.row}>
-                <span className={styles.label}>Pitch deck URL:</span>
+                <span className={styles.label}>Pitch deck:</span>
                 {profile?.pitch_deck_url ? (
                   <a
                     className={styles.link}
@@ -300,10 +366,10 @@ export default function StartupProfile() {
                 </button>
               </div>
 
-              {logoFile && <div className={styles.fileName}>{logoFile.name}</div>}
-
               {logoPreviewUrl && (
-                <img className={styles.logoPreview} src={logoPreviewUrl} alt="Logo preview" />
+                <div className={styles.row}>
+                  <img className={styles.logoPreview} src={logoPreviewUrl} alt="logo preview" />
+                </div>
               )}
 
               {logoBusy && logoProgress > 0 && (

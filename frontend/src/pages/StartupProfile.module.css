@@ -143,14 +143,3 @@
   color: #111827;
   text-decoration: underline;
 }
-
-@media (max-width: 520px) {
-  .card {
-    padding: 16px;
-    border-radius: 12px;
-  }
-
-  .title {
-    font-size: 22px;
-  }
-}

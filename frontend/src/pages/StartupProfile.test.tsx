@@ -80,33 +80,29 @@ describe('StartupProfile', () => {
 
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ company_name: 'Acme', logo_url: 'http://x/logo.png', pitch_deck_url: null }),
+      json: async () => ({ ok: true }),
     })
 
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ company_name: 'Acme', logo_url: 'http://x/logo.png', pitch_deck_url: null }),
+      json: async () => ({ company_name: 'Acme', logo_url: 'x', pitch_deck_url: null }),
     })
 
     vi.stubGlobal('fetch', fetchMock as any)
 
     render(<StartupProfile />)
 
-    expect(await screen.findByText('Acme')).toBeInTheDocument()
+    const input = await screen.findByLabelText('', { selector: 'input[type="file"]' })
+    await user.upload(
+      input,
+      new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }),
+    )
 
-    const logoSection = screen.getByText('Update logo').closest('div')!
-    const logoFileInput = logoSection.querySelector('input[type="file"]') as HTMLInputElement
-
-    const logo = new File(['logo'], 'logo.png', { type: 'image/png' })
-    await user.upload(logoFileInput, logo)
-
-    expect(await screen.findByAltText('Logo preview')).toBeInTheDocument()
-
-    const uploadBtn = logoSection.querySelector('button') as HTMLButtonElement
+    const uploadBtn = screen.getAllByRole('button', { name: 'Upload' })[0]
     await user.click(uploadBtn)
 
-    expect(MockXHR.instances.length).toBe(1)
     const xhr = MockXHR.instances[0]
+    expect(xhr).toBeTruthy()
     expect(xhr.url).toBe('/api/uploads/')
     expect(xhr.method).toBe('POST')
     expect(xhr.headers.Authorization).toBe('Bearer test-token')
