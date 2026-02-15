@@ -4,7 +4,7 @@ IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp",  "image/svg+xml"]
 DOC_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
-MAX_DOC_SIZE = 20 * 1024 * 1024
+MAX_DOC_SIZE = 10 * 1024 * 1024
 
 
 def validate_upload(file, purpose=None):

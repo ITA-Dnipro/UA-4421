@@ -7,10 +7,6 @@ import uuid
 
 User = settings.AUTH_USER_MODEL
 
-logo_url = models.URLField(blank=True)
-pitch_deck_url = models.URLField(blank=True)
-hero_image_url = models.URLField(blank=True)
-
 class Region(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
@@ -41,6 +37,7 @@ class StartupProfile(models.Model):
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=50, blank=True)
     logo_url = models.URLField(blank=True)
+    pitch_deck_url = models.URLField(blank=True)
     hero_image_url = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     region = models.ManyToManyField(
