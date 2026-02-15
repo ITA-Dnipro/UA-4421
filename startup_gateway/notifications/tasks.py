@@ -75,16 +75,18 @@ def send_project_email(user_id, project_id):
         unread_count,
     )
 
-    unread.update(emailed_at=now())
+    email_time = now()
+    unread.update(emailed_at=email_time, is_read=True)
 
     Notification.objects.get_or_create(
-        event_key=f"project_email_sent:{project.id}:{user.id}:{now().date().isoformat()}",
+        event_key=f"project_email_sent:{project.id}:{user.id}:{email_time.date().isoformat()}",
         defaults={
             "user": user,
             "project": project,
             "type": "project_email_sent",
             "payload": {"count": unread_count},
             "is_read": True,
+            "emailed_at": email_time,
         },
     )
 
