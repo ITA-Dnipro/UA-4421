@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/', include(('startups.api.urls', 'startups'), namespace='startups_api')),
     path("api/", include("projects.urls")),
     path("api/", include("search.api.urls")),
+    path("api/", include("chat.api.urls")),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
