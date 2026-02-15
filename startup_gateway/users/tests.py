@@ -9,6 +9,7 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth import authenticate
 from unittest.mock import patch
 from django.test import override_settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from importlib import reload
@@ -28,7 +29,6 @@ User = get_user_model()
 class TestRegisterApi(APITestCase):
     def setUp(self):
         super().setUp()
-        # створюємо ролі для тестової бази
         Role.objects.get_or_create(name="startup")
         Role.objects.get_or_create(name="investor")
     def test_happy_path_startup(self):
@@ -199,6 +199,45 @@ class TestRegisterApi(APITestCase):
         self.assertEqual(User.objects.filter(email="alice@example.com").count(), 1)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("verify-email/?token=", mail.outbox[0].body)
+        
+    def test_startup_registration_with_logo_and_pitch_deck_multipart(self):
+        payload = {
+            "email": "withfiles@example.com",
+            "password": "P@ssw0rd!123",
+            "role": "startup",
+            "company_name": "With Files Co",
+            "short_pitch": "Pitch",
+            "website": "https://example.com",
+            "contact_phone": "+380123456700",
+        }
+
+        logo = SimpleUploadedFile(
+            name="logo.png",
+            content=b"\x89PNG\r\n\x1a\n" + b"0" * 1024,
+            content_type="image/png",
+        )
+
+        deck = SimpleUploadedFile(
+            name="deck.pdf",
+            content=b"%PDF-1.4\n" + b"0" * 1024,
+            content_type="application/pdf",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post(
+                "/api/auth/register/",
+                {**payload, "logo": logo, "pitch_deck": deck},
+                format="multipart",
+            )
+
+        self.assertEqual(resp.status_code, 201)
+
+        user = User.objects.get(email="withfiles@example.com")
+        profile = StartupProfile.objects.get(user=user)
+
+        self.assertTrue(profile.logo_url)
+        self.assertTrue(profile.pitch_deck_url)
+
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

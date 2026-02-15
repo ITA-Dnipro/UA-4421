@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.throttling import AnonRateThrottle
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
+
 import logging
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
@@ -28,6 +30,7 @@ def get_client_ip(request):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

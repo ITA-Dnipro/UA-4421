@@ -14,6 +14,7 @@ class UploadCreateAPIView(APIView):
 
     def post(self, request):
         file = request.FILES.get("file")
+        purpose = request.data.get("purpose")
 
         if not file:
             return Response(
@@ -21,7 +22,7 @@ class UploadCreateAPIView(APIView):
                 status=400
             )
 
-        upload_type = validate_upload(file)
+        upload_type = validate_upload(file, purpose=purpose)
 
         upload = Upload.objects.create(
             file=file,
@@ -30,4 +31,4 @@ class UploadCreateAPIView(APIView):
             content_type=file.content_type,
         )
 
-        return Response(UploadSerializer(upload).data, status=201)
+        return Response(UploadSerializer(upload, context={"request": request}).data, status=201)

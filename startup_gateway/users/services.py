@@ -126,6 +126,8 @@ def register_user(validated_data, user_model):
     short_pitch = validated_data.get("short_pitch", "")
     website = validated_data.get("website", "")
     phone = validated_data.get("contact_phone", "")
+    logo_file = validated_data.get("logo")
+    pitch_deck_file = validated_data.get("pitch_deck")
 
     existing = user_model.objects.filter(email__iexact=email).first()
     if existing:
@@ -146,12 +148,45 @@ def register_user(validated_data, user_model):
     user.roles.add(role_obj)
 
     if role_name == "startup":
-        StartupProfile.objects.create(
+        startup_profile = StartupProfile.objects.create(
             user=user,
             company_name=company_name,
             short_pitch=short_pitch,
             website=website,
         )
+
+        if logo_file is not None:
+            validate_upload(logo_file, purpose="logo")
+            upload = Upload.objects.create(
+                file=logo_file,
+                type="image",
+                size=logo_file.size,
+                content_type=getattr(logo_file, "content_type", ""),
+            )
+
+            base = getattr(settings, "APP_BASE_URL", "http://localhost:8000").rstrip("/")
+            try:
+                startup_profile.logo_url = f"{base}{upload.file.url}"
+                startup_profile.save(update_fields=["logo_url"])
+            except Exception:
+                pass
+
+        if pitch_deck_file is not None:
+            validate_upload(pitch_deck_file, purpose="pitch_deck")
+            upload = Upload.objects.create(
+                file=pitch_deck_file,
+                type="doc",
+                size=pitch_deck_file.size,
+                content_type=getattr(pitch_deck_file, "content_type", ""),
+            )
+
+            if hasattr(startup_profile, "pitch_deck_url"):
+                base = getattr(settings, "APP_BASE_URL", "http://localhost:8000").rstrip("/")
+                try:
+                    startup_profile.pitch_deck_url = f"{base}{upload.file.url}"
+                    startup_profile.save(update_fields=["pitch_deck_url"])
+                except Exception:
+                    pass
     else:
         InvestorProfile.objects.create(
             user=user,
