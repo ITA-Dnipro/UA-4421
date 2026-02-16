@@ -100,7 +100,9 @@ describe('StartupProfile', () => {
 
     render(<StartupProfile />)
 
-    const input = await screen.findByLabelText('', { selector: 'input[type="file"]' })
+    const fileInputs = document.querySelectorAll('input[type="file"]')
+    const input = fileInputs[0] as HTMLInputElement
+
     await user.upload(
       input,
       new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }),
