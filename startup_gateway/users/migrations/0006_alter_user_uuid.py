@@ -2,22 +2,27 @@
 
 import uuid
 from django.db import migrations, models
+from django.db.models import Count
 
 
-def remove_duplicate_uuids(apps, schema_editor):
-    User = apps.get_model('users', 'User')
-    seen_uuids = set()
-    users_to_delete = []
+def dedupe_user_uuids(apps, schema_editor):
+    User = apps.get_model("users", "User")
 
-    for user in User.objects.all().order_by('id'):
-        if user.uuid:
-            if user.uuid in seen_uuids:
-                users_to_delete.append(user.id)
-            else:
-                seen_uuids.add(user.uuid)
+    # If the UUID field was added as NOT NULL with a default, Django may have
+    # backfilled existing rows with the same value. Make them unique before we
+    # enforce a UNIQUE constraint.
+    duplicates = User.objects.values("uuid").annotate(cnt=Count("id")).filter(cnt__gt=1)
 
-    if users_to_delete:
-        User.objects.filter(id__in=users_to_delete).delete()
+    for row in duplicates:
+        dup_uuid = row["uuid"]
+        ids = list(
+            User.objects.filter(uuid=dup_uuid)
+            .order_by("id")
+            .values_list("id", flat=True)
+        )
+        # Keep the first record as-is, fix the rest.
+        for user_id in ids[1:]:
+            User.objects.filter(id=user_id).update(uuid=uuid.uuid4())
 
 
 class Migration(migrations.Migration):
@@ -26,7 +31,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(remove_duplicate_uuids),
+        migrations.RunPython(dedupe_user_uuids, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="user",
             name="uuid",

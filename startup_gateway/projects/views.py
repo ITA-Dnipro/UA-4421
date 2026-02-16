@@ -6,12 +6,16 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework import status
+from rest_framework import generics, permissions, status
+from notifications.tasks import handle_project_event
 from django.core.exceptions import ValidationError
 from rest_framework.views import APIView
 import logging
 from django_filters import rest_framework as filters
 from rest_framework.pagination import PageNumberPagination
 from projects.models import Project, ModerationStatus
+from django.utils.timezone import now
+from projects.models import Project, ProjectStatus, ModerationStatus
 from projects.services.project_state_service import ProjectStateService
 from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
     AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer
@@ -53,9 +57,18 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         self.perform_create(serializer)
 
-        project_id = serializer.instance.pk
+        project = serializer.instance
 
-        location = reverse("projects:project-rud", kwargs={"pk": project_id}, request=request)
+        handle_project_event.delay(
+            event_type="project_created",
+            project_id=str(project.id),
+            payload={
+                "title": project.title,
+                "status": project.status,
+            },
+        )
+
+        location = reverse("projects:project-rud", kwargs={"pk": project.id}, request=request)
 
         return Response(
             serializer.data,
@@ -82,6 +95,25 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
 
         return qs.filter(visibility="public")
 
+    def perform_update(self, serializer):
+        project = self.get_object()
+        old_status = project.status
+        updated_project = serializer.save()
+
+        if (
+            "status" in serializer.validated_data
+            and old_status != updated_project.status
+        ):
+            handle_project_event.delay(
+            event_type="project_status_changed",
+            project_id=str(updated_project.id),
+            payload={
+                "old_status": old_status,
+                "new_status": updated_project.status,
+                "timestamp": now().isoformat(),
+            },
+        )
+
     def perform_destroy(self, instance):
         instance.is_deleted = True
         instance.save(update_fields=["is_deleted"])
@@ -99,17 +131,32 @@ class ProjectStateServiceView(APIView):
                     is_deleted=False
                 )
                 self.check_object_permissions(request, project)
+                old_status = project.status
 
                 serializer = ProjectStateSerializer(data=request.data, partial=True)
                 serializer.is_valid(raise_exception=True)
 
                 state_service = ProjectStateService()
-                
+
                 project = state_service.update_project_state(
                     project=project,
                     data=serializer.validated_data,
                     user_is_staff=request.user.is_staff
                 )
+
+                # Keep notifications consistent with PATCH /api/projects/{id}/
+                if old_status != project.status:
+                    transaction.on_commit(
+                        lambda: handle_project_event.delay(
+                            event_type="project_status_changed",
+                            project_id=str(project.id),
+                            payload={
+                                "old_status": old_status,
+                                "new_status": project.status,
+                                "timestamp": now().isoformat(),
+                            },
+                        )
+                    )
 
         except ValidationError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)

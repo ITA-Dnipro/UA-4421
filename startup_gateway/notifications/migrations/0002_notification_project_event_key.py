@@ -1,0 +1,40 @@
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("notifications", "0001_initial"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        (
+            "projects",
+            "0004_project_allow_overfunding_project_funded_at_and_more",
+        ),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="notification",
+            name="project",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="notifications",
+                to="projects.project",
+            ),
+        ),
+        migrations.AddField(
+            model_name="notification",
+            name="event_key",
+            field=models.CharField(
+                blank=True,
+                help_text="Unique key for idempotency to prevent duplicate notifications",
+                max_length=128,
+                null=True,
+                unique=True,
+            ),
+        ),
+    ]
