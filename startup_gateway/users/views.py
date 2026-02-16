@@ -1,17 +1,18 @@
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import AnonRateThrottle
 import logging
 
-
-from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer
+from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
+from .serializers import RegisterSerializer, VerifyEmailSerializer, ResendVerificationSerializer, PasswordResetRequestSerializer, LoginSerializer, PasswordResetConfirmSerializer
 from .services import send_verification_email, verify_email_token, is_resend_verification_throttled
 from .tokens import password_reset_token_generator
 from .email_service import PasswordResetEmailService
-from .models import PasswordResetAttempt, User
+from .models import PasswordResetAttempt, User, PasswordResetConfirmation
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -142,3 +143,141 @@ class PasswordResetRequestView(APIView):
             {"detail": "If the email exists, you will receive reset instructions."},
             status=status.HTTP_200_OK
         )
+
+
+@extend_schema(
+    request=LoginSerializer,
+    responses={
+        200: inline_serializer(
+            name="LoginResponse",
+            fields={
+                "access": serializers.CharField(),
+                "refresh": serializers.CharField(),
+                "user": inline_serializer(
+                    name="LoginUser",
+                    fields={
+                        "id": serializers.IntegerField(),
+                        "email": serializers.EmailField(),
+                        "role": serializers.CharField(),
+                    },
+                ),
+            },
+        ),
+        401: OpenApiResponse(
+            description="Invalid credentials / inactive user",
+            response=inline_serializer(
+                name="LoginError401",
+                fields={"detail": serializers.CharField()},
+            ),
+        ),
+        400: OpenApiResponse(
+            description="Validation error",
+            response=inline_serializer(
+                name="LoginError400",
+                fields={"detail": serializers.CharField()},
+            ),
+        ),
+    },
+    tags=["Auth"],
+    summary="Login",
+)
+
+class LoginView(APIView):
+    throttle_classes = [AnonRateThrottle]
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        django_request = getattr(request, "_request", request)
+
+        serializer = LoginSerializer(
+            data=request.data,
+            context={"request": django_request},
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset_confirm'
+
+    def post(self, request):
+
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        ip_address = get_client_ip(request)
+
+        user_for_logging = None
+        internal_error_type = None
+
+        if 'uid' in request.data:
+            try:
+                from django.utils.http import urlsafe_base64_decode
+                from django.utils.encoding import force_str
+                uid = force_str(urlsafe_base64_decode(request.data['uid']))
+                user_for_logging = User.objects.filter(pk=uid).first()
+            except Exception:
+                internal_error_type = 'invalid_uid_format'
+
+        if not serializer.is_valid():
+            if internal_error_type is None:
+                internal_error_type = self._categorize_error_internal(
+                    serializer.errors,
+                    user_for_logging
+                )
+
+            try:
+                PasswordResetConfirmation.objects.create(
+                    user=user_for_logging,
+                    ip_address=ip_address,
+                    success=False,
+                    failure_reason=internal_error_type
+                )
+                logger.warning(
+                    f"Password reset failed from IP {ip_address}: {internal_error_type} "
+                    f"(user_id={user_for_logging.id if user_for_logging else 'unknown'})"
+                )
+            except Exception as e:
+                logger.error(f"Failed to log password reset failure: {e}")
+
+            if 'password' in serializer.errors:
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                return Response(
+                    {"detail": "Invalid or expired password reset link."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        try:
+            user = serializer.save(ip_address=ip_address)
+            logger.info(
+                f"Password reset successful for user {user.id} ({user.email}) "
+                f"from IP {ip_address}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to complete password reset transaction: {e}")
+            return Response(
+                {"detail": "An error occurred while resetting your password. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {"detail": "Password changed successfully."},
+            status=status.HTTP_200_OK
+        )
+
+    def _categorize_error_internal(self, errors, user):
+        if 'password' in errors:
+            return 'weak_password'
+
+        error_str = str(errors).lower()
+
+        if 'invalid or expired' in error_str:
+            if user is None:
+                return 'invalid_uid_or_user'
+            else:
+                return 'invalid_token'
+
+        return 'validation_error'

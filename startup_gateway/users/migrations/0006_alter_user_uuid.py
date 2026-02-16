@@ -2,15 +2,36 @@
 
 import uuid
 from django.db import migrations, models
+from django.db.models import Count
+
+
+def dedupe_user_uuids(apps, schema_editor):
+    User = apps.get_model("users", "User")
+
+    # If the UUID field was added as NOT NULL with a default, Django may have
+    # backfilled existing rows with the same value. Make them unique before we
+    # enforce a UNIQUE constraint.
+    duplicates = User.objects.values("uuid").annotate(cnt=Count("id")).filter(cnt__gt=1)
+
+    for row in duplicates:
+        dup_uuid = row["uuid"]
+        ids = list(
+            User.objects.filter(uuid=dup_uuid)
+            .order_by("id")
+            .values_list("id", flat=True)
+        )
+        # Keep the first record as-is, fix the rest.
+        for user_id in ids[1:]:
+            User.objects.filter(id=user_id).update(uuid=uuid.uuid4())
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("users", "0005_user_uuid"),
     ]
 
     operations = [
+        migrations.RunPython(dedupe_user_uuids, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="user",
             name="uuid",

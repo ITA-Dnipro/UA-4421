@@ -1,21 +1,30 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from django.db.models import Q, Count
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.reverse import reverse
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import generics, permissions, status
+from notifications.tasks import handle_project_event
 from django.core.exceptions import ValidationError
 from rest_framework.views import APIView
+import logging
+from django_filters import rest_framework as filters
+from rest_framework.pagination import PageNumberPagination
+from django.utils.timezone import now
 
-from projects.models import Project, ProjectStatus
+from projects.models import Project, ProjectStatus, ModerationStatus, ModerationAction
 from projects.services.project_state_service import ProjectStateService
-from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer
+from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
+    AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer
+from projects.services.moderation_service import ProjectModerationService
 
 from startups.models import StartupProfile
-from .permissions import IsOwnerOrReadOnly
+from .permissions import IsOwnerOrReadOnly, IsAdmin, IsAdminOrModerator
+
+logger = logging.getLogger(__name__)
 
 
 class StartUpProjectsListCreateAPIView(ListCreateAPIView):
@@ -47,9 +56,18 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         self.perform_create(serializer)
 
-        project_id = serializer.instance.pk
+        project = serializer.instance
 
-        location = reverse("projects:project-rud", kwargs={"pk": project_id}, request=request)
+        handle_project_event.delay(
+            event_type="project_created",
+            project_id=str(project.id),
+            payload={
+                "title": project.title,
+                "status": project.status,
+            },
+        )
+
+        location = reverse("projects:project-rud", kwargs={"pk": project.id}, request=request)
 
         return Response(
             serializer.data,
@@ -70,6 +88,25 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
 
         return qs.filter(visibility="public")
 
+    def perform_update(self, serializer):
+        project = self.get_object()
+        old_status = project.status
+        updated_project = serializer.save()
+
+        if (
+            "status" in serializer.validated_data
+            and old_status != updated_project.status
+        ):
+            handle_project_event.delay(
+            event_type="project_status_changed",
+            project_id=str(updated_project.id),
+            payload={
+                "old_status": old_status,
+                "new_status": updated_project.status,
+                "timestamp": now().isoformat(),
+            },
+        )
+
     def perform_destroy(self, instance):
         instance.is_deleted = True
         instance.save(update_fields=["is_deleted"])
@@ -79,35 +116,123 @@ class ProjectStateServiceView(APIView):
     permission_classes = [IsOwnerOrReadOnly]
 
     def patch(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
-        
-        self.check_object_permissions(request, project)
-
-        serializer = ProjectStateSerializer(
-            data=request.data,
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-
-        state_service = ProjectStateService()
-
         try:
-            if "raised_amount" in serializer.validated_data:
-                state_service.update_raised_amount(
-                    project,
-                    serializer.validated_data["raised_amount"]
+            with transaction.atomic():
+
+                project = Project.objects.select_for_update().get(pk=pk)
+                self.check_object_permissions(request, project)
+                old_status = project.status
+
+                serializer = ProjectStateSerializer(data=request.data, partial=True)
+                serializer.is_valid(raise_exception=True)
+
+                state_service = ProjectStateService()
+
+                project = state_service.update_project_state(
+                    project=project,
+                    data=serializer.validated_data,
+                    user_is_staff=request.user.is_staff
                 )
-            if "status" in serializer.validated_data:
-                new_status = serializer.validated_data["status"]
-                if not (new_status == ProjectStatus.FUNDED and project.status == ProjectStatus.FUNDED):
-                    state_service.change_status(
-                        project,
-                        new_status,
-                        admin_override=request.user.is_staff
+
+                # Keep notifications consistent with PATCH /api/projects/{id}/
+                if old_status != project.status:
+                    transaction.on_commit(
+                        lambda: handle_project_event.delay(
+                            event_type="project_status_changed",
+                            project_id=str(project.id),
+                            payload={
+                                "old_status": old_status,
+                                "new_status": project.status,
+                                "timestamp": now().isoformat(),
+                            },
+                        )
                     )
+
         except ValidationError as e:
-            return Response(
-                {"detail": e.message},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        except Project.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
         return Response(ProjectDetailsSerializer(project).data)
+
+class AdminProjectPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class ProjectAdminFilter(filters.FilterSet):
+    class Meta:
+        model = Project
+        fields = ['moderation_status', 'is_deleted']
+
+
+class AdminProjectListView(ListAPIView):
+    permission_classes = [IsAdminOrModerator]
+    serializer_class = AdminProjectListSerializer
+    pagination_class = AdminProjectPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = ProjectAdminFilter
+
+    def get_queryset(self):
+        return Project.objects.select_related(
+            'startup_profile',
+            'startup_profile__user',
+            'moderated_by'
+        ).prefetch_related('tags').order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+
+        queryset = self.filter_queryset(self.get_queryset())
+        stats = queryset.aggregate(
+            total=Count('id'),
+            pending=Count('id', filter=Q(moderation_status=ModerationStatus.PENDING)),
+            approved=Count('id', filter=Q(moderation_status=ModerationStatus.APPROVED)),
+            rejected=Count('id', filter=Q(moderation_status=ModerationStatus.REJECTED)),
+            flagged=Count('id', filter=Q(moderation_status=ModerationStatus.FLAGGED)),
+        )
+        response.data['stats'] = stats
+        return response
+
+
+class ProjectModerateView(APIView):
+    permission_classes = [IsAdmin]
+
+    def patch(self, request, id):
+        project = get_object_or_404(Project, id=id)
+
+        serializer = ModerationActionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        action = serializer.validated_data['action']
+        reason = serializer.validated_data.get('reason', '')
+        notes = serializer.validated_data.get('notes', '')
+
+        success, message, project = ProjectModerationService.moderate_project(
+            project=project,
+            action=action,
+            moderator=request.user,
+            reason=reason,
+            notes=notes
+        )
+
+        if not success:
+            return Response({'detail': message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'message': message,
+            'project': AdminProjectListSerializer(project).data
+        }, status=status.HTTP_200_OK)
+
+class ProjectAttachmentCreateAPIView(APIView):
+    serializer_class = ProjectAttachmentSerializer
+    permission_classes = [IsOwnerOrReadOnly]
+
+    def post(self, request):
+        serializer = ProjectAttachmentSerializer(data=request.data)
+        if serializer.is_valid():
+            attachment = serializer.save()
+            return Response(ProjectAttachmentSerializer(attachment).data, status=201)
+        return Response(serializer.errors, status=400)
