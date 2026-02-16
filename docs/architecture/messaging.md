@@ -25,6 +25,8 @@ For the channel layer we use Redis.
 
 ## Message lifecycle
 
+![Send/Recieve](../../images/send_recieve.png)
+
 ![Offline notifications](../../images/offline_notifications.png)
 
 ## Scaling & retention strategy
