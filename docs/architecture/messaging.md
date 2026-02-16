@@ -25,21 +25,7 @@ For the channel layer we use Redis.
 
 ## Message lifecycle
 
-1. Send
-
-   When a message is broadcast, mark status='delivered' for recipients whose sockets acknowledged the message (consumer should send ack).
-
-2. Persist
-
-   When user marks messages read (via mark_read or automatically when viewing),
-
-3. Publish to channel
-
-   update message docs and emit read_receipt via Channels to other participants.
-
-4. Create notification via background worker.
-
-   If the recipient(s) is connected on socket, the message is broadcast-only. If the recipient(s) is offline or not focused, the job to create Notification DB record (Postgres) is enqueued and, optionally, an email/push is sent.
+![Offline notifications](../../images/offline_notifications.png)
 
 ## Scaling & retention strategy
 
@@ -81,3 +67,10 @@ Each user has a message send throttle. By default it is 30 messages/min. For fir
 // Future task.
 
 // Diagrams (sequence for send/receive, flow for offline notifications).
+
+## Dependencies
+
+PyMongo: 4.6.0
+Redis: 5.0.1
+Celery: 5.4.0
+PyJWT: 2.10.1
