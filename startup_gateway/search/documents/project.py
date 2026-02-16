@@ -11,7 +11,7 @@ class ProjectDocument:
             "title": project.title or "",
             "short_description": project.short_description or "",
             "description": project.description or "",
-            "location": project.location or "",
+            "location": getattr(project, "location", "") or "",
             "startup_id": str(project.startup_profile.id) if project.startup_profile else "",
             "startup_name": project.startup_profile.company_name if project.startup_profile else "",
             "visibility": project.visibility or "public",
