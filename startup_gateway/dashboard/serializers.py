@@ -59,3 +59,16 @@ class SavedItemCreateSerializer(serializers.Serializer):
         attrs["content_type"] = ContentType.objects.get_for_model(model)
         attrs["object_id"] = getattr(target_obj, lookup_field)
         return attrs
+    
+
+class SavedItemListSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    saved_id = serializers.IntegerField()
+    type = serializers.CharField()
+    title = serializers.CharField(allow_blank=True)
+    slug = serializers.CharField(allow_blank=True)
+    thumbnail_url = serializers.CharField(allow_blank=True)
+    short_description = serializers.CharField(allow_blank=True)
+    location = serializers.CharField(allow_blank=True)
+    tags = serializers.ListField(child=serializers.CharField())
+    saved_at = serializers.DateTimeField()
