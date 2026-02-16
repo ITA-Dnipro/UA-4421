@@ -26,7 +26,7 @@ const PITCH_DECK_ALLOWED_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const
 
-const LOGO_MAX_BYTES = 2 * 1024 * 1024
+const LOGO_MAX_BYTES = 10 * 1024 * 1024
 const PITCH_DECK_MAX_BYTES = 10 * 1024 * 1024
 
 function validateOptionalFile(
