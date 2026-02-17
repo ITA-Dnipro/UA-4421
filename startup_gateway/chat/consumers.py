@@ -35,10 +35,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.handle_leave(data)
             elif message_type == 'send_message':
                 await self.handle_send(data)
-            elif message_type == 'typing':
-                await self.handle_typing(data)
-            elif message_type == 'mark_read':
-                await self.handle_read(data)
             else:
                 await self.send_error(f'Unknown type: {message_type}')
         except Exception as e:
@@ -114,70 +110,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         except Exception as e:
             await self.send_error(str(e))
-    
-    async def handle_typing(self, data):
-        conversation_id = data.get('conversation_id')
-        if not conversation_id:
-            await self.send_error('conversation_id required')
-            return
-        
-        await self.channel_layer.group_send(
-            f'conversation_{conversation_id}',
-            {
-                'type': 'typing_indicator',
-                'user_id': self.user.id,
-                'conversation_id': conversation_id,
-            }
-        )
-    
-    async def handle_read(self, data):
-        conversation_id = data.get('conversation_id')
-        if not conversation_id:
-            await self.send_error('conversation_id required')
-            return
-        
-        try:
-            chat = get_chat_service()
-            count = await database_sync_to_async(chat.mark_messages_read)(
-                conversation_id=conversation_id,
-                user_id=self.user.id
-            )
-            
-            await self.channel_layer.group_send(
-                f'conversation_{conversation_id}',
-                {
-                    'type': 'read_receipt',
-                    'user_id': self.user.id,
-                    'conversation_id': conversation_id,
-                    'count': count,
-                }
-            )
-        except Exception as e:
-            await self.send_error(str(e))
-    
+
     async def message_received(self, event):
         await self.send(text_data=json.dumps({
             'type': 'message_received',
             'message': event['message']
         }))
-    
-    async def typing_indicator(self, event):
-        if event['user_id'] != self.user.id:
-            await self.send(text_data=json.dumps({
-                'type': 'typing',
-                'user_id': event['user_id'],
-                'conversation_id': event['conversation_id'],
-            }))
-    
-    async def read_receipt(self, event):
-        if event['user_id'] != self.user.id:
-            await self.send(text_data=json.dumps({
-                'type': 'read_receipt',
-                'user_id': event['user_id'],
-                'conversation_id': event['conversation_id'],
-                'count': event.get('count', 0),
-            }))
-    
+
     async def send_error(self, message):
         await self.send(text_data=json.dumps({
             'type': 'error',
