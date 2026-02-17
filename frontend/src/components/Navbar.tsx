@@ -22,7 +22,7 @@ export default function Navbar() {
       {isAuthenticated && <Link to="/dashboard">Dashboard</Link>}
       {isAuthenticated && <Link to="/messages">Messages</Link>}
       {isAuthenticated && <Link to="/startups/1">Startup</Link>}
-      {isAuthenticated && <Link to="/startup/profile">Startup Profile</Link>}
+      {isAuthenticated && <Link to="/startup/profile">My Startup</Link>}
 
       {!isAuthenticated && <Link to="/login">Login</Link>}
       {!isAuthenticated && <Link to="/register">Register</Link>}
