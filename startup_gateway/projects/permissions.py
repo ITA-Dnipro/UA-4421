@@ -79,3 +79,35 @@ class IsSuperAdmin(BasePermission):
             return False
 
         return user.is_superuser
+
+
+class CanCreateProject(BasePermission):
+    message = "Only startup owner can create project."
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+
+        if not user or not user.is_authenticated:
+            return False
+
+        startup_id = view.kwargs.get("startup_id")
+        if not startup_id:
+            return False    
+        
+        return (
+            hasattr(user, "startup_profile") and
+            user.startup_profile.id == int(startup_id)
+            )
+    
+class CanModifyProject(BasePermission):
+    message = "Only owner or admin can modify this project."
+
+    def has_object_permission(self, request, view, obj):
+        user = getattr(request, "user", None)
+
+        if not user or not user.is_authenticated:
+            return False
+
+        return obj.startup_profile.user == user
+    
+
