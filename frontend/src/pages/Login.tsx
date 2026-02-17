@@ -238,7 +238,7 @@ export default function LoginPage() {
               </label>
               <select
                 id="role"
-                className={styles.input}
+                className={`${styles.input} ${styles.selectInput}`}
                 value={role}
                 disabled={isSubmitting}
                 onChange={(e) => setRole(e.target.value as Role)}
