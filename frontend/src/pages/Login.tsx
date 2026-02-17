@@ -269,14 +269,6 @@ export default function LoginPage() {
               {isSubmitting ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-
-          {(uiState === 'credential_error' || uiState === 'locked') && (
-            <div className={styles.metaNote}>
-              {uiState === 'locked'
-                ? 'If you keep seeing this message, wait a bit and try again, or reset your password.'
-                : 'Double-check your email/password and try again.'}
-            </div>
-          )}
         </div>
       </div>
     </div>
