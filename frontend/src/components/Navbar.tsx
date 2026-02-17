@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 
 export default function Navbar() {
-  const isAuthenticated = !!localStorage.getItem('token')
+  const isAuthenticated = !!localStorage.getItem('token') || !!sessionStorage.getItem('token')
 
   function handleLogout() {
     localStorage.removeItem('token')
+    sessionStorage.removeItem('token')
     window.location.href = '/login'
   }
 
