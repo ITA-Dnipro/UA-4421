@@ -2,10 +2,10 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.reverse import reverse
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.reverse import reverse
+from rest_framework import status
 from rest_framework import generics, permissions, status
 from notifications.tasks import handle_project_event
 from django.core.exceptions import ValidationError
@@ -13,23 +13,25 @@ from rest_framework.views import APIView
 import logging
 from django_filters import rest_framework as filters
 from rest_framework.pagination import PageNumberPagination
+from projects.models import Project, ModerationStatus
 from django.utils.timezone import now
-
-from projects.models import Project, ProjectStatus, ModerationStatus, ModerationAction
+from projects.models import Project, ProjectStatus, ModerationStatus
 from projects.services.project_state_service import ProjectStateService
 from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
     AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer
 from projects.services.moderation_service import ProjectModerationService
-
 from startups.models import StartupProfile
-from .permissions import IsOwnerOrReadOnly, IsAdmin, IsAdminOrModerator
+from .permissions import  IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
 
 logger = logging.getLogger(__name__)
 
 
 class StartUpProjectsListCreateAPIView(ListCreateAPIView):
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [CanCreateProject()]
+        return [AllowAny()]
 
     def get_queryset(self):
         startup_id = self.kwargs["startup_id"]
@@ -37,15 +39,14 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         user = self.request.user
         if user.is_authenticated:
+            if user.is_staff:
+                return qs
             return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
 
         return qs.filter(visibility="public")
 
     def perform_create(self, serializer):
         startup = get_object_or_404(StartupProfile, id=self.kwargs["startup_id"])
-
-        if startup.user != self.request.user:
-            raise PermissionDenied("Only owner can create projects for this startup.")
 
         serializer.save(startup_profile=startup)
 
@@ -77,13 +78,19 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
 class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
     serializer_class = ProjectDetailsSerializer
-    permission_classes = [IsOwnerOrReadOnly]
+    
+    def get_permissions(self):
+        if self.request.method in ["PUT", "PATCH", "DELETE"]:
+            return [CanModifyProject()]
+        return [AllowAny()]
 
     def get_queryset(self):
         qs = Project.objects.filter(is_deleted=False)
         user = self.request.user
 
         if user.is_authenticated:
+            if user.is_staff:
+                return qs
             return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
 
         return qs.filter(visibility="public")
@@ -113,13 +120,16 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
 
     
 class ProjectStateServiceView(APIView):
-    permission_classes = [IsOwnerOrReadOnly]
+    permission_classes = [CanModifyProject]
 
     def patch(self, request, pk):
         try:
             with transaction.atomic():
 
-                project = Project.objects.select_for_update().get(pk=pk)
+                project = Project.objects.select_for_update().get(
+                    pk=pk,
+                    is_deleted=False
+                )
                 self.check_object_permissions(request, project)
                 old_status = project.status
 
@@ -228,7 +238,7 @@ class ProjectModerateView(APIView):
 
 class ProjectAttachmentCreateAPIView(APIView):
     serializer_class = ProjectAttachmentSerializer
-    permission_classes = [IsOwnerOrReadOnly]
+    permission_classes = [CanModifyProject]
 
     def post(self, request):
         serializer = ProjectAttachmentSerializer(data=request.data)
