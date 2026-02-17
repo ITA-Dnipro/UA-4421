@@ -6,7 +6,7 @@ type Props = {
 }
 
 export default function ProtectedRoute({ children }: Props) {
-  const isAuthenticated = !!localStorage.getItem('token')
+  const isAuthenticated = !!localStorage.getItem('token') || !!sessionStorage.getItem('token')
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
