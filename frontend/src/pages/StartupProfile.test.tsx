@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import StartupProfile from './StartupProfile'
@@ -122,11 +122,15 @@ describe('StartupProfile', () => {
 
     xhr.respond(201, { id: 123 })
 
-    const patchCall = fetchMock.mock.calls.find(
-      (c) => String(c[0]).includes('/api/startups/me/') && c[1]?.method === 'PATCH',
-    )
-    expect(patchCall).toBeTruthy()
-    expect(JSON.parse(patchCall![1].body as string)).toEqual({ logo_upload_id: 123 })
+    let patchCall: any
+    await waitFor(() => {
+      patchCall = fetchMock.mock.calls.find(
+        (c) => String(c[0]).includes('/api/startups/me/') && c[1]?.method === 'PATCH',
+      )
+      expect(patchCall).toBeTruthy()
+    })
+
+    expect(JSON.parse(patchCall[1].body as string)).toEqual({ logo_upload_id: 123 })
   })
 
   it('uploads pitch deck to /api/uploads/ with progress and then PATCHes /api/startups/me/', async () => {
@@ -175,11 +179,15 @@ describe('StartupProfile', () => {
 
     xhr.respond(201, { id: 456 })
 
-    const patchCall = fetchMock.mock.calls.find(
-      (c) => String(c[0]).includes('/api/startups/me/') && c[1]?.method === 'PATCH',
-    )
-    expect(patchCall).toBeTruthy()
-    expect(JSON.parse(patchCall![1].body as string)).toEqual({ pitch_deck_upload_id: 456 })
+    let patchCall: any
+    await waitFor(() => {
+      patchCall = fetchMock.mock.calls.find(
+        (c) => String(c[0]).includes('/api/startups/me/') && c[1]?.method === 'PATCH',
+      )
+      expect(patchCall).toBeTruthy()
+    })
+
+    expect(JSON.parse(patchCall[1].body as string)).toEqual({ pitch_deck_upload_id: 456 })
   })
 
   it('shows pitch deck validation error for invalid file type and does not upload', async () => {
