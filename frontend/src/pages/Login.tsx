@@ -37,6 +37,10 @@ function toMessage(value: unknown): string | undefined {
   return undefined
 }
 
+function cleanAxesLockoutSuffix(text: string) {
+  return text.replace(/\(from axes_lockout\)\s*$/i, '').trim()
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
 
@@ -127,6 +131,8 @@ export default function LoginPage() {
           localStorage.removeItem('refreshToken')
         }
 
+        window.dispatchEvent(new Event('auth:changed'))
+
         const returnedRole = obj?.user?.role
         if (returnedRole === 'investor') navigate('/dashboard', { replace: true })
         else navigate('/', { replace: true })
@@ -136,14 +142,14 @@ export default function LoginPage() {
 
       if (res.status === 401) {
         const detail = toMessage(data && typeof data === 'object' ? (data as any).detail : undefined)
-        setBanner(detail || 'Incorrect email or password.')
+        setBanner(detail || 'Invalid credentials.')
         setUiState('credential_error')
         return
       }
 
       if (res.status === 429) {
         const detail = toMessage(data && typeof data === 'object' ? (data as any).detail : undefined)
-        setBanner(detail || 'Too many login attempts. Please try again later.')
+        setBanner(cleanAxesLockoutSuffix(detail || 'Too many login attempts. Try again later.'))
         setUiState('locked')
         return
       }
@@ -238,7 +244,7 @@ export default function LoginPage() {
               </label>
               <select
                 id="role"
-                className={`${styles.input} ${styles.selectInput}`}
+                className={styles.input}
                 value={role}
                 disabled={isSubmitting}
                 onChange={(e) => setRole(e.target.value as Role)}

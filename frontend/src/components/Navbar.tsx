@@ -1,11 +1,33 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+
+function hasToken() {
+  return Boolean(localStorage.getItem('token') || sessionStorage.getItem('token'))
+}
 
 export default function Navbar() {
-  const isAuthenticated = !!localStorage.getItem('token') || !!sessionStorage.getItem('token')
+  const [isAuthenticated, setIsAuthenticated] = useState(hasToken)
+
+  useEffect(() => {
+    const update = () => setIsAuthenticated(hasToken())
+
+    window.addEventListener('auth:changed', update)
+
+    window.addEventListener('storage', update)
+
+    return () => {
+      window.removeEventListener('auth:changed', update)
+      window.removeEventListener('storage', update)
+    }
+  }, [])
 
   function handleLogout() {
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     sessionStorage.removeItem('token')
+    sessionStorage.removeItem('refreshToken')
+
+    window.dispatchEvent(new Event('auth:changed'))
     window.location.href = '/login'
   }
 
@@ -19,27 +41,31 @@ export default function Navbar() {
         borderBottom: '1px solid #ddd',
       }}
     >
-      {isAuthenticated && <Link to="/">Home</Link>}
-      {isAuthenticated && <Link to="/dashboard">Dashboard</Link>}
-      {isAuthenticated && <Link to="/messages">Messages</Link>}
-      {isAuthenticated && <Link to="/startups/1">Startup</Link>}
+      {isAuthenticated ? (
+        <>
+          <Link to="/">Home</Link>
+          <Link to="/dashboard">Dashboard</Link>
+          <Link to="/messages">Messages</Link>
+          <Link to="/startups/1">Startup</Link>
 
-      {!isAuthenticated && <Link to="/login">Login</Link>}
-      {!isAuthenticated && <Link to="/register">Register</Link>}
-
-      {isAuthenticated && (
-        <button
-          onClick={handleLogout}
-          style={{
-            marginLeft: 'auto',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Logout
-        </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              marginLeft: 'auto',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+          >
+            Logout
+          </button>
+        </>
+      ) : (
+        <>
+          <Link to="/login">Login</Link>
+          <Link to="/register">Register</Link>
+        </>
       )}
     </nav>
   )
