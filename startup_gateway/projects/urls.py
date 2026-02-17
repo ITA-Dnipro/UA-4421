@@ -11,6 +11,6 @@ urlpatterns = [
     path('admin/projects/', AdminProjectListView.as_view(), name='admin-project-list'),
     path('admin/projects/<uuid:id>/moderate/', ProjectModerateView.as_view(), name='admin-project-moderate'),
     path("projects/attachments/create/", ProjectAttachmentCreateAPIView.as_view(), name="project-attachment-create"),
-    path ("projects//<uuid:pk>/history/", ProjectHistoryView.as_view(), name="project-history"),
-    path ("projects//<uuid:pk>/revert/", ProjectRevertView.as_view(), name="project-revert"),
+    path ("projects/<uuid:pk>/history/", ProjectHistoryView.as_view(), name="project-history"),
+    path ("projects/<uuid:pk>/revert/", ProjectRevertView.as_view(), name="project-revert"),
 ]

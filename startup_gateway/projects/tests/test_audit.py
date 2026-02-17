@@ -13,7 +13,7 @@ class ProjectAuditTests(APITestCase):
 
         self.user = User.objects.create_user(username="user1", password="pass123")
         self.staff_user = User.objects.create_user(username="staff", password="pass123", is_staff=True)
-        self.startup = StartupProfile.objects.create(user=self.user, name="Test Startup")
+        self.startup = StartupProfile.objects.create(user=self.user, company_name="Test Startup")
 
         self.project_data = {
             "title": "My Project",
@@ -30,7 +30,7 @@ class ProjectAuditTests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_create_project_creates_audit(self):
-        url = reverse("projects:startup-projects-list-create", kwargs={"startup_id": self.startup.id})
+        url = reverse("projects:startup-projects", kwargs={"startup_id": self.startup.id})
         response = self.client.post(url, self.project_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -86,7 +86,7 @@ class ProjectAuditTests(APITestCase):
         audit = ProjectAudit.objects.create(project=project, user=self.user, action="update",
                                             changes={"title": {"before": "My Project", "after": "Title v2"}})
 
-        url = reverse("projects:project-revert", kwargs={"pk": project.id, "audit_id": audit.id})
+        url = reverse("projects:project-revert", kwargs={"pk": project.id})
         response = self.client.post(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 

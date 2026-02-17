@@ -19,7 +19,7 @@ from projects.services.project_state_service import ProjectStateService
 from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
     AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer, ProjectAuditSerializer
 from projects.services.moderation_service import ProjectModerationService
-from projects.services.audit_service import build_diff, AUDITABLE_FIELDS
+from projects.services.audit_service import build_diff, serialize_value, AUDITABLE_FIELDS
 from startups.models import StartupProfile
 from .permissions import  IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
 
@@ -58,14 +58,16 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         project = serializer.instance
 
-        diff = build_diff(project, serializer.validated_data)
-        if diff:
-            ProjectAudit.objects.create(
-                project=project,
-                user=self.request.user,
-                action='create',
-                changes=diff
-            )
+        diff = {
+            field: {"before": None, "after": serialize_value(getattr(project, field))}
+            for field in AUDITABLE_FIELDS
+        }
+        ProjectAudit.objects.create(
+            project=project,
+            user=self.request.user,
+            action='create',
+            changes= diff
+        )
 
         handle_project_event.delay(
             event_type="project_created",
@@ -300,12 +302,12 @@ class ProjectRevertView(APIView):
     permission_classes = [CanModifyProject]
 
     @transaction.atomic
-    def post(self, request, pk, audit_id):
+    def post(self, request, pk):
         project = Project.objects.select_for_update().get(pk=pk, is_deleted=False)
         if not project:
             return Response({"detail": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        audit = ProjectAudit.objects.filter(project=project, id=audit_id).first()
+        audit = ProjectAudit.objects.filter(project=project).order_by('-created_at').first()
         if not audit:
             return Response({"detail": "Audit entry not found"}, status=status.HTTP_404_NOT_FOUND)
 
