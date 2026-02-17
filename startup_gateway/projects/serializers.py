@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from projects.models import ModerationAction, Project, ProjectStatus, ProjectVisibility, ProjectAttachment
+from projects.models import ModerationAction, Project, ProjectStatus, ProjectVisibility, ProjectAttachment, ProjectAudit
 from uploads.models import Upload
 
 class ProjectAttachmentSerializer(serializers.ModelSerializer):
@@ -116,3 +116,10 @@ class ModerationActionSerializer(serializers.Serializer):
                 'reason': 'Reason is required when rejecting a project'
             })
         return data
+
+
+class ProjectAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectAudit
+        fields = ["id", "user", "action", "changes", "created_at"]
+        read_only_fields = fields

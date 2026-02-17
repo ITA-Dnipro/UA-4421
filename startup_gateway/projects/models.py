@@ -145,20 +145,40 @@ class ProjectAttachment(models.Model):
     class Meta:
         db_table = 'project_attachments'
         ordering = ["order"]
+        
 
 class ProjectAudit(models.Model):
+    ACTION_CHOICES = [
+        ("create", "Create"),
+        ("update", "Update"),
+        ("delete", "Delete"),
+        ("revert", "Revert"),
+    ]
+
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
-        related_name="audit"
+        related_name="audits"
     )
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES
+    )
+
     changes = models.JSONField()
 
-    class Meta:
-        db_table = 'project_audit'
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        db_table = "project_audit"
+        ordering = ["-created_at"]
 
 class ProjectModerationLog(models.Model):
     project = models.ForeignKey(
