@@ -20,6 +20,7 @@ from projects.services.project_state_service import ProjectStateService
 from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
     AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer
 from projects.services.moderation_service import ProjectModerationService
+from projects.services.audit_service import build_diff
 from startups.models import StartupProfile
 from .permissions import  IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
 
@@ -59,6 +60,15 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
 
         project = serializer.instance
 
+        diff = build_diff(project, serializer.validated_data)
+        if diff:
+            ProjectAudit.objects.create(
+                project=project,
+                user=self.request.user,
+                action='create',
+                changes=diff
+            )
+
         handle_project_event.delay(
             event_type="project_created",
             project_id=str(project.id),
@@ -94,11 +104,22 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
             return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
 
         return qs.filter(visibility="public")
-
+    
+    @transaction.atomic
     def perform_update(self, serializer):
         project = self.get_object()
+
         old_status = project.status
         updated_project = serializer.save()
+
+        diff = build_diff(project, serializer.validated_data)
+        if diff:
+            ProjectAudit.objects.create(
+                project=project,
+                user=self.request.user,
+                action='update',
+                changes=diff
+            )
 
         if (
             "status" in serializer.validated_data
@@ -113,10 +134,22 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
                 "timestamp": now().isoformat(),
             },
         )
+    
+    @transaction.atomic
+    def perform_destroy(self, project):
+        project = self.get_object()
+        old_value = project.is_deleted
+        project.is_deleted = True
+        project.save(update_fields=["is_deleted"])
 
-    def perform_destroy(self, instance):
-        instance.is_deleted = True
-        instance.save(update_fields=["is_deleted"])
+        diff = {"is_deleted": {"before": old_value, "after": project.is_deleted}}
+        if diff:
+            ProjectAudit.objects.create(
+                project=project,
+                user=self.request.user,
+                action='delete',
+                changes=diff
+            )
 
     
 class ProjectStateServiceView(APIView):
@@ -141,8 +174,9 @@ class ProjectStateServiceView(APIView):
                 project = state_service.update_project_state(
                     project=project,
                     data=serializer.validated_data,
-                    user_is_staff=request.user.is_staff
-                )
+                    user_is_staff=request.user.is_staff,
+                    user=request.user  
+                )           
 
                 # Keep notifications consistent with PATCH /api/projects/{id}/
                 if old_status != project.status:
