@@ -240,7 +240,7 @@ export default function LoginPage() {
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor="role">
-                Role
+                Role (mock)
               </label>
               <select
                 id="role"
@@ -248,10 +248,17 @@ export default function LoginPage() {
                 value={role}
                 disabled={isSubmitting}
                 onChange={(e) => setRole(e.target.value as Role)}
+                aria-describedby="role-help"
               >
                 <option value="startup">Startup</option>
                 <option value="investor">Investor</option>
               </select>
+              <div
+                id="role-help"
+                style={{ marginTop: 6, fontSize: 12, color: '#6b7280' }}
+              >
+                Role (mock) UI-only: backend currently ignores this field.
+              </div>
             </div>
 
             <div className={styles.helpRow}>
