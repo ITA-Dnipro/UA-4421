@@ -75,3 +75,12 @@ class StartupListSerializer(serializers.ModelSerializer):
             .values_list('tags__name', flat=True)
             .distinct()
         )
+
+class StartupPublishSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StartupProfile
+        fields = (
+            'is_published',
+            'published_at',
+            'published_by',
+        )
