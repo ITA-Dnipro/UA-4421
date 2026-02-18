@@ -181,8 +181,10 @@ export default function SavedPage() {
           <button
             className={styles.loadMore}
             onClick={() => {
-              const nextPage = new URL(next).searchParams.get('page')
-              if (nextPage) fetchSaved(Number(nextPage))
+              const url = new URL(next, window.location.origin)
+              const nextPage = url.searchParams.get('page')
+              if (nextPage) {fetchSaved(Number(nextPage))
+              }
             }}
           >
             Load more
