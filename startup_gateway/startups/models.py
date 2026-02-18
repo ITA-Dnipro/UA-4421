@@ -49,6 +49,16 @@ class StartupProfile(models.Model):
         'dashboard.SavedItem',
         related_query_name='startup'
     )
+    is_published = models.BooleanField(default=False, db_index=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    published_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="published_startups"
+    )
+    draft_saved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'startup_profiles'
@@ -71,6 +81,26 @@ class StartupProfile(models.Model):
             self.slug = slug
 
         super().save(*args, **kwargs)
+
+    def get_missing_publish_fields(self):
+        missing = []
+
+        if not self.company_name:
+            missing.append("company_name")
+        if not self.short_pitch:
+            missing.append("short_pitch")
+        if not self.about_html:
+            missing.append("about_html")
+        if not self.contact_email:
+            missing.append("contact_email")
+        if not self.contact_phone:
+            missing.append("contact_phone")
+        if not self.logo_url:
+            missing.append("logo_url")
+        if not self.hero_image_url:
+            missing.append("hero_image_url")
+
+        return missing
 
     def __str__(self):
         return self.company_name
