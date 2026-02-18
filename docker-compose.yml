@@ -5,7 +5,8 @@ services:
       dockerfile: Dockerfile.backend
     command: >
       sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+             python manage.py create_mongo_indexes &&
+             daphne -b 0.0.0.0 -p 8000 startup_gateway.asgi:application"
     volumes:
       - ./startup_gateway:/app
     ports:
@@ -13,10 +14,15 @@ services:
     env_file:
       - ./startup_gateway/.env.docker
     depends_on:
-      - db
-      - redis
-      - mongodb
-      - meilisearch
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      db:
+        condition: service_started
+      meilisearch:
+        condition: service_started
+
   frontend:
     build:
       context: ./frontend
@@ -29,6 +35,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - VITE_API_URL=http://backend:8000
+      - VITE_WS_URL=ws://backend:8000
 
   db:
     image: postgres:15

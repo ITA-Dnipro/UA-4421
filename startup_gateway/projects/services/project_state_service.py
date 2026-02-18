@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db import transaction
-from projects.models import ProjectStatus, ProjectVisibility
+from projects.models import ProjectStatus, ProjectVisibility, ProjectAudit
 from search.services import ProjectSearchService
 from search.backends.meilisearch import MeiliSearchBackend
+from projects.services.audit_service import build_diff
 
 ALLOWED_STATUS_TRANSITIONS = {
     ProjectStatus.IDEA: {ProjectStatus.MVP},
@@ -20,7 +21,7 @@ class ProjectStateService:
             backend=MeiliSearchBackend()
         )
     
-    def update_project_state(self, project, data, user_is_staff=False):
+    def update_project_state(self, project, data, user_is_staff=False, user=None):
 
         if "raised_amount" in data:
             self.set_raised_amount(project, data["raised_amount"])
@@ -34,6 +35,15 @@ class ProjectStateService:
 
         project.save()
         
+        diff = build_diff(project, data)
+        if diff and user:
+            ProjectAudit.objects.create(
+                project=project,
+                user=user,
+                action='update',
+                changes=diff
+            )
+
         transaction.on_commit(lambda: self._sync_search_index(project.pk))
         
         return project
@@ -73,12 +83,12 @@ class ProjectStateService:
         try:
             from projects.models import Project
             project = Project.objects.get(pk=project_id)
-            
+
             if project.visibility == ProjectVisibility.PUBLIC:
                 self.search_service.index_project(project)
             else:
                 self.search_service.remove_project(project)
         except Project.DoesNotExist:
-            pass 
-
-        
+            return
+        except Exception:
+            return
