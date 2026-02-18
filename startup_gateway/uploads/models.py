@@ -14,9 +14,7 @@ class Upload(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="uploads",
-        null=True,
-        blank=True,
+        related_name="uploads"
     )
     file = models.FileField(upload_to=upload_to)
     type = models.CharField(max_length=100)
