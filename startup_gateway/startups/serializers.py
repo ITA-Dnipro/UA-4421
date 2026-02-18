@@ -117,7 +117,7 @@ class StartupProfileMeSerializer(serializers.ModelSerializer):
 
         if logo_upload_id is not None:
             try:
-                upload = Upload.objects.get(id=logo_upload_id)
+                upload = Upload.objects.get(id=logo_upload_id, user=self.context["request"].user)
             except Upload.DoesNotExist:
                 raise serializers.ValidationError({"logo_upload_id": "Upload not found."})
 
@@ -128,7 +128,7 @@ class StartupProfileMeSerializer(serializers.ModelSerializer):
 
         if pitch_deck_upload_id is not None:
             try:
-                upload = Upload.objects.get(id=pitch_deck_upload_id)
+                upload = Upload.objects.get(id=pitch_deck_upload_id, user=self.context["request"].user)
             except Upload.DoesNotExist:
                 raise serializers.ValidationError({"pitch_deck_upload_id": "Upload not found."})
 

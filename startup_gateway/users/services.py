@@ -160,6 +160,7 @@ def register_user(validated_data, user_model):
         if logo_file is not None:
             validate_upload(logo_file, purpose="logo")
             upload = Upload.objects.create(
+                user=user,
                 file=logo_file,
                 type="image",
                 size=logo_file.size,
@@ -176,6 +177,7 @@ def register_user(validated_data, user_model):
         if pitch_deck_file is not None:
             validate_upload(pitch_deck_file, purpose="pitch_deck")
             upload = Upload.objects.create(
+                user=user, 
                 file=pitch_deck_file,
                 type="doc",
                 size=pitch_deck_file.size,

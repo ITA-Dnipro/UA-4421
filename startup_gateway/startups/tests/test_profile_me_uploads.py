@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+import uuid
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -39,9 +40,10 @@ class StartupProfileMeUploadsTests(TestCase):
         self._override.disable()
         shutil.rmtree(self._media_root, ignore_errors=True)
 
-    def _create_upload(self, *, name: str, content: bytes, content_type: str, upload_type: str) -> Upload:
+    def _create_upload(self, *, name: str, content: bytes, content_type: str, upload_type: str, user=None) -> Upload:
         f = SimpleUploadedFile(name=name, content=content, content_type=content_type)
         return Upload.objects.create(
+            user=user or self.user,
             file=f,
             type=upload_type,
             size=f.size,
@@ -119,3 +121,53 @@ class StartupProfileMeUploadsTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("pitch_deck_upload_id", resp.data)
         self.assertIn("not a document", str(resp.data["pitch_deck_upload_id"]).lower())
+    
+    def test_patch_logo_upload_id_other_user_upload_rejected(self):
+        token = uuid.uuid4().hex
+        other_user = User.objects.create_user(
+            username=f"other_{token}",
+            email=f"other_{token}@test.com",
+            password="pass12345",
+        )
+
+        foreign_upload = self._create_upload(
+            name="logo.jpg",
+            content=b"\xff\xd8\xff" + b"0" * 50,
+            content_type="image/jpeg",
+            upload_type="image",
+            user=other_user,
+        )
+
+        response = self.client.patch(self.url, {"logo_upload_id": foreign_upload.id}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("logo_upload_id", response.data)
+        self.assertIn("Upload not found", str(response.data["logo_upload_id"]))
+       
+        
+    def test_patch_pitch_deck_upload_id_other_user_upload_rejected(self):
+        token = uuid.uuid4().hex
+        other_user = User.objects.create_user(
+            username=f"other_{token}",
+            email=f"other_{token}@test.com",
+            password="pass12345",
+        )
+
+        foreign_upload = self._create_upload(
+            name="pitch_deck.pdf",
+            content=b"%PDF-1.4\n%fake\n" + b"0" * 50,
+            content_type="application/pdf",
+            upload_type="doc",
+            user=other_user,
+        )
+
+        response = self.client.patch(
+            self.url,
+            {"pitch_deck_upload_id": foreign_upload.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("pitch_deck_upload_id", response.data)
+        self.assertIn("Upload not found", str(response.data["pitch_deck_upload_id"]))
+
+
+

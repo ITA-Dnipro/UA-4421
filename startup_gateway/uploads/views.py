@@ -37,6 +37,7 @@ class UploadCreateAPIView(APIView):
             return Response({"file": msg}, status=400)
 
         upload = Upload.objects.create(
+            user=request.user, 
             file=file,
             type=upload_type,
             size=file.size,
