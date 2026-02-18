@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
 function hasToken() {
@@ -7,6 +7,7 @@ function hasToken() {
 
 export default function Navbar() {
   const [isAuthenticated, setIsAuthenticated] = useState(hasToken)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const update = () => setIsAuthenticated(hasToken())
@@ -28,7 +29,7 @@ export default function Navbar() {
     sessionStorage.removeItem('refreshToken')
 
     window.dispatchEvent(new Event('auth:changed'))
-    window.location.href = '/login'
+    navigate('/login')
   }
 
   return (
