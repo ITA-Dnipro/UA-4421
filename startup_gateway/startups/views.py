@@ -39,9 +39,9 @@ class StartupListView(ListAPIView):
 class StartupPublishAPIView(APIView):
     permission_classes = [CanPublishStartupProfile]
 
-    def post(self, request, pk=None):
+    def post(self, request, pk):
         try:
-            profile = StartupProfile.objects.get(uuid=pk)
+            profile = StartupProfile.objects.get(id=pk)
         except StartupProfile.DoesNotExist:
             return Response({"detail": "Startup profile not found."}, status=404)
 

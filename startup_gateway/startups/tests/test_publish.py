@@ -27,7 +27,7 @@ class StartupPublishTests(TestCase):
         )
 
     def test_publish_startup_profile_success(self):
-        response = self.client.post(f"/api/profiles/{self.startup.uuid}/publish/")
+        response = self.client.post(f"/api/profiles/{self.startup.id}/publish/")
         self.assertEqual(response.status_code, 200)
         self.startup.refresh_from_db()
         self.assertTrue(self.startup.is_published)
@@ -38,7 +38,7 @@ class StartupPublishTests(TestCase):
         self.startup.short_pitch = ""
         self.startup.save()
 
-        response = self.client.post(f"/api/profiles/{self.startup.uuid}/publish/")
+        response = self.client.post(f"/api/profiles/{self.startup.id}/publish/")
         self.assertEqual(response.status_code, 400)
         self.assertIn("missing_fields", response.data)
         self.assertIn("short_pitch", response.data["missing_fields"])
@@ -49,7 +49,7 @@ class StartupPublishTests(TestCase):
 
     def test_publish_startup_profile_unauthorized(self):
         self.client.force_authenticate(user=None)
-        response = self.client.post(f"/api/profiles/{self.startup.uuid}/publish/")
+        response = self.client.post(f"/api/profiles/{self.startup.id}/publish/")
         self.assertEqual(response.status_code, 401)
         self.startup.refresh_from_db()
         self.assertFalse(self.startup.is_published)
