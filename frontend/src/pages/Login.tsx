@@ -119,6 +119,17 @@ export default function LoginPage() {
         const access = obj?.access
         const refresh = obj?.refresh
 
+        if (!access || typeof access !== 'string' || access.trim().length === 0) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('refreshToken')
+          sessionStorage.removeItem('token')
+          sessionStorage.removeItem('refreshToken')
+
+          setBanner('Login failed: server did not return an access token. Please try again.')
+          setUiState('credential_error')
+          return
+        }
+
         if (remember) {
           if (access) localStorage.setItem('token', access)
           if (refresh) localStorage.setItem('refreshToken', refresh)
