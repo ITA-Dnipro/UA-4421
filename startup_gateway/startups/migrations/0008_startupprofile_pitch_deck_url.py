@@ -6,9 +6,9 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("startups", "0006_alter_startupprofile_uuid"),
+        ("startups", "0007_startupprofile_draft_saved_at_and_more"),
     ]
-
+    
     operations = [
         migrations.AddField(
             model_name="startupprofile",

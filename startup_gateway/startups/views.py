@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
 
 from .models import StartupProfile
+
 from .serializers import StartupPublicSerializer, StartupListSerializer, StartupPublishSerializer, StartupProfileMeSerializer
 from .permissions import CanPublishStartupProfile
 from .services.startup_publish_service import publish_startup_profile
@@ -39,7 +40,6 @@ class StartupListView(ListAPIView):
 
         return queryset
 
-    
 class StartupProfileMeAPIView(RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = StartupProfileMeSerializer

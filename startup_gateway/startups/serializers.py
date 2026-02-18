@@ -78,7 +78,8 @@ class StartupListSerializer(serializers.ModelSerializer):
             .values_list('tags__name', flat=True)
             .distinct()
         )
-
+        
+        
 class StartupProfileMeSerializer(serializers.ModelSerializer):
     logo_upload_id = serializers.IntegerField(required=False, write_only=True)
     pitch_deck_upload_id = serializers.IntegerField(required=False, write_only=True)
