@@ -6,7 +6,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework import status
-from rest_framework import generics, permissions, status
 from notifications.tasks import handle_project_event
 from django.core.exceptions import ValidationError
 from rest_framework.views import APIView
@@ -15,16 +14,16 @@ from django_filters import rest_framework as filters
 from rest_framework.pagination import PageNumberPagination
 from projects.models import Project, ModerationStatus
 from django.utils.timezone import now
-from projects.models import Project, ProjectStatus, ModerationStatus
+from projects.models import Project, ModerationStatus, ProjectAudit
 from projects.services.project_state_service import ProjectStateService
 from projects.serializers import ProjectSerializer, ProjectDetailsSerializer, ProjectStateSerializer, \
-    AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer
+    AdminProjectListSerializer, ModerationActionSerializer, ProjectAttachmentSerializer, ProjectAuditSerializer
 from projects.services.moderation_service import ProjectModerationService
+from projects.services.audit_service import build_diff, serialize_value, AUDITABLE_FIELDS
 from startups.models import StartupProfile
 from .permissions import  IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
 
 logger = logging.getLogger(__name__)
-
 
 class StartUpProjectsListCreateAPIView(ListCreateAPIView):
     serializer_class = ProjectSerializer
@@ -58,6 +57,17 @@ class StartUpProjectsListCreateAPIView(ListCreateAPIView):
         self.perform_create(serializer)
 
         project = serializer.instance
+
+        diff = {
+            field: {"before": None, "after": serialize_value(getattr(project, field))}
+            for field in AUDITABLE_FIELDS
+        }
+        ProjectAudit.objects.create(
+            project=project,
+            user=self.request.user,
+            action='create',
+            changes= diff
+        )
 
         handle_project_event.delay(
             event_type="project_created",
@@ -94,11 +104,22 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
             return qs.filter(Q(visibility="public") | Q(startup_profile__user=user))
 
         return qs.filter(visibility="public")
-
+    
+    @transaction.atomic
     def perform_update(self, serializer):
         project = self.get_object()
+
         old_status = project.status
         updated_project = serializer.save()
+
+        diff = build_diff(project, serializer.validated_data)
+        if diff:
+            ProjectAudit.objects.create(
+                project=project,
+                user=self.request.user,
+                action='update',
+                changes=diff
+            )
 
         if (
             "status" in serializer.validated_data
@@ -113,10 +134,22 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
                 "timestamp": now().isoformat(),
             },
         )
+    
+    @transaction.atomic
+    def perform_destroy(self, project):
+        project = self.get_object()
+        old_value = project.is_deleted
+        project.is_deleted = True
+        project.save(update_fields=["is_deleted"])
 
-    def perform_destroy(self, instance):
-        instance.is_deleted = True
-        instance.save(update_fields=["is_deleted"])
+        diff = {"is_deleted": {"before": old_value, "after": project.is_deleted}}
+        if diff:
+            ProjectAudit.objects.create(
+                project=project,
+                user=self.request.user,
+                action='delete',
+                changes=diff
+            )
 
     
 class ProjectStateServiceView(APIView):
@@ -141,8 +174,9 @@ class ProjectStateServiceView(APIView):
                 project = state_service.update_project_state(
                     project=project,
                     data=serializer.validated_data,
-                    user_is_staff=request.user.is_staff
-                )
+                    user_is_staff=request.user.is_staff,
+                    user=request.user  
+                )           
 
                 # Keep notifications consistent with PATCH /api/projects/{id}/
                 if old_status != project.status:
@@ -246,3 +280,48 @@ class ProjectAttachmentCreateAPIView(APIView):
             attachment = serializer.save()
             return Response(ProjectAttachmentSerializer(attachment).data, status=201)
         return Response(serializer.errors, status=400)
+
+class ProjectHistoryPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+class ProjectHistoryView(ListAPIView):
+    serializer_class = ProjectAuditSerializer
+    permission_classes = [CanModifyProject]
+    pagination_class = ProjectHistoryPagination  
+
+    def get_queryset(self):
+        project = get_object_or_404(Project, pk=self.kwargs['pk'], is_deleted=False)
+
+        self.check_object_permissions(self.request, project)
+
+        return ProjectAudit.objects.filter(project=project).order_by('-created_at')
+    
+
+class ProjectRevertView(APIView):
+    permission_classes = [CanModifyProject]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        project = Project.objects.select_for_update().get(pk=pk, is_deleted=False)
+        if not project:
+            return Response({"detail": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        audit = ProjectAudit.objects.filter(project=project).order_by('-created_at').first()
+        if not audit:
+            return Response({"detail": "Audit entry not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        for field, values in audit.changes.items():
+            if field in AUDITABLE_FIELDS:
+                setattr(project, field, values["before"])
+
+        project.save()
+
+        ProjectAudit.objects.create(
+            project=project,
+            user=request.user,
+            action="revert",
+            changes=audit.changes
+        )
+
+        return Response(ProjectDetailsSerializer(project).data, status=status.HTTP_200_OK)
