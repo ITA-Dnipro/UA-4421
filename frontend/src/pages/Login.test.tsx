@@ -210,4 +210,28 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('Reset page')).toBeInTheDocument()
   })
+
+  it('treats 200 OK without access token as a login failure (no redirect, no tokens stored)', async () => {
+    const user = userEvent.setup()
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ refresh: 'REFRESH' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderWithRoutes()
+
+    await user.type(screen.getByLabelText('Email'), 'test@example.com')
+    await user.type(screen.getByLabelText('Password'), 'password123')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(
+      await screen.findByText('Login failed: server did not return an access token. Please try again.')
+    ).toBeInTheDocument()
+
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(sessionStorage.getItem('token')).toBeNull()
+  })
 })
