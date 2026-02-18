@@ -139,3 +139,12 @@ class StartupProfileMeSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
+class StartupPublishSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StartupProfile
+        fields = (
+            'is_published',
+            'published_at',
+            'published_by',
+        )
