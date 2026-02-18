@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import styles from './Login.module.css'
+import { isEmail } from '../utils/validation'
 
 type Role = 'startup' | 'investor'
 type FieldKey = 'email' | 'password'
@@ -10,10 +11,6 @@ type UiState = 'idle' | 'loading' | 'validation_errors' | 'credential_error' | '
 
 function isBlank(value: string) {
   return value.trim().length === 0
-}
-
-function isEmail(value: string) {
-  return /^\S+@\S+\.\S+$/.test(value.trim())
 }
 
 function validateAll(email: string, password: string): FieldErrors {
