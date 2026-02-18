@@ -7,6 +7,8 @@ from dashboard.models import SavedItem
 from messages.models import Message
 from notifications.models import Notification
 from users.models import Role, UserRole
+from django.core.files.uploadedfile import SimpleUploadedFile
+from uploads.models import Upload
 
 User = get_user_model()
 
@@ -112,14 +114,38 @@ class TestModels(TestCase):
             description="Full",
             target_amount=1500
         )
+        image = SimpleUploadedFile(
+            name="a.jpg", 
+            content=b"\xff\xd8\xff" + b"0" * 1024,
+            content_type="image/jpeg"
+        )
+        file = SimpleUploadedFile(
+            name="doc.pdf",
+            content=b"PDF content",
+            content_type="application/pdf"
+        )
+        upload_image = Upload.objects.create(
+            file=image,
+            type="image/jpeg",
+            size=image.size,
+            content_type="image/jpeg"
+        )
+        upload_file = Upload.objects.create(
+            file=file,
+            type="application/pdf",
+            size=file.size,
+            content_type="application/pdf"
+        )
         att1 = ProjectAttachment.objects.create(
             project=project,
+            upload=upload_image,
             type=AttachmentType.THUMBNAIL,
             order=1,
             caption="First image"
         )
         att2 = ProjectAttachment.objects.create(
             project=project,
+            upload=upload_file,
             type=AttachmentType.DECK,
             order=0
         )
@@ -145,4 +171,4 @@ class TestModels(TestCase):
         self.assertEqual(audit.project, project)
         self.assertEqual(audit.user, self.startup_user)
         self.assertEqual(audit.changes, changes)
-        self.assertIsNotNone(audit.timestamp)
+        self.assertIsNotNone(audit.created_at)

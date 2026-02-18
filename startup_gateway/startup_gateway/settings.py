@@ -54,6 +54,7 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
     'users',
     'startups',
     'investors',
@@ -72,6 +74,7 @@ INSTALLED_APPS = [
     'startup_gateway.content',
     'axes',
     'drf_spectacular',
+    'uploads',
     'rest_framework_simplejwt.token_blacklist',
 ]
 
@@ -106,6 +109,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'startup_gateway.wsgi.application'
+ASGI_APPLICATION = 'startup_gateway.asgi.application'
+
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {'hosts': [('redis', 6379)]},
+    },
+}
+
 
 DATABASES = {
     "default": {
@@ -207,6 +220,15 @@ APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_VERIFICATION_TOKEN_MAX_AGE = int(os.getenv("EMAIL_VERIFICATION_TOKEN_MAX_AGE", str(60 * 60 * 24)))
+
+# Redis/Celery
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_EAGER", "false") == "true"
+CELERY_TASK_EAGER_PROPAGATES = os.getenv("CELERY_EAGER", "false").lower() == "true"
 
 PASSWORD_RESET_TIMEOUT = 3600
 SITE_NAME = os.getenv("SITE_NAME", "Startup Gateway")
