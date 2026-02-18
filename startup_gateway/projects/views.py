@@ -22,7 +22,7 @@ from projects.services.moderation_service import ProjectModerationService
 from projects.services.audit_service import build_diff, serialize_value, AUDITABLE_FIELDS
 from startups.models import StartupProfile
 from .permissions import  IsAdmin, IsAdminOrModerator, CanCreateProject, CanModifyProject
-
+from drf_spectacular.utils import extend_schema
 logger = logging.getLogger(__name__)
 
 class StartUpProjectsListCreateAPIView(ListCreateAPIView):
@@ -155,6 +155,12 @@ class ProjectRUDAPIView(RetrieveUpdateDestroyAPIView):
 class ProjectStateServiceView(APIView):
     permission_classes = [CanModifyProject]
 
+    @extend_schema(
+        request=ProjectStateSerializer,
+        responses={201: ProjectDetailsSerializer},
+        tags=['projects']
+    )
+
     def patch(self, request, pk):
         try:
             with transaction.atomic():
@@ -243,6 +249,11 @@ class AdminProjectListView(ListAPIView):
 class ProjectModerateView(APIView):
     permission_classes = [IsAdmin]
 
+    @extend_schema(
+        request=ModerationActionSerializer,
+        responses={201: AdminProjectListSerializer},
+    )
+
     def patch(self, request, id):
         project = get_object_or_404(Project, id=id)
 
@@ -300,7 +311,11 @@ class ProjectHistoryView(ListAPIView):
 
 class ProjectRevertView(APIView):
     permission_classes = [CanModifyProject]
-
+    @extend_schema(
+        request=None,
+        responses={201: ProjectDetailsSerializer},
+        tags=['projects']
+    )
     @transaction.atomic
     def post(self, request, pk):
         project = Project.objects.select_for_update().get(pk=pk, is_deleted=False)
@@ -323,5 +338,5 @@ class ProjectRevertView(APIView):
             action="revert",
             changes=audit.changes
         )
-
+        
         return Response(ProjectDetailsSerializer(project).data, status=status.HTTP_200_OK)
