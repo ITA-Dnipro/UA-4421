@@ -131,6 +131,9 @@ DATABASES = {
     }
 }
 
+if os.environ.get("CI") == "true" or os.environ.get("PYTEST_CURRENT_TEST"):
+    DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
+
 MONGODB_SETTINGS = {
     'host': os.environ.get('MONGO_HOST', 'localhost'),
     'port': int(os.environ.get('MONGO_PORT', 27017)),
