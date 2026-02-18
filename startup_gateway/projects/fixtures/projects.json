@@ -1,0 +1,159 @@
+[
+  {
+    "model": "users.user",
+    "pk": 1,
+    "fields": {
+      "username": "testuser",
+      "email": "test@example.com",
+      "password": "pbkdf2_sha256$260000$test$testhashedpassword",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  },
+    {
+    "model": "users.user",
+    "pk": 2,
+    "fields": {
+      "username": "otheruser",
+      "email": "otheruse@example.com",
+      "password": "pbkdf2_sha256$260000$test$testhashed",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "created_at": "2026-01-02T00:00:00Z"
+    }
+  },
+  {
+    "model": "startups.startupprofile",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "company_name": "Test Startup",
+      "slug": "test-startup",
+      "short_pitch": "Startup used for API testing",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  },
+    {
+    "model": "startups.startupprofile",
+    "pk": 2,
+    "fields": {
+      "user": 2,
+      "company_name": "Other Startup",
+      "slug": "other-startup",
+      "short_pitch": "Other startup used for API testing",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  },
+
+  {
+    "model": "projects.project",
+    "pk": "10000000-0000-0000-0000-000000000001",
+    "fields": {
+      "startup_profile": 1,
+      "title": "AI Logistics Platform",
+      "slug": "ai-logistics",
+      "short_description": "AI logistics",
+      "description": "AI logistics optimization system",
+      "status": "idea",
+      "target_amount": "50000.00",
+      "raised_amount": "0.00",
+      "moderation_status": "pending",
+      "currency": "UAH",
+      "allow_overfunding": false,
+      "visibility": "public",
+      "is_deleted": false,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "projects.project",
+    "pk": "10000000-0000-0000-0000-000000000002",
+    "fields": {
+      "startup_profile": 1,
+      "title": "Fintech MVP",
+      "slug": "fintech-mvp",
+      "short_description": "Fintech solution",
+      "description": "Digital payment MVP",
+      "status": "mvp",
+      "target_amount": "80000.00",
+      "raised_amount": "15000.00",
+      "moderation_status": "approved",
+      "currency": "UAH",
+      "allow_overfunding": true,
+      "visibility": "public",
+      "is_deleted": false,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "projects.project",
+    "pk": "10000000-0000-0000-0000-000000000003",
+    "fields": {
+      "startup_profile": 1,
+      "title": "Health Monitoring App",
+      "slug": "health-monitoring",
+      "short_description": "Health app",
+      "description": "Remote health monitoring system",
+      "status": "fundraising",
+      "target_amount": "120000.00",
+      "raised_amount": "60000.00",
+      "moderation_status": "approved",
+      "currency": "UAH",
+      "allow_overfunding": true,
+      "visibility": "public",
+      "is_deleted": false,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "projects.project",
+    "pk": "10000000-0000-0000-0000-000000000004",
+    "fields": {
+      "startup_profile": 1,
+      "title": "EdTech Platform",
+      "slug": "edtech-platform",
+      "short_description": "Education marketplace",
+      "description": "Online courses marketplace",
+      "status": "funded",
+      "target_amount": "100000.00",
+      "raised_amount": "100000.00",
+      "moderation_status": "approved",
+      "currency": "UAH",
+      "allow_overfunding": false,
+      "funded_at": "2026-01-15T00:00:00Z",
+      "visibility": "public",
+      "is_deleted": false,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "projects.project",
+    "pk": "10000000-0000-0000-0000-000000000005",
+    "fields": {
+      "startup_profile": 1,
+      "title": "Green Energy Network",
+      "slug": "green-energy",
+      "short_description": "Renewable energy",
+      "description": "Crowdfunded green energy network",
+      "status": "closed",
+      "target_amount": "70000.00",
+      "raised_amount": "30000.00",
+      "moderation_status": "rejected",
+      "moderation_notes": "Insufficient documents",
+      "rejection_reason": "Missing legal documents",
+      "currency": "UAH",
+      "allow_overfunding": false,
+      "visibility": "public",
+      "is_deleted": false,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-20T00:00:00Z"
+    }
+  }
+]
