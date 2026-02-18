@@ -171,4 +171,4 @@ class TestModels(TestCase):
         self.assertEqual(audit.project, project)
         self.assertEqual(audit.user, self.startup_user)
         self.assertEqual(audit.changes, changes)
-        self.assertIsNotNone(audit.timestamp)
+        self.assertIsNotNone(audit.created_at)
