@@ -260,11 +260,69 @@ class ChatService:
                 'status': {'$ne': MessageStatus.READ}
             },
             {
-                '$set': {'status': MessageStatus.READ}
+                '$set': {
+                    'status': MessageStatus.READ,
+                    'read_at': datetime.utcnow().isoformat()
+                }
             }
         )
         
         return result.modified_count
+    
+    def mark_message_delivered(
+        self,
+        message_id: str,
+        user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Mark a message as delivered when recipient acknowledges receipt.
+        
+        Args:
+            message_id: MongoDB ObjectId as string
+            user_id: ID of user who received the message
+            
+        Returns:
+            Updated message dict with conversation_id, or None
+        """
+        try:
+            msg_object_id = ObjectId(message_id)
+        except:
+            return None
+        
+        message = self.messages.find_one({'_id': msg_object_id})
+        
+        if not message:
+            return None
+        
+        if message.get('sender_id') == user_id:
+            return None
+        
+        if message.get('status') != MessageStatus.SENT:
+            return None
+        
+        result = self.messages.update_one(
+            {
+                '_id': msg_object_id,
+                'status': MessageStatus.SENT
+            },
+            {
+                '$set': {
+                    'status': MessageStatus.DELIVERED,
+                    'delivered_at': datetime.utcnow().isoformat()
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            updated = self.messages.find_one({'_id': msg_object_id})
+            return {
+                '_id': str(updated['_id']),
+                'conversation_id': updated.get('conversation_id'),
+                'status': updated.get('status'),
+                'delivered_at': updated.get('delivered_at')
+            }
+        
+        return None
     
     def get_unread_count(
         self,
@@ -290,7 +348,6 @@ class ChatService:
         return count
 
 
-# Singleton instance
 _chat_service = None
 
 

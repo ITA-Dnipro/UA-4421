@@ -34,7 +34,6 @@ class ChatConsumerTest(TestCase):
         )
     
     async def test_authentication_required(self):
-        """Test that unauthenticated users cannot connect."""
         communicator = WebsocketCommunicator(
             ChatConsumer.as_asgi(),
             "/ws/chat/"
@@ -46,7 +45,6 @@ class ChatConsumerTest(TestCase):
         self.assertFalse(connected)
     
     async def test_join_and_leave_conversation(self):
-        """Test joining and leaving a conversation."""
         communicator = WebsocketCommunicator(
             ChatConsumer.as_asgi(),
             "/ws/chat/"
@@ -72,7 +70,6 @@ class ChatConsumerTest(TestCase):
         await communicator.disconnect()
     
     async def test_send_message_persists_and_broadcasts(self):
-        """Test that sent message is saved to MongoDB and broadcast to all participants."""
         comm1 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         comm1.scope['user'] = self.user1
         
@@ -114,6 +111,132 @@ class ChatConsumerTest(TestCase):
         result = await database_sync_to_async(chat.get_conversation)(conversation_id)
         messages = result['messages']
         self.assertTrue(any(m['body'] == 'Test message' for m in messages))
+        
+        await comm1.disconnect()
+        await comm2.disconnect()
+    
+    async def test_typing_indicator(self):
+        comm1 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        comm1.scope['user'] = self.user1
+        
+        comm2 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        comm2.scope['user'] = self.user2
+        
+        await comm1.connect()
+        await comm2.connect()
+        
+        chat = get_chat_service()
+        conversation_id = await database_sync_to_async(chat.create_conversation)(
+            participants=[self.user1.id, self.user2.id],
+            meta={'test': True}
+        )
+        
+        await comm1.send_json_to({'type': 'join_conversation', 'conversation_id': conversation_id})
+        await comm2.send_json_to({'type': 'join_conversation', 'conversation_id': conversation_id})
+        await comm1.receive_json_from()
+        await comm2.receive_json_from()
+        
+        await asyncio.sleep(0.1)
+        
+        await comm1.send_json_to({
+            'type': 'typing',
+            'conversation_id': conversation_id
+        })
+        
+        await asyncio.sleep(0.2)
+        
+        typing_event = await comm2.receive_json_from(timeout=5)
+        self.assertEqual(typing_event['type'], 'typing')
+        self.assertEqual(typing_event['user_id'], self.user1.id)
+        self.assertEqual(typing_event['conversation_id'], conversation_id)
+        
+        await comm1.disconnect()
+        await comm2.disconnect()
+    
+    async def test_read_receipts_emitted(self):
+        comm1 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        comm1.scope['user'] = self.user1
+        
+        comm2 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        comm2.scope['user'] = self.user2
+        
+        await comm1.connect()
+        await comm2.connect()
+        
+        chat = get_chat_service()
+        conversation_id = await database_sync_to_async(chat.create_conversation)(
+            participants=[self.user1.id, self.user2.id],
+            meta={'test': True}
+        )
+        
+        await comm1.send_json_to({'type': 'join_conversation', 'conversation_id': conversation_id})
+        await comm2.send_json_to({'type': 'join_conversation', 'conversation_id': conversation_id})
+        await comm1.receive_json_from()
+        await comm2.receive_json_from()
+        
+        await asyncio.sleep(0.1)
+        
+        await comm1.send_json_to({
+            'type': 'mark_read',
+            'conversation_id': conversation_id
+        })
+        
+        await asyncio.sleep(0.2)
+        
+        receipt = await comm2.receive_json_from(timeout=5)
+        self.assertEqual(receipt['type'], 'read_receipt')
+        self.assertEqual(receipt['user_id'], self.user1.id)
+        
+        await comm1.disconnect()
+        await comm2.disconnect()
+    
+    async def test_ack_delivered_status(self):
+        comm1 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        comm1.scope['user'] = self.user1
+        
+        comm2 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        comm2.scope['user'] = self.user2
+        
+        await comm1.connect()
+        await comm2.connect()
+        
+        chat = get_chat_service()
+        conversation_id = await database_sync_to_async(chat.create_conversation)(
+            participants=[self.user1.id, self.user2.id],
+            meta={'test': True}
+        )
+        
+        await comm1.send_json_to({'type': 'join_conversation', 'conversation_id': conversation_id})
+        await comm2.send_json_to({'type': 'join_conversation', 'conversation_id': conversation_id})
+        await comm1.receive_json_from()
+        await comm2.receive_json_from()
+        
+        await asyncio.sleep(0.1)
+        
+        await comm1.send_json_to({
+            'type': 'send_message',
+            'conversation_id': conversation_id,
+            'body': 'Test delivery'
+        })
+        
+        await asyncio.sleep(0.2)
+        
+        msg1 = await comm1.receive_json_from(timeout=5)
+        msg2 = await comm2.receive_json_from(timeout=5)
+        
+        message_id = msg2['message']['message_id']
+        
+        await comm2.send_json_to({
+            'type': 'ack',
+            'message_id': message_id
+        })
+        
+        await asyncio.sleep(0.2)
+        
+        delivered = await comm1.receive_json_from(timeout=5)
+        self.assertEqual(delivered['type'], 'delivered')
+        self.assertEqual(delivered['message_id'], message_id)
+        self.assertEqual(delivered['user_id'], self.user2.id)
         
         await comm1.disconnect()
         await comm2.disconnect()

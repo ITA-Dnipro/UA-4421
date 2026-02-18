@@ -35,6 +35,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.handle_leave(data)
             elif message_type == 'send_message':
                 await self.handle_send(data)
+            elif message_type == 'typing':
+                await self.handle_typing(data)
+            elif message_type == 'mark_read':
+                await self.handle_read(data)
+            elif message_type == 'ack':
+                await self.handle_ack(data)
             else:
                 await self.send_error(f'Unknown type: {message_type}')
         except Exception as e:
@@ -110,13 +116,110 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         except Exception as e:
             await self.send_error(str(e))
-
+    
+    async def handle_typing(self, data):
+        conversation_id = data.get('conversation_id')
+        if not conversation_id:
+            await self.send_error('conversation_id required')
+            return
+        
+        await self.channel_layer.group_send(
+            f'conversation_{conversation_id}',
+            {
+                'type': 'typing_indicator',
+                'user_id': self.user.id,
+                'conversation_id': conversation_id,
+            }
+        )
+    
+    async def handle_read(self, data):
+        conversation_id = data.get('conversation_id')
+        if not conversation_id:
+            await self.send_error('conversation_id required')
+            return
+        
+        try:
+            chat = get_chat_service()
+            count = await database_sync_to_async(chat.mark_messages_read)(
+                conversation_id=conversation_id,
+                user_id=self.user.id
+            )
+            
+            await self.channel_layer.group_send(
+                f'conversation_{conversation_id}',
+                {
+                    'type': 'read_receipt',
+                    'user_id': self.user.id,
+                    'conversation_id': conversation_id,
+                    'count': count,
+                }
+            )
+        except Exception as e:
+            await self.send_error(str(e))
+    
+    async def handle_ack(self, data):
+        """Handle message acknowledgement (delivered status) - Task 5."""
+        message_id = data.get('message_id')
+        if not message_id:
+            await self.send_error('message_id required')
+            return
+        
+        try:
+            chat = get_chat_service()
+            
+            updated = await database_sync_to_async(chat.mark_message_delivered)(
+                message_id=message_id,
+                user_id=self.user.id
+            )
+            
+            if updated:
+            
+                conversation_id = updated.get('conversation_id')
+                await self.channel_layer.group_send(
+                    f'conversation_{conversation_id}',
+                    {
+                        'type': 'delivered_receipt',
+                        'message_id': message_id,
+                        'user_id': self.user.id,
+                        'conversation_id': conversation_id,
+                    }
+                )
+        except Exception as e:
+            await self.send_error(str(e))
+    
     async def message_received(self, event):
         await self.send(text_data=json.dumps({
             'type': 'message_received',
             'message': event['message']
         }))
-
+    
+    async def typing_indicator(self, event):
+        if event['user_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'typing',
+                'user_id': event['user_id'],
+                'conversation_id': event['conversation_id'],
+            }))
+    
+    async def read_receipt(self, event):
+        if event['user_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'read_receipt',
+                'user_id': event['user_id'],
+                'conversation_id': event['conversation_id'],
+                'count': event.get('count', 0),
+            }))
+    
+    async def delivered_receipt(self, event):
+        """Broadcast delivered status to other participants - Task 5."""
+        
+        await self.send(text_data=json.dumps({
+            'type': 'delivered',
+            'message_id': event['message_id'],
+            'user_id': event['user_id'],
+            'conversation_id': event['conversation_id'],
+        }))
+    
     async def send_error(self, message):
         await self.send(text_data=json.dumps({
             'type': 'error',

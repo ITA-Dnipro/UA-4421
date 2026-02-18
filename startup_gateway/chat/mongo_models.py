@@ -1,5 +1,5 @@
 """
-MongoDB schemas for chat collections - TASK SPECIFICATION COMPLIANT.
+MongoDB schemas for chat collections 
 
 Matches exact schema from task requirements.
 """
@@ -110,11 +110,13 @@ class Message:
     attachments: List[Attachment] = field(default_factory=list)
     status: str = MessageStatus.SENT  
     created_at: datetime = field(default_factory=datetime.utcnow)
+    delivered_at: Optional[datetime] = None
+    read_at: Optional[datetime] = None
     meta: Dict[str, Any] = field(default_factory=dict)  
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for MongoDB insertion."""
-        return {
+        data = {
             'conversation_id': self.conversation_id,  
             'sender_id': self.sender_id,
             'body': self.body,  
@@ -123,6 +125,13 @@ class Message:
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'meta': self.meta,
         }
+        
+        if self.delivered_at:
+            data['delivered_at'] = self.delivered_at.isoformat() if isinstance(self.delivered_at, datetime) else self.delivered_at
+        if self.read_at:
+            data['read_at'] = self.read_at.isoformat() if isinstance(self.read_at, datetime) else self.read_at
+            
+        return data
 
 
 
