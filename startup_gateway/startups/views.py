@@ -1,7 +1,16 @@
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import render
-from rest_framework.generics import RetrieveAPIView, ListAPIView
+from rest_framework.generics import RetrieveAPIView, ListAPIView, RetrieveUpdateAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import NotFound
+
 from .models import StartupProfile
-from .serializers import StartupPublicSerializer, StartupListSerializer
+
+from .serializers import StartupPublicSerializer, StartupListSerializer, StartupPublishSerializer, StartupProfileMeSerializer
+from .permissions import CanPublishStartupProfile
+from .services.startup_publish_service import publish_startup_profile
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from .pagination import StartupListPagination
 
 
@@ -30,3 +39,35 @@ class StartupListView(ListAPIView):
             queryset = queryset.filter(company_name__icontains=search)
 
         return queryset
+
+class StartupProfileMeAPIView(RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = StartupProfileMeSerializer
+
+    def get_object(self):
+        user = self.request.user
+        
+        try:
+            return StartupProfile.objects.get(user=user)
+        except StartupProfile.DoesNotExist:
+            raise NotFound("Startup profile not found.")
+
+class StartupPublishAPIView(APIView):
+    permission_classes = [CanPublishStartupProfile]
+
+    def post(self, request, pk):
+        try:
+            profile = StartupProfile.objects.get(id=pk)
+        except StartupProfile.DoesNotExist:
+            return Response({"detail": "Startup profile not found."}, status=404)
+
+        self.check_object_permissions(request, profile)
+
+        try:
+            updated_profile = publish_startup_profile(profile, request.user)
+        except ValidationError as e:
+            return Response(e.detail, status=400)
+
+        serializer = StartupPublishSerializer(updated_profile)
+        return Response(serializer.data, status=200)
+

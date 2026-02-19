@@ -9,6 +9,7 @@ import Register from './pages/Register'
 import RegisterStartup from './pages/RegisterStartup'
 import RegisterInvestor from './pages/RegisterInvestor'
 import StartupView from './pages/StartupView'
+import StartupProfile from './pages/StartupProfile'
 import InvestorDashboard from './pages/InvestorDashboard'
 import SavedPage from './pages/SavedPage'
 import Inbox from './pages/Inbox'
@@ -68,6 +69,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <StartupView />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/startup/profile"
+          element={
+            <ProtectedRoute>
+              <StartupProfile />
             </ProtectedRoute>
           }
         />
