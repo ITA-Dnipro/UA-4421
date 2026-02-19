@@ -11,6 +11,7 @@ import RegisterInvestor from './pages/RegisterInvestor'
 import StartupView from './pages/StartupView'
 import StartupProfile from './pages/StartupProfile'
 import InvestorDashboard from './pages/InvestorDashboard'
+import SavedPage from './pages/SavedPage'
 import Inbox from './pages/Inbox'
 import NotFound from './pages/NotFound'
 
@@ -50,6 +51,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Inbox />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/saved"
+          element={
+            <ProtectedRoute>
+              <SavedPage />
             </ProtectedRoute>
           }
         />
