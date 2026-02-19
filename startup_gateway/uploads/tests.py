@@ -6,8 +6,8 @@ from startups.models import StartupProfile
 
 User = get_user_model()
 
-class UploadCreateViewTests(TestCase):
 
+class UploadCreateViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = User.objects.create_user(
@@ -16,7 +16,6 @@ class UploadCreateViewTests(TestCase):
         )
         self.client.force_authenticate(user=self.user)
         self.url = "/api/uploads/"
-
 
     def test_attach_image_success(self):
         image = SimpleUploadedFile(
@@ -27,7 +26,7 @@ class UploadCreateViewTests(TestCase):
 
         response = self.client.post(
             self.url,
-            {"file": image},
+            {"file": image, "purpose": "logo"},
             format="multipart"
         )
 
@@ -35,6 +34,11 @@ class UploadCreateViewTests(TestCase):
         self.assertIn("id", response.data)
         self.assertEqual(response.data["type"], "image")
 
+    def test_missing_file_rejected_field_level(self):
+        response = self.client.post(self.url, {}, format="multipart")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("file", response.data)
+        self.assertIn("required", str(response.data["file"]).lower())
 
     def test_invalid_file_type_rejected(self):
         file = SimpleUploadedFile(
@@ -50,24 +54,25 @@ class UploadCreateViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Invalid file type", response.data)
-
+        self.assertIn("file", response.data)
+        self.assertIn("Invalid file type", str(response.data["file"]))
 
     def test_large_file_rejected(self):
         big_file = SimpleUploadedFile(
             name="big.pdf",
-            content=b"0" * (21 * 1024 * 1024),
+            content=b"0" * (11 * 1024 * 1024),
             content_type="application/pdf"
         )
 
         response = self.client.post(
             self.url,
-            {"file": big_file},
+            {"file": big_file, "purpose": "pitch_deck"},
             format="multipart"
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Document too large", response.data)
+        self.assertIn("file", response.data)
+        self.assertIn("Document too large", str(response.data["file"]))
 
 
 class UploadProjectFlowTests(TestCase):
@@ -85,17 +90,16 @@ class UploadProjectFlowTests(TestCase):
             user=self.user
         )
 
-
     def test_upload_then_attach_to_project(self):
         image = SimpleUploadedFile(
-            name="a.jpg", 
+            name="a.jpg",
             content=b"\xff\xd8\xff" + b"0" * 1024,
             content_type="image/jpeg"
         )
 
         upload_resp = self.client.post(
             "/api/uploads/",
-            {"file": image},
+            {"file": image, "purpose": "logo"},
             format="multipart"
         )
         self.assertEqual(upload_resp.status_code, 201)
@@ -115,7 +119,6 @@ class UploadProjectFlowTests(TestCase):
         )
 
         self.assertEqual(project_resp.status_code, 201)
-
         project_id = project_resp.data["id"]
 
         attach_resp = self.client.post(

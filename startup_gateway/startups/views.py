@@ -1,8 +1,12 @@
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import render
-from rest_framework.generics import RetrieveAPIView, ListAPIView
+from rest_framework.generics import RetrieveAPIView, ListAPIView, RetrieveUpdateAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import NotFound
+
 from .models import StartupProfile
-from .serializers import StartupPublicSerializer, StartupListSerializer, StartupPublishSerializer
+
+from .serializers import StartupPublicSerializer, StartupListSerializer, StartupPublishSerializer, StartupProfileMeSerializer
 from .permissions import CanPublishStartupProfile
 from .services.startup_publish_service import publish_startup_profile
 from rest_framework.views import APIView
@@ -36,6 +40,18 @@ class StartupListView(ListAPIView):
 
         return queryset
 
+class StartupProfileMeAPIView(RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = StartupProfileMeSerializer
+
+    def get_object(self):
+        user = self.request.user
+        
+        try:
+            return StartupProfile.objects.get(user=user)
+        except StartupProfile.DoesNotExist:
+            raise NotFound("Startup profile not found.")
+
 class StartupPublishAPIView(APIView):
     permission_classes = [CanPublishStartupProfile]
 
@@ -54,3 +70,4 @@ class StartupPublishAPIView(APIView):
 
         serializer = StartupPublishSerializer(updated_profile)
         return Response(serializer.data, status=200)
+

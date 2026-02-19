@@ -1,5 +1,20 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import styles from './RegisterStartup.module.css'
+
+type UiState = 'idle' | 'submitting' | 'success'
+
+type Values = {
+  email: string
+  password: string
+  passwordConfirm: string
+  companyName: string
+  shortPitch: string
+  website: string
+  contact: string
+  logoFile: File | null
+  pitchDeckFile: File | null
+  termsAccepted: boolean
+}
 
 type FieldKey =
   | 'email'
@@ -16,27 +31,12 @@ type FieldKey =
 type FieldErrors = Partial<Record<FieldKey, string>>
 type FieldTouched = Partial<Record<FieldKey, boolean>>
 
-type Values = {
-  email: string
-  password: string
-  passwordConfirm: string
-  companyName: string
-  shortPitch: string
-  website: string
-  contact: string
-  logoFile: File | null
-  pitchDeckFile: File | null
-  termsAccepted: boolean
-}
-
-type UiState = 'idle' | 'submitting' | 'success'
-
 function isBlank(value: string) {
-  return value.trim().length === 0
+  return !value.trim()
 }
 
 function isEmail(value: string) {
-  return /^\S+@\S+\.\S+$/.test(value.trim())
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }
 
 function isValidHttpUrl(value: string) {
@@ -48,14 +48,13 @@ function isValidHttpUrl(value: string) {
   }
 }
 
-const LOGO_MAX_BYTES = 2 * 1024 * 1024
-const PITCH_DECK_MAX_BYTES = 15 * 1024 * 1024
+const LOGO_MAX_BYTES = 10 * 1024 * 1024
+const PITCH_DECK_MAX_BYTES = 10 * 1024 * 1024
 
 const LOGO_ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
 const PITCH_DECK_ALLOWED_TYPES = new Set([
   'application/pdf',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ])
 
 function validateOptionalFile(
@@ -65,6 +64,86 @@ function validateOptionalFile(
   if (!file) return undefined
   if (!opts.allowedTypes.has(file.type)) return `${opts.label} has an unsupported file type.`
   if (file.size > opts.maxBytes) return `${opts.label} is too large.`
+  return undefined
+}
+
+function postFormDataWithProgress(
+  url: string,
+  body: FormData,
+  onProgress: (percent: number) => void,
+): Promise<{ ok: boolean; status: number; data: unknown }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable) return
+      const percent = Math.round((evt.loaded / evt.total) * 100)
+      onProgress(percent)
+    }
+
+    xhr.onload = () => {
+      const status = xhr.status
+      let data: unknown = undefined
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : undefined
+      } catch {
+        data = undefined
+      }
+      resolve({ ok: status >= 200 && status < 300, status, data })
+    }
+
+    xhr.onerror = () => reject(new Error('Network error'))
+
+    xhr.send(body)
+  })
+}
+
+function mapServerErrorsToFields(payload: unknown): { fieldErrors: FieldErrors; general?: string } {
+  const fieldErrors: FieldErrors = {}
+  let general: string | undefined
+
+  if (!payload || typeof payload !== 'object') return { fieldErrors }
+
+  const obj = payload as Record<string, unknown>
+
+  if (typeof obj.detail === 'string') general = obj.detail
+  if (typeof obj.non_field_errors === 'string') general = obj.non_field_errors
+  if (Array.isArray(obj.non_field_errors)) general = toMessage(obj.non_field_errors)
+
+  const emailMsg = toMessage(obj.email)
+  if (emailMsg) fieldErrors.email = emailMsg
+
+  const passwordMsg = toMessage(obj.password)
+  if (passwordMsg) fieldErrors.password = passwordMsg
+
+  const companyNameMsg = toMessage(obj.company_name)
+  if (companyNameMsg) fieldErrors.companyName = companyNameMsg
+
+  const shortPitchMsg = toMessage(obj.short_pitch)
+  if (shortPitchMsg) fieldErrors.shortPitch = shortPitchMsg
+
+  const websiteMsg = toMessage(obj.website)
+  if (websiteMsg) fieldErrors.website = websiteMsg
+
+  const contactMsg = toMessage(obj.contact_phone)
+  if (contactMsg) fieldErrors.contact = contactMsg
+
+  const logoMsg = toMessage(obj.logo)
+  if (logoMsg) fieldErrors.logoFile = logoMsg
+
+  const pitchDeckMsg = toMessage(obj.pitch_deck)
+  if (pitchDeckMsg) fieldErrors.pitchDeckFile = pitchDeckMsg
+
+  return { fieldErrors, general }
+}
+
+function toMessage(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    const parts = value.map((v) => (typeof v === 'string' ? v : '')).filter(Boolean)
+    return parts.length ? parts.join(' ') : undefined
+  }
   return undefined
 }
 
@@ -109,54 +188,6 @@ function validateAll(values: Values): FieldErrors {
   return next
 }
 
-function toMessage(value: unknown): string | undefined {
-  if (typeof value === 'string') return value
-  if (Array.isArray(value)) {
-    const parts = value.map((v) => (typeof v === 'string' ? v : '')).filter(Boolean)
-    return parts.length ? parts.join(' ') : undefined
-  }
-  return undefined
-}
-
-function mapServerErrorsToFields(payload: unknown): { fieldErrors: FieldErrors; general?: string } {
-  const fieldErrors: FieldErrors = {}
-  let general: string | undefined
-
-  if (!payload || typeof payload !== 'object') return { fieldErrors }
-
-  const obj = payload as Record<string, unknown>
-
-  if (typeof obj.detail === 'string') general = obj.detail
-  if (typeof obj.non_field_errors === 'string') general = obj.non_field_errors
-  if (Array.isArray(obj.non_field_errors)) general = toMessage(obj.non_field_errors)
-
-  const emailMsg = toMessage(obj.email)
-  if (emailMsg) fieldErrors.email = emailMsg
-
-  const passwordMsg = toMessage(obj.password)
-  if (passwordMsg) fieldErrors.password = passwordMsg
-
-  const companyNameMsg = toMessage(obj.company_name)
-  if (companyNameMsg) fieldErrors.companyName = companyNameMsg
-
-  const shortPitchMsg = toMessage(obj.short_pitch)
-  if (shortPitchMsg) fieldErrors.shortPitch = shortPitchMsg
-
-  const websiteMsg = toMessage(obj.website)
-  if (websiteMsg) fieldErrors.website = websiteMsg
-
-  const contactMsg = toMessage(obj.contact_phone)
-  if (contactMsg) fieldErrors.contact = contactMsg
-
-  const logoMsg = toMessage(obj.logo)
-  if (logoMsg) fieldErrors.logoFile = logoMsg
-
-  const pitchDeckMsg = toMessage(obj.pitch_deck)
-  if (pitchDeckMsg) fieldErrors.pitchDeckFile = pitchDeckMsg
-
-  return { fieldErrors, general }
-}
-
 export default function RegisterStartup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -166,6 +197,7 @@ export default function RegisterStartup() {
   const [website, setWebsite] = useState('')
   const [contact, setContact] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
   const [pitchDeckFile, setPitchDeckFile] = useState<File | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
 
@@ -175,6 +207,13 @@ export default function RegisterStartup() {
 
   const [uiState, setUiState] = useState<UiState>('idle')
   const [banner, setBanner] = useState<string>('')
+  const [uploadProgress, setUploadProgress] = useState(0)
+
+  useEffect(() => {
+    return () => {
+      if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl)
+    }
+  }, [logoPreviewUrl])
 
   function getValues(): Values {
     return {
@@ -234,12 +273,9 @@ export default function RegisterStartup() {
       if (logoFile) formData.append('logo', logoFile)
       if (pitchDeckFile) formData.append('pitch_deck', pitchDeckFile)
 
-      const res = await fetch('/api/auth/register/', {
-        method: 'POST',
-        body: formData,
-      })
+      setUploadProgress(0)
 
-      const data = await res.json().catch(() => undefined)
+      const res = await postFormDataWithProgress('/api/auth/register/', formData, setUploadProgress)
 
       if (res.ok) {
         setUiState('success')
@@ -247,7 +283,7 @@ export default function RegisterStartup() {
         return
       }
 
-      const parsed = mapServerErrorsToFields(data)
+      const parsed = mapServerErrorsToFields(res.data)
       const nextErrors: FieldErrors = { ...combined, ...parsed.fieldErrors }
 
       setErrors(nextErrors)
@@ -260,6 +296,7 @@ export default function RegisterStartup() {
       setUiState('idle')
     } catch {
       setBanner('Network error. Please try again.')
+      setUploadProgress(0)
       setUiState('idle')
     }
   }
@@ -318,8 +355,6 @@ export default function RegisterStartup() {
                     markTouched('email')
                     revalidate()
                   }}
-                  autoComplete="email"
-                  required
                   disabled={isSubmitting}
                   className={controlClass('email')}
                   aria-invalid={Boolean(emailError)}
@@ -343,8 +378,6 @@ export default function RegisterStartup() {
                     markTouched('password')
                     revalidate()
                   }}
-                  autoComplete="new-password"
-                  required
                   disabled={isSubmitting}
                   className={controlClass('password')}
                   aria-invalid={Boolean(passwordError)}
@@ -368,8 +401,6 @@ export default function RegisterStartup() {
                     markTouched('passwordConfirm')
                     revalidate()
                   }}
-                  autoComplete="new-password"
-                  required
                   disabled={isSubmitting}
                   className={controlClass('passwordConfirm')}
                   aria-invalid={Boolean(passwordConfirmError)}
@@ -393,8 +424,6 @@ export default function RegisterStartup() {
                     markTouched('companyName')
                     revalidate()
                   }}
-                  autoComplete="organization"
-                  required
                   disabled={isSubmitting}
                   className={controlClass('companyName')}
                   aria-invalid={Boolean(companyNameError)}
@@ -417,14 +446,8 @@ export default function RegisterStartup() {
                     markTouched('shortPitch')
                     revalidate()
                   }}
-                  rows={3}
-                  required
                   disabled={isSubmitting}
-                  className={
-                    getVisibleError('shortPitch')
-                      ? `${styles.textarea} ${styles.inputError}`
-                      : styles.textarea
-                  }
+                  className={controlClass('shortPitch')}
                   aria-invalid={Boolean(shortPitchError)}
                   aria-describedby={shortPitchError ? 'shortPitch-error' : undefined}
                 />
@@ -446,8 +469,6 @@ export default function RegisterStartup() {
                     markTouched('website')
                     revalidate()
                   }}
-                  placeholder="https://example.com"
-                  required
                   disabled={isSubmitting}
                   className={controlClass('website')}
                   aria-invalid={Boolean(websiteError)}
@@ -471,8 +492,6 @@ export default function RegisterStartup() {
                     markTouched('contact')
                     revalidate()
                   }}
-                  placeholder="+380..."
-                  required
                   disabled={isSubmitting}
                   className={controlClass('contact')}
                   aria-invalid={Boolean(contactError)}
@@ -498,6 +517,7 @@ export default function RegisterStartup() {
                   onChange={(e) => {
                     const file = e.target.files?.[0] ?? null
                     setLogoFile(file)
+                    setLogoPreviewUrl(file ? URL.createObjectURL(file) : null)
                     markTouched('logoFile')
                     setErrors(validateAll({ ...getValues(), logoFile: file }))
                   }}
@@ -511,6 +531,13 @@ export default function RegisterStartup() {
                     <span className={styles.fileName}>{logoFile.name}</span>
                   </div>
                 )}
+                {logoPreviewUrl && (
+                  <img
+                    className={styles.logoPreview}
+                    src={logoPreviewUrl}
+                    alt="Logo preview"
+                  />
+                )}
                 {logoFileError && (
                   <div id="logoFile-error" role="alert" className={styles.errorText}>
                     {logoFileError}
@@ -523,7 +550,7 @@ export default function RegisterStartup() {
                 <input
                   type="file"
                   name="pitchDeckFile"
-                  accept="application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                  accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
                   disabled={isSubmitting}
                   className={controlClass('pitchDeckFile')}
                   aria-invalid={Boolean(pitchDeckFileError)}
@@ -577,6 +604,13 @@ export default function RegisterStartup() {
               <button type="submit" className={styles.button} disabled={isSubmitting}>
                 {isSubmitting ? 'Registering...' : 'Register'}
               </button>
+
+              {isSubmitting && uploadProgress > 0 && (
+                <div className={styles.progressRow}>
+                  <progress className={styles.progress} value={uploadProgress} max={100} />
+                  <span className={styles.progressText}>{uploadProgress}%</span>
+                </div>
+              )}
             </div>
           </form>
         </div>
