@@ -13,7 +13,6 @@ export default function Navbar() {
     const update = () => setIsAuthenticated(hasToken())
 
     window.addEventListener('auth:changed', update)
-
     window.addEventListener('storage', update)
 
     return () => {
@@ -48,6 +47,7 @@ export default function Navbar() {
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/messages">Messages</Link>
           <Link to="/startups/1">Startup</Link>
+          <Link to="/startup/profile">Startup profile</Link>
 
           <button
             onClick={handleLogout}
