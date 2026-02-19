@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     'axes',
     'drf_spectacular',
     'uploads',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 
