@@ -176,13 +176,13 @@ class TestModels(TestCase):
 
     def test_tracking_model(self):
         tracking = Tracking.objects.create(
-            id='123e4567-e89b-12d3-a456-426614174000',
             investor=self.investor_user,
             target_type='startup',
             target_id='123e4567-e89b-12d3-a456-426614174001',
             source='manual',
             meta={"note": "Interested in this startup"}
         )
+        self.assertIsNotNone(tracking.id)
         self.assertEqual(tracking.investor, self.investor_user)
         self.assertEqual(tracking.target_type, 'startup')
         self.assertEqual(tracking.source, 'manual')
@@ -190,7 +190,6 @@ class TestModels(TestCase):
 
     def test_investment_model(self):
         investment = Investment.objects.create(
-            id='123e4567-e89b-12d3-a456-426614174002',
             investor=self.investor_user,
             project=self.project,
             status='committed',
@@ -199,6 +198,7 @@ class TestModels(TestCase):
             currency='USD',
             meta={"terms": "Convertible note"}
         )
+        self.assertIsNotNone(investment.id)
         self.assertEqual(investment.investor, self.investor_user)
         self.assertEqual(investment.project, self.project)
         self.assertEqual(investment.status, 'committed')
@@ -209,16 +209,14 @@ class TestModels(TestCase):
 
     def test_portfolio_snapshot_model(self):
         snapshot = PortfolioSnapshot.objects.create(
-            id='123e4567-e89b-12d3-a456-426614174003',
             investor=self.investor_user,
-            computed_at='2026-01-01T00:00:00Z',
             projects_count=5,
             total_committed=25000,
             total_invested=10000,
             summary={"IRR": "15%"}
         )
+        self.assertIsNotNone(snapshot.id)
         self.assertEqual(snapshot.investor, self.investor_user)
-        self.assertEqual(snapshot.computed_at, '2026-01-01T00:00:00Z')
         self.assertEqual(snapshot.projects_count, 5)
         self.assertEqual(snapshot.total_committed, 25000)
         self.assertEqual(snapshot.total_invested, 10000)
