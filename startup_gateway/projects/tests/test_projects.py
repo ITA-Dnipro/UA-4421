@@ -96,9 +96,6 @@ class TestProjectAPI:
         }
 
         response = api_client.post(url, data, format="json")
-        
-        if response.status_code != 201:
-            print(f"\nErrors: {response.data}")
             
         assert response.status_code == 201
         assert project.attachments.count() == 1

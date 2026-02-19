@@ -157,7 +157,7 @@ class ProjectStateServiceView(APIView):
 
     @extend_schema(
         request=ProjectStateSerializer,
-        responses={201: ProjectDetailsSerializer},
+        responses={200: ProjectDetailsSerializer},
         tags=['projects']
     )
 
@@ -251,7 +251,7 @@ class ProjectModerateView(APIView):
 
     @extend_schema(
         request=ModerationActionSerializer,
-        responses={201: AdminProjectListSerializer},
+        responses={200: AdminProjectListSerializer},
     )
 
     def patch(self, request, id):
@@ -313,7 +313,7 @@ class ProjectRevertView(APIView):
     permission_classes = [CanModifyProject]
     @extend_schema(
         request=None,
-        responses={201: ProjectDetailsSerializer},
+        responses={200: ProjectDetailsSerializer},
         tags=['projects']
     )
     @transaction.atomic
