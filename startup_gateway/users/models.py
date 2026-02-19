@@ -129,6 +129,11 @@ class PasswordResetConfirmation(models.Model):
     ip_address = models.GenericIPAddressField(
         help_text="IP address where password reset was attempted"
     )
+    user_agent = models.TextField(
+        blank=True,
+        null=True,
+        help_text="User-Agent header"
+    )
     success = models.BooleanField(
         default=True,
         help_text="Whether password reset was successful"
