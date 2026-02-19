@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       proxy: {
         '/api': { target },
+        '/media': { target },
       },
     },
   }

@@ -6,7 +6,7 @@ from django.db import models
 
 def upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lstrip(".")
-    return f"static/uploads/{timezone.now():%Y/%m}/{uuid.uuid4()}.{ext}"
+    return f"uploads/{timezone.now():%Y/%m}/{uuid.uuid4()}.{ext}"
 
 
 class Upload(models.Model):
