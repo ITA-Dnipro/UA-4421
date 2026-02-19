@@ -79,6 +79,7 @@ class TestProjectAPI:
         fake_file = SimpleUploadedFile("test.img", file_content, content_type="image")
         
         upload_obj = Upload.objects.create(
+            user=user,
             file=fake_file,
             type="img",
             size=len(file_content),
