@@ -14,6 +14,7 @@ import InvestorDashboard from './pages/InvestorDashboard'
 import SavedPage from './pages/SavedPage'
 import Inbox from './pages/Inbox'
 import NotFound from './pages/NotFound'
+import ResetPassword from './pages/ResetPassword'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/register/startup" element={<RegisterStartup />} />
         <Route path="/register/investor" element={<RegisterInvestor />} />

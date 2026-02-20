@@ -1,5 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import styles from './RegisterInvestor.module.css'
+import { isEmail } from '../utils/validation'
+
 
 type InvestorType = 'individual' | 'fund'
 
@@ -45,10 +47,6 @@ type UiState = 'idle' | 'submitting' | 'success'
 
 function isBlank(value: string) {
   return value.trim().length === 0
-}
-
-function isEmail(value: string) {
-  return /^\S+@\S+\.\S+$/.test(value.trim())
 }
 
 function isNonNegativeNumber(value: string) {

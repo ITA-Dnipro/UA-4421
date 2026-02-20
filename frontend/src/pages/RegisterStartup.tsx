@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import styles from './RegisterStartup.module.css'
+import { isEmail } from '../utils/validation'
 
 type UiState = 'idle' | 'submitting' | 'success'
 
@@ -35,9 +36,6 @@ function isBlank(value: string) {
   return !value.trim()
 }
 
-function isEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
-}
 
 function isValidHttpUrl(value: string) {
   try {
