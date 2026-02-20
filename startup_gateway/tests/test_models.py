@@ -125,12 +125,14 @@ class TestModels(TestCase):
             content_type="application/pdf"
         )
         upload_image = Upload.objects.create(
+            user=self.startup_user,
             file=image,
             type="image/jpeg",
             size=image.size,
             content_type="image/jpeg"
         )
         upload_file = Upload.objects.create(
+            user=self.startup_user,
             file=file,
             type="application/pdf",
             size=file.size,

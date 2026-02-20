@@ -70,4 +70,3 @@ class StartupPublishAPIView(APIView):
 
         serializer = StartupPublishSerializer(updated_profile)
         return Response(serializer.data, status=200)
-
