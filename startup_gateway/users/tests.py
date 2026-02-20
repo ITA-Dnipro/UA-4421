@@ -21,8 +21,40 @@ from users.models import PasswordResetAttempt, Role, PasswordResetConfirmation
 from users.tokens import password_reset_token_generator
 from users.email_service import PasswordResetEmailService
 from users import tokens
+from users.authentication import VersionedJWTAuthentication
 
 User = get_user_model()
+
+class TestJWTVersionInvalidation(APITestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="alice",
+            email="alice@example.com",
+            password="OldPass123!",
+            is_active=True,
+        )
+
+    def test_jwt_invalid_after_password_change(self):
+        
+        token = AccessToken.for_user(self.user)
+
+        
+        auth = VersionedJWTAuthentication()
+        user_from_token = auth.get_user(token)
+        self.assertEqual(user_from_token, self.user)
+
+        
+        self.user.set_password("NewPass123!")
+        self.user.jwt_version += 1  
+        self.user.save()
+
+        
+        with self.assertRaisesMessage(
+            Exception, "Your session has been invalidated"
+        ):
+            auth.get_user(token)
+
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -1008,7 +1040,7 @@ class TestPasswordResetConfirm(APITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.data['detail'], "Invalid or expired password reset link.")
 
-    def test_weak_password_returns_400(self):
+    def test_weak_password_returns_422(self):
         from django.utils.http import urlsafe_base64_encode
         from django.utils.encoding import force_bytes
 
@@ -1023,10 +1055,10 @@ class TestPasswordResetConfirm(APITestCase):
 
         resp = self.client.post(self.url, payload, format="json")
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 422)
         self.assertIn('password', resp.data)
 
-    def test_missing_fields_returns_400(self):
+    def test_missing_fields_returns_422(self):
         resp = self.client.post(self.url, {
             "uid": "MQ",
             "password": "NewP@ssw0rd123"
@@ -1043,7 +1075,7 @@ class TestPasswordResetConfirm(APITestCase):
             "uid": "MQ",
             "token": "abc123"
         }, format="json")
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 422)
 
     def test_token_for_different_user_fails(self):
         user2 = User.objects.create_user(
@@ -1266,7 +1298,7 @@ class TestPasswordResetConfirmAuditLogging(APITestCase):
             REMOTE_ADDR='192.168.1.102'
         )
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 422)
 
         confirmation = PasswordResetConfirmation.objects.filter(
             user=self.user,
@@ -1401,7 +1433,7 @@ class TestPasswordResetSecurityMessages(APITestCase):
 
         resp = self.client.post(self.url, payload, format="json")
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 422)
         self.assertIn('password', resp.data)
         self.assertNotIn('detail', resp.data)
 

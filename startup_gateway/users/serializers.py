@@ -218,7 +218,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         attrs['user'] = user
         return attrs
 
-    def save(self, ip_address=None):
+    def save(self, ip_address=None , user_agent=None):
         user = self.validated_data['user']
         password = self.validated_data['password']
 
@@ -233,6 +233,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
                 PasswordResetConfirmation.objects.create(
                     user=user,
                     ip_address=ip_address,
+                    user_agent=user_agent,
                     success=True,
                     failure_reason=None
                 )
