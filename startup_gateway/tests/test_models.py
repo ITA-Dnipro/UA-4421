@@ -9,6 +9,7 @@ from notifications.models import Notification
 from users.models import Role, UserRole
 from django.core.files.uploadedfile import SimpleUploadedFile
 from uploads.models import Upload
+from investors.models import Tracking, Investment, PortfolioSnapshot
 
 User = get_user_model()
 
@@ -174,3 +175,51 @@ class TestModels(TestCase):
         self.assertEqual(audit.user, self.startup_user)
         self.assertEqual(audit.changes, changes)
         self.assertIsNotNone(audit.created_at)
+
+    def test_tracking_model(self):
+        tracking = Tracking.objects.create(
+            investor=self.investor_user,
+            target_type='startup',
+            target_id='123e4567-e89b-12d3-a456-426614174001',
+            source='manual',
+            meta={"note": "Interested in this startup"}
+        )
+        self.assertIsNotNone(tracking.id)
+        self.assertEqual(tracking.investor, self.investor_user)
+        self.assertEqual(tracking.target_type, 'startup')
+        self.assertEqual(tracking.source, 'manual')
+        self.assertEqual(tracking.meta, {"note": "Interested in this startup"})
+
+    def test_investment_model(self):
+        investment = Investment.objects.create(
+            investor=self.investor_user,
+            project=self.project,
+            status='committed',
+            amount_committed=5000,
+            amount_invested=0,
+            currency='USD',
+            meta={"terms": "Convertible note"}
+        )
+        self.assertIsNotNone(investment.id)
+        self.assertEqual(investment.investor, self.investor_user)
+        self.assertEqual(investment.project, self.project)
+        self.assertEqual(investment.status, 'committed')
+        self.assertEqual(investment.amount_committed, 5000)
+        self.assertEqual(investment.amount_invested, 0)
+        self.assertEqual(investment.currency, 'USD')
+        self.assertEqual(investment.meta, {"terms": "Convertible note"})
+
+    def test_portfolio_snapshot_model(self):
+        snapshot = PortfolioSnapshot.objects.create(
+            investor=self.investor_user,
+            projects_count=5,
+            total_committed=25000,
+            total_invested=10000,
+            summary={"IRR": "15%"}
+        )
+        self.assertIsNotNone(snapshot.id)
+        self.assertEqual(snapshot.investor, self.investor_user)
+        self.assertEqual(snapshot.projects_count, 5)
+        self.assertEqual(snapshot.total_committed, 25000)
+        self.assertEqual(snapshot.total_invested, 10000)
+        self.assertEqual(snapshot.summary, {"IRR": "15%"})
