@@ -41,7 +41,7 @@ if not SECRET_KEY:
         )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 ALLOWED_HOSTS = [
     h.strip()
@@ -114,7 +114,12 @@ ASGI_APPLICATION = 'startup_gateway.asgi.application'
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {'hosts': [('redis', 6379)]},
+        'CONFIG': {
+            'hosts': [(
+                os.getenv('REDIS_HOST', 'redis'),
+                int(os.getenv('REDIS_PORT', 6379))
+            )]
+        },
     },
 }
 

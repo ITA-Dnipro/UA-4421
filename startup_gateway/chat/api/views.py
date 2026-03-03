@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from chat.permissions import IsInvestor
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -45,6 +46,11 @@ def get_conversation_or_404(conversation_id, user_id):
 class ConversationAPIView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), IsInvestor()]
+        return [IsAuthenticated()]
 
     def get_throttle_scope(self):
         return "chat_list" if self.request.method == "GET" else "chat_create"
