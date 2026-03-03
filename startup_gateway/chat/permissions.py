@@ -14,7 +14,7 @@ class IsInvestor(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        return request.user.roles.filter(name='investor').exists()
+        return request.user.roles.filter(name__iexact='investor').exists()
 
 
 class IsParticipant(permissions.BasePermission):

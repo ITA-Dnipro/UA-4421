@@ -1,10 +1,14 @@
 """JWT authentication middleware for WebSocket connections."""
+import logging
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
 from django.contrib.auth.models import AnonymousUser
 from urllib.parse import parse_qs
-import jwt
 from django.conf import settings
+from rest_framework_simplejwt.backends import TokenBackend
+from rest_framework_simplejwt.exceptions import TokenBackendError
+
+logger = logging.getLogger(__name__)
 
 
 class JWTAuthMiddleware(BaseMiddleware):
@@ -29,8 +33,11 @@ class JWTAuthMiddleware(BaseMiddleware):
         try:
             from users.models import User
 
-            algorithm = settings.SIMPLE_JWT.get('ALGORITHM', 'HS256')
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[algorithm])
+            token_backend = TokenBackend(
+                algorithm=settings.SIMPLE_JWT.get('ALGORITHM', 'HS256'),
+                signing_key=settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY),
+            )
+            payload = token_backend.decode(token)
 
             user_id = payload.get('user_id')
             token_version = payload.get('jwt_version', 0)
@@ -42,11 +49,10 @@ class JWTAuthMiddleware(BaseMiddleware):
 
             return user
 
-        except jwt.ExpiredSignatureError:
-            return AnonymousUser()
-        except jwt.InvalidTokenError:
+        except TokenBackendError:
             return AnonymousUser()
         except Exception:
+            logger.exception("Unexpected error during WebSocket authentication")
             return AnonymousUser()
 
 

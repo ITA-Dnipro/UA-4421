@@ -1,13 +1,18 @@
 """WebSocket consumer for real-time chat."""
 import json
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from chat.mongo_service import get_chat_service
+
+logger = logging.getLogger(__name__)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        self.joined_conversations = set()
+        self.chat = get_chat_service()
         self.user = self.scope.get('user')
 
         if not self.user or not self.user.is_authenticated:
@@ -15,8 +20,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         await self.accept()
-        self.joined_conversations = set()
-        self.chat = get_chat_service()
 
     async def disconnect(self, close_code):
         for conversation_id in list(self.joined_conversations):
@@ -44,8 +47,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.handle_ack(data)
             else:
                 await self.send_error(f'Unknown type: {message_type}')
-        except Exception as e:
-            await self.send_error(str(e))
+        except Exception:
+            logger.exception("Error processing WebSocket message")
+            await self.send_error('Internal server error')
 
     async def handle_join(self, data):
         conversation_id = data.get('conversation_id')
@@ -126,13 +130,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 }
             )
-        except Exception as e:
-            await self.send_error(str(e))
+        except Exception:
+            logger.exception("Error sending message")
+            await self.send_error('Internal server error')
 
     async def handle_typing(self, data):
         conversation_id = data.get('conversation_id')
         if not conversation_id:
             await self.send_error('conversation_id required')
+            return
+
+        is_participant = await database_sync_to_async(self.chat.is_participant)(
+            conversation_id=conversation_id,
+            user_id=self.user.id
+        )
+        if not is_participant:
+            await self.send_error('You are not a participant in this conversation')
             return
 
         await self.channel_layer.group_send(
@@ -173,8 +186,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'count': count,
                 }
             )
-        except Exception as e:
-            await self.send_error(str(e))
+        except Exception:
+            logger.exception("Error marking messages as read")
+            await self.send_error('Internal server error')
 
     async def handle_ack(self, data):
         """Handle message acknowledgement (delivered status)."""
@@ -208,8 +222,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'conversation_id': conversation_id,
                     }
                 )
-        except Exception as e:
-            await self.send_error(str(e))
+        except Exception:
+            logger.exception("Error acknowledging message delivery")
+            await self.send_error('Internal server error')
 
     async def message_received(self, event):
         await self.send(text_data=json.dumps({

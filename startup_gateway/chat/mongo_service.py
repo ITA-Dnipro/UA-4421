@@ -78,11 +78,18 @@ class ChatService:
             for att in attachments:
                 attachment_objects.append(Attachment(**att))
         
+        delivery_status = {
+            str(p): {'status': MessageStatus.SENT}
+            for p in conversation['participants']
+            if p != sender_id
+        }
+
         message = Message(
             conversation_id=conversation_id,
             sender_id=sender_id,
             body=body,
             attachments=attachment_objects,
+            delivery_status=delivery_status,
             meta=meta or {}
         )
         
@@ -178,21 +185,36 @@ class ChatService:
         conversation_id: str,
         user_id: int
     ) -> int:
-        result = self.messages.update_many(
-            {
-                'conversation_id': conversation_id,
-                'sender_id': {'$ne': user_id},
-                'status': {'$ne': MessageStatus.READ}
-            },
-            {
-                '$set': {
-                    'status': MessageStatus.READ,
-                    'read_at': datetime.utcnow().isoformat()
-                }
-            }
-        )
-        
-        return result.modified_count
+        user_key = str(user_id)
+        now = datetime.utcnow().isoformat()
+
+        cursor = self.messages.find({
+            'conversation_id': conversation_id,
+            'sender_id': {'$ne': user_id},
+            f'delivery_status.{user_key}.status': {'$ne': MessageStatus.READ},
+        })
+
+        count = 0
+        for msg in cursor:
+            self.messages.update_one(
+                {'_id': msg['_id']},
+                {'$set': {
+                    f'delivery_status.{user_key}.status': MessageStatus.READ,
+                    f'delivery_status.{user_key}.read_at': now,
+                }}
+            )
+            updated = self.messages.find_one({'_id': msg['_id']})
+            global_status = self._compute_global_status(updated)
+            update_fields = {'status': global_status}
+            if global_status == MessageStatus.READ:
+                update_fields['read_at'] = now
+            self.messages.update_one(
+                {'_id': msg['_id']},
+                {'$set': update_fields}
+            )
+            count += 1
+
+        return count
     
     def mark_message_delivered(
         self,
@@ -203,53 +225,77 @@ class ChatService:
             msg_object_id = ObjectId(message_id)
         except Exception:
             return None
-        
+
         message = self.messages.find_one({'_id': msg_object_id})
-        
+
         if not message:
             return None
-        
+
         if message.get('sender_id') == user_id:
             return None
-        
-        if message.get('status') != MessageStatus.SENT:
+
+        conversation_id = message.get('conversation_id')
+        if not self.is_participant(conversation_id, user_id):
             return None
-        
-        result = self.messages.update_one(
-            {
-                '_id': msg_object_id,
-                'status': MessageStatus.SENT
-            },
-            {
-                '$set': {
-                    'status': MessageStatus.DELIVERED,
-                    'delivered_at': datetime.utcnow().isoformat()
-                }
-            }
+
+        user_key = str(user_id)
+        recipient_status = message.get('delivery_status', {}).get(user_key, {})
+        if recipient_status.get('status') in (MessageStatus.DELIVERED, MessageStatus.READ):
+            return None
+
+        now = datetime.utcnow().isoformat()
+        self.messages.update_one(
+            {'_id': msg_object_id},
+            {'$set': {
+                f'delivery_status.{user_key}.status': MessageStatus.DELIVERED,
+                f'delivery_status.{user_key}.delivered_at': now,
+            }}
         )
-        
-        if result.modified_count > 0:
-            updated = self.messages.find_one({'_id': msg_object_id})
-            return {
-                '_id': str(updated['_id']),
-                'conversation_id': updated.get('conversation_id'),
-                'status': updated.get('status'),
-                'delivered_at': updated.get('delivered_at')
-            }
-        
-        return None
+
+        updated = self.messages.find_one({'_id': msg_object_id})
+        global_status = self._compute_global_status(updated)
+        update_fields = {'status': global_status}
+        if global_status in (MessageStatus.DELIVERED, MessageStatus.READ):
+            update_fields['delivered_at'] = now
+        self.messages.update_one(
+            {'_id': msg_object_id},
+            {'$set': update_fields}
+        )
+
+        return {
+            '_id': str(updated['_id']),
+            'conversation_id': updated.get('conversation_id'),
+            'status': global_status,
+            'delivered_at': now,
+        }
     
+    @staticmethod
+    def _compute_global_status(message: Dict[str, Any]) -> str:
+        """Compute the global message status from per-recipient delivery_status."""
+        statuses = [
+            v.get('status', MessageStatus.SENT)
+            for v in message.get('delivery_status', {}).values()
+        ]
+        if not statuses:
+            return message.get('status', MessageStatus.SENT)
+        if all(s == MessageStatus.READ for s in statuses):
+            return MessageStatus.READ
+        if all(s in (MessageStatus.DELIVERED, MessageStatus.READ) for s in statuses):
+            return MessageStatus.DELIVERED
+        return MessageStatus.SENT
+
     def get_unread_count(
         self,
         conversation_id: str,
         user_id: int
     ) -> int:
+        user_key = str(user_id)
         count = self.messages.count_documents({
             'conversation_id': conversation_id,
             'sender_id': {'$ne': user_id},
-            'status': {'$ne': MessageStatus.READ}
+            f'delivery_status.{user_key}.status': {'$ne': MessageStatus.READ},
         })
-        
+
         return count
 
     def is_participant(

@@ -133,6 +133,8 @@ class ConversationCreateAPITest(TestCase):
             email='startup1@test.com',
             password='pass123'
         )
+        startup_role, _ = Role.objects.get_or_create(name='startup')
+        self.startup.roles.add(startup_role)
 
         self.chat_service = get_chat_service()
 

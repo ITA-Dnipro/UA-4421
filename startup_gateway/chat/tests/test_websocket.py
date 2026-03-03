@@ -294,7 +294,7 @@ class ChatConsumerTest(TestCase):
 
         await asyncio.sleep(0.2)
 
-        msg1 = await comm1.receive_json_from(timeout=5)
+        await comm1.receive_json_from(timeout=5)
         msg2 = await comm2.receive_json_from(timeout=5)
 
         message_id = msg2['message']['message_id']
