@@ -251,4 +251,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         token['jwt_version'] = user.jwt_version
 
+        role = getattr(user, 'role', None)
+        if role is None:
+            role = user.groups.first().name if user.groups.exists() else 'user'
+        token['role'] = role
+
         return token

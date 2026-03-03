@@ -36,19 +36,6 @@ class ChatService:
         startup_id: Optional[str] = None,
         meta: Optional[Dict[str, Any]] = None
     ) -> str:
-        """
-        Create a new conversation.
-        
-        Args:
-            participants: List of user IDs
-            project_id: Optional project UUID (string or UUID object)
-            startup_id: Optional startup UUID (string or UUID object)
-            meta: Optional metadata
-            
-        Returns:
-            str: Conversation UUID (conversation_id field)
-        """
-
         if project_id is not None and not isinstance(project_id, str):
             project_id = str(project_id)
         if startup_id is not None and not isinstance(startup_id, str):
@@ -72,26 +59,6 @@ class ChatService:
         attachments: Optional[List[Dict[str, Any]]] = None,
         meta: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Create a message and persist to MongoDB.
-        
-        Creates conversation if it doesn't exist on first message.
-        Validates that sender is a participant.
-        Updates conversation.last_message_at.
-        
-        Args:
-            conversation_id: Conversation UUID string
-            sender_id: User ID of sender
-            body: Message text
-            attachments: Optional list of attachments [{upload_id, url, type, ...}]
-            meta: Optional metadata
-            
-        Returns:
-            Dict: Created message document
-            
-        Raises:
-            ValueError: If sender is not a participant in the conversation
-        """
         conversation = self.conversations.find_one({'conversation_id': conversation_id})
         
         if not conversation:
@@ -136,24 +103,6 @@ class ChatService:
         page: int = 1,
         page_size: int = 50
     ) -> Optional[Dict[str, Any]]:
-        """
-        Get conversation with paginated messages.
-        
-        Args:
-            conversation_id: Conversation UUID string
-            page: Page number (1-indexed)
-            page_size: Number of messages per page
-            
-        Returns:
-            Dict or None: {
-                'conversation': {...},
-                'messages': [...],
-                'has_next': bool,
-                'page': int,
-                'page_size': int,
-                'total': int
-            }
-        """
         try:
             conversation = self.conversations.find_one({'conversation_id': conversation_id})
             if not conversation:
@@ -196,26 +145,6 @@ class ChatService:
         page: int = 1,
         page_size: int = 20
     ) -> List[Dict[str, Any]]:
-        """
-        List conversations for a user with metadata.
-        
-        Returns conversations with:
-        - Last message
-        - Unread count
-        - Pagination
-        
-        Args:
-            user_id: User ID
-            page: Page number (1-indexed)
-            page_size: Number of conversations per page
-            
-        Returns:
-            List[Dict]: [{
-                'conversation': {...},
-                'last_message': {...} or None,
-                'unread_count': int
-            }, ...]
-        """
         skip = (page - 1) * page_size
         
         cursor = self.conversations.find({'participants': user_id})\
@@ -249,16 +178,6 @@ class ChatService:
         conversation_id: str,
         user_id: int
     ) -> int:
-        """
-        Mark all unread messages in a conversation as read for a user.
-        
-        Args:
-            conversation_id: Conversation UUID string
-            user_id: User ID marking messages as read
-            
-        Returns:
-            int: Number of messages marked as read
-        """
         result = self.messages.update_many(
             {
                 'conversation_id': conversation_id,
@@ -280,19 +199,9 @@ class ChatService:
         message_id: str,
         user_id: int
     ) -> Optional[Dict[str, Any]]:
-        """
-        Mark a message as delivered when recipient acknowledges receipt.
-        
-        Args:
-            message_id: MongoDB ObjectId as string
-            user_id: ID of user who received the message
-            
-        Returns:
-            Updated message dict with conversation_id, or None
-        """
         try:
             msg_object_id = ObjectId(message_id)
-        except:
+        except Exception:
             return None
         
         message = self.messages.find_one({'_id': msg_object_id})
@@ -335,16 +244,6 @@ class ChatService:
         conversation_id: str,
         user_id: int
     ) -> int:
-        """
-        Get count of unread messages for a user in a conversation.
-        
-        Args:
-            conversation_id: Conversation UUID string
-            user_id: User ID
-            
-        Returns:
-            int: Number of unread messages
-        """
         count = self.messages.count_documents({
             'conversation_id': conversation_id,
             'sender_id': {'$ne': user_id},
@@ -352,6 +251,55 @@ class ChatService:
         })
         
         return count
+
+    def is_participant(
+        self,
+        conversation_id: str,
+        user_id: int
+    ) -> bool:
+        """
+        Check if user is a participant in the conversation.
+
+        Args:
+            conversation_id: Conversation UUID string
+            user_id: User ID to check
+
+        Returns:
+            bool: True if user is a participant, False otherwise
+        """
+        conversation = self.conversations.find_one(
+            {'conversation_id': conversation_id},
+            {'participants': 1}
+        )
+        if not conversation:
+            return False
+        return user_id in conversation.get('participants', [])
+
+    def is_message_participant(
+        self,
+        message_id: str,
+        user_id: int
+    ) -> bool:
+        """
+        Check if user is a participant in the conversation of a given message.
+
+        Args:
+            message_id: MongoDB ObjectId as string
+            user_id: User ID to check
+
+        Returns:
+            bool: True if user is a participant, False otherwise
+        """
+        try:
+            msg = self.messages.find_one(
+                {'_id': ObjectId(message_id)},
+                {'conversation_id': 1}
+            )
+            if not msg:
+                return False
+            return self.is_participant(msg['conversation_id'], user_id)
+        except Exception:
+            return False
 
 
 _chat_service = None
