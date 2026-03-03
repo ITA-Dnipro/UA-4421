@@ -9,9 +9,12 @@ import Register from './pages/Register'
 import RegisterStartup from './pages/RegisterStartup'
 import RegisterInvestor from './pages/RegisterInvestor'
 import StartupView from './pages/StartupView'
+import StartupProfile from './pages/StartupProfile'
 import InvestorDashboard from './pages/InvestorDashboard'
+import SavedPage from './pages/SavedPage'
 import Inbox from './pages/Inbox'
 import NotFound from './pages/NotFound'
+import ResetPassword from './pages/ResetPassword'
 
 export default function App() {
   return (
@@ -21,6 +24,7 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/register/startup" element={<RegisterStartup />} />
         <Route path="/register/investor" element={<RegisterInvestor />} />
@@ -54,10 +58,28 @@ export default function App() {
         />
 
         <Route
+          path="/saved"
+          element={
+            <ProtectedRoute>
+              <SavedPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/startups/:id"
           element={
             <ProtectedRoute>
               <StartupView />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/startup/profile"
+          element={
+            <ProtectedRoute>
+              <StartupProfile />
             </ProtectedRoute>
           }
         />

@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.throttling import AnonRateThrottle
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
+
 import logging
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
@@ -28,6 +30,7 @@ def get_client_ip(request):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -201,61 +204,68 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = 'password_reset_confirm'
 
+    @transaction.atomic
     def post(self, request):
-
         serializer = PasswordResetConfirmSerializer(data=request.data)
         ip_address = get_client_ip(request)
-
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
         user_for_logging = None
-        internal_error_type = None
-
-        if 'uid' in request.data:
+        
+        # Try to decode uid for logging purposes
+        uid_raw = request.data.get("uid")
+        if uid_raw:
             try:
                 from django.utils.http import urlsafe_base64_decode
                 from django.utils.encoding import force_str
-                uid = force_str(urlsafe_base64_decode(request.data['uid']))
+                uid = force_str(urlsafe_base64_decode(uid_raw))
                 user_for_logging = User.objects.filter(pk=uid).first()
             except Exception:
-                internal_error_type = 'invalid_uid_format'
+                user_for_logging = None
 
+        # Validate the serializer
         if not serializer.is_valid():
-            if internal_error_type is None:
-                internal_error_type = self._categorize_error_internal(
-                    serializer.errors,
-                    user_for_logging
-                )
-
+            failure_reason = self._categorize_error_internal(serializer.errors, user_for_logging)
             try:
                 PasswordResetConfirmation.objects.create(
                     user=user_for_logging,
                     ip_address=ip_address,
+                    user_agent=user_agent,
                     success=False,
-                    failure_reason=internal_error_type
-                )
-                logger.warning(
-                    f"Password reset failed from IP {ip_address}: {internal_error_type} "
-                    f"(user_id={user_for_logging.id if user_for_logging else 'unknown'})"
+                    failure_reason=failure_reason,
                 )
             except Exception as e:
                 logger.error(f"Failed to log password reset failure: {e}")
 
-            if 'password' in serializer.errors:
-                return Response(
-                    serializer.errors,
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            else:
+            # Password validation errors return 422 with specific error details
+            if "password" in serializer.errors:
+                # Check if it's a required field error vs validation error
+                password_errors = serializer.errors["password"]
+                has_required = any('required' in str(err).lower() for err in password_errors)
+                if has_required:
+                    # Missing password returns 422 (validation error)
+                    return Response(serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+                # Weak password returns 422 with details
+                return Response(serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+            # Missing token or uid returns 400 (generic security error)
+            if "token" in serializer.errors or "uid" in serializer.errors:
                 return Response(
                     {"detail": "Invalid or expired password reset link."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Non-field errors (validation failures) return 400 with generic message
+            if "non_field_errors" in serializer.errors:
+                return Response(
+                    {"detail": "Invalid or expired password reset link."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Default: return errors with 422
+            return Response(serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
         try:
-            user = serializer.save(ip_address=ip_address)
-            logger.info(
-                f"Password reset successful for user {user.id} ({user.email}) "
-                f"from IP {ip_address}"
-            )
+            user = serializer.save(ip_address=ip_address, user_agent=user_agent)
         except Exception as e:
             logger.error(f"Failed to complete password reset transaction: {e}")
             return Response(
@@ -272,12 +282,22 @@ class PasswordResetConfirmView(APIView):
         if 'password' in errors:
             return 'weak_password'
 
-        error_str = str(errors).lower()
+        # Check for required field errors
+        if 'uid' in errors or 'token' in errors:
+            uid_errors = errors.get('uid', [])
+            token_errors = errors.get('token', [])
+            
+            # Check if these are "required" field errors
+            has_uid_required = any('required' in str(err).lower() for err in uid_errors)
+            has_token_required = any('required' in str(err).lower() for err in token_errors)
+            
+            if has_uid_required or has_token_required:
+                return 'missing_required_fields'
 
-        if 'invalid or expired' in error_str:
-            if user is None:
-                return 'invalid_uid_or_user'
-            else:
-                return 'invalid_token'
+        # Check for non-field validation errors
+        if 'non_field_errors' in errors:
+            error_str = str(errors['non_field_errors']).lower()
+            if 'invalid or expired' in error_str:
+                return 'invalid_token' if user else 'invalid_uid_format'
 
         return 'validation_error'

@@ -1,0 +1,160 @@
+.page {
+  min-height: calc(100vh - 80px);
+  flex: 1;
+  width: auto; 
+  padding: 32px 40px;
+  background: #f3f4f6;
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box; 
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 28px;
+  margin-bottom: 24px;
+  color: #111827;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.tab {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.tabActive {
+  background: #111827;
+  color: white;
+  border-color: #111827;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 280px));
+  justify-content: center;
+  gap: 24px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+}
+
+.card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.cardTitle {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.cardDescription {
+  font-size: 14px;
+  color: #4b5563;
+  margin-bottom: 12px;
+}
+
+.tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto; 
+}
+
+.tag {
+  background: #111827;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.loadMore {
+  margin: 32px auto 0;
+  display: block;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stateBox {
+  margin-top: 40px;
+  text-align: center;
+  font-size: 16px;
+  color: #6b7280;
+}
+
+@keyframes shimmer {
+  0% { background-color: #f3f4f6; }
+  50% { background-color: #e5e7eb; }
+  100% { background-color: #f3f4f6; }
+}
+
+.skeleton {
+  animation: shimmer 1.5s infinite ease-in-out;
+  border-radius: 4px;
+}
+
+.skeletonTitle {
+  width: 60%;
+  height: 24px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+}
+
+.skeletonText {
+  width: 100%;
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeletonTag {
+  width: 50px;
+  height: 24px;
+  border-radius: 20px;
+}
+
+.emptyCard {
+  background: white;
+  border: 1px dashed #d1d5db;
+  border-radius: 16px;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+  margin-top: 20px;
+}
+
+.emptyCard h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.emptyCard p {
+  font-size: 14px;
+}

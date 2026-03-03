@@ -121,6 +121,8 @@ jobs:
           MONGO_HOST: localhost              
           MONGO_PORT: 27017                   
           MONGO_DB_NAME: startup_gateway_test 
+          MEILI_HOST: http://meilisearch:7700
+          MEILI_MASTER_KEY: masterKey
           REDIS_URL: redis://localhost:6379/0 
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DEBUG: "True"                       

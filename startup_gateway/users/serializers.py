@@ -15,11 +15,12 @@ from users.models import Role
 from django.db import transaction
 from django.db.models import F
 from .models import PasswordResetConfirmation
+from uploads.models import Upload
+from uploads.validators import validate_upload
 import logging
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -29,6 +30,9 @@ class RegisterSerializer(serializers.Serializer):
     short_pitch = serializers.CharField(required=False, allow_blank=True)
     website = serializers.URLField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True)
+    logo = serializers.FileField(required=False, allow_null=True, write_only=True)
+    pitch_deck = serializers.FileField(required=False, allow_null=True, write_only=True)
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -52,6 +56,40 @@ class RegisterSerializer(serializers.Serializer):
             if (attrs.get("website") or "").strip():
                 errors["website"] = "Not allowed for investor."
 
+        logo = attrs.get("logo")
+        pitch_deck = attrs.get("pitch_deck")
+
+        if role == "investor":
+            if logo is not None:
+                errors["logo"] = "Not allowed for investor."
+            if pitch_deck is not None:
+                errors["pitch_deck"] = "Not allowed for investor."
+
+        if role == "startup":
+            if logo is not None:
+                try:
+                    validate_upload(logo, purpose="logo")
+                except Exception as e:
+                    detail = getattr(e, "detail", None)
+                    if isinstance(detail, (list, tuple)) and detail:
+                        errors["logo"] = str(detail[0])
+                    elif detail is not None:
+                        errors["logo"] = str(detail)
+                    else:
+                        errors["logo"] = str(e)
+
+            if pitch_deck is not None:
+                try:
+                    validate_upload(pitch_deck, purpose="pitch_deck")
+                except Exception as e:
+                    detail = getattr(e, "detail", None)
+                    if isinstance(detail, (list, tuple)) and detail:
+                        errors["pitch_deck"] = str(detail[0])
+                    elif detail is not None:
+                        errors["pitch_deck"] = str(detail)
+                    else:
+                        errors["pitch_deck"] = str(e)
+
         if errors:
             raise serializers.ValidationError(errors)
 
@@ -67,6 +105,7 @@ class RegisterSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return register_user(validated_data, user_model=User)
+
 
 class VerifyEmailSerializer(serializers.Serializer):
     token = serializers.CharField()
@@ -179,7 +218,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         attrs['user'] = user
         return attrs
 
-    def save(self, ip_address=None):
+    def save(self, ip_address=None , user_agent=None):
         user = self.validated_data['user']
         password = self.validated_data['password']
 
@@ -194,6 +233,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
                 PasswordResetConfirmation.objects.create(
                     user=user,
                     ip_address=ip_address,
+                    user_agent=user_agent,
                     success=True,
                     failure_reason=None
                 )

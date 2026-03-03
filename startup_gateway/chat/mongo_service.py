@@ -41,13 +41,19 @@ class ChatService:
         
         Args:
             participants: List of user IDs
-            project_id: Optional project UUID
-            startup_id: Optional startup UUID
+            project_id: Optional project UUID (string or UUID object)
+            startup_id: Optional startup UUID (string or UUID object)
             meta: Optional metadata
             
         Returns:
             str: Conversation UUID (conversation_id field)
         """
+
+        if project_id is not None and not isinstance(project_id, str):
+            project_id = str(project_id)
+        if startup_id is not None and not isinstance(startup_id, str):
+            startup_id = str(startup_id)
+
         conversation = Conversation(
             participants=participants,
             project_id=project_id,
